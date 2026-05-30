@@ -8,6 +8,11 @@ import { CONTRACTS } from '../config/constants.js';
 import { AIPCORE_ABI } from '../config/abi.js';
 import toast from 'react-hot-toast';
 
+// ABI extension for treasury view helper
+const TREASURY_ABI = [
+  "function getPendingUpgradeRewards(uint256 nodeId) view returns (uint256)"
+];
+
 // Tier colour palette — T1 (lime) → T18 (red)
 const TIER_COLORS = [
   '#A3FF12','#B4FF3A','#FFD700','#FFC107','#FF9800',
@@ -49,6 +54,7 @@ export default function UpgradeScreen() {
 
   const [tierCosts, setTierCosts] = useState(new Array(18).fill('0.00'));
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingBnb, setPendingBnb] = useState('0');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -57,10 +63,17 @@ export default function UpgradeScreen() {
         const core = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, provider);
         const costsRaw = await core.getTierCosts().catch(() => null);
         if (costsRaw) setTierCosts(costsRaw.map(c => ethers.formatEther(c)));
+
+        // Fetch treasury locked rewards if user has a node
+        if (nodeId) {
+          const treasuryContract = new ethers.Contract(CONTRACTS.AIPCORE, TREASURY_ABI, provider);
+          const pending = await treasuryContract.getPendingUpgradeRewards(nodeId).catch(() => 0n);
+          setPendingBnb(ethers.formatEther(pending));
+        }
       } catch (err) { console.error(err); }
     };
     fetchData();
-  }, []);
+  }, [nodeId]);
 
   const handleRegister = async () => {
     setIsLoading(true);
@@ -206,6 +219,36 @@ export default function UpgradeScreen() {
               </div>
             </div>
           </motion.div>
+
+          {/* ── Treasury Pending Rewards Banner ── */}
+          {parseFloat(pendingBnb) > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+              animate={{ boxShadow: ['0 0 20px #FFD70040', '0 0 40px #FFD70080', '0 0 20px #FFD70040'] }}
+              transition={{ duration: 2.5, repeat: Infinity }}
+              style={{
+                background: 'linear-gradient(135deg, rgba(255,215,0,0.12) 0%, rgba(255,152,0,0.08) 100%)',
+                border: '2px solid rgba(255,215,0,0.5)', borderRadius: 22, padding: '18px 20px', marginBottom: 20
+              }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ fontSize: 36 }}>🏦</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, fontWeight: 900, color: '#FFD700', letterSpacing: 2, marginBottom: 4 }}>TREASURY REWARDS WAITING FOR YOU</div>
+                  <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', lineHeight: 1.1 }}>
+                    {parseFloat(pendingBnb).toFixed(5)} <span style={{ fontSize: 13, color: '#FFD700' }}>BNB</span>
+                  </div>
+                  {bnbPrice > 0 && (
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#FFB74D', marginTop: 3 }}>
+                      ≈ ${(parseFloat(pendingBnb) * bnbPrice).toFixed(2)} USD locked in contract
+                    </div>
+                  )}
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginTop: 6, lineHeight: 1.5 }}>
+                    ⬆ Upgrade your tier to automatically receive these BNB rewards
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* ── NEXT UPGRADE featured card ── */}
           {nextTier && (

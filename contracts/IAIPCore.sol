@@ -183,6 +183,18 @@ interface IAIPCore {
     /// @notice Pending pull-payment balance for a wallet
     function pendingReward(address wallet) external view returns (uint);
 
+    /// @notice Returns the total missed rewards pending for a node until they upgrade
+    function getPendingUpgradeRewards(uint nodeId) external view returns (uint);
+
+    /// @notice Missed rewards by tier mapping exposure
+    function missedRewardsByTier(uint nodeId, uint tier) external view returns (uint);
+
+    /// @notice Total missed rewards currently locked in the contract
+    function totalMissedRewards() external view returns (uint);
+
+    /// @notice Total pending rewards (pull payments) globally in the contract
+    function totalPendingRewards() external view returns (uint);
+
     // ── INCOME / HISTORY QUERIES ───────────────────────────────────────────
 
     /// @notice Returns the most recent `length` reward events for a node (newest first)

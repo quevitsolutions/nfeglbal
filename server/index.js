@@ -2821,3 +2821,89 @@ app.get('/api/events/stream', (req, res) => {
     console.log(`[SSE] Client disconnected. Total: ${sseClients.size}`);
   });
 });
+
+// ── AUTO-UPGRADE SYSTEM ENDPOINTS ─────────────────────────────────────────────
+import { execSync, exec as execCb } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+import fs from 'fs';
+const execAsync = promisify(execCb);
+
+// Dynamically locate the .git root (walk up from server/ to project root)
+function findGitRoot(startDir) {
+  let dir = startDir;
+  for (let i = 0; i < 10; i++) {
+    if (fs.existsSync(path.join(dir, '.git'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return startDir; // fallback
+}
+const GIT_ROOT = findGitRoot(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')));
+const UPSTREAM = 'https://github.com/quevitsolutions/aipcorehub';
+
+// GET /api/admin/system/status — returns branch, commit hash, and message
+app.get('/api/admin/system/status', checkAdmin, async (req, res) => {
+  try {
+    const branch  = execSync('git rev-parse --abbrev-ref HEAD', { cwd: GIT_ROOT }).toString().trim();
+    const hash    = execSync('git rev-parse --short HEAD',      { cwd: GIT_ROOT }).toString().trim();
+    const message = execSync('git log -1 --pretty=%s',          { cwd: GIT_ROOT }).toString().trim();
+    const date    = execSync('git log -1 --pretty=%ci',         { cwd: GIT_ROOT }).toString().trim();
+
+    // Check if upstream has newer commits (non-blocking — fetch first)
+    let behindCount = 0;
+    try {
+      execSync(`git fetch ${UPSTREAM} main --quiet`, { cwd: GIT_ROOT, timeout: 15000 });
+      behindCount = parseInt(
+        execSync('git rev-list HEAD..FETCH_HEAD --count', { cwd: GIT_ROOT }).toString().trim()
+      ) || 0;
+    } catch { /* network unavailable — skip */ }
+
+    res.json({ branch, hash, message, date, behindCount, upstream: UPSTREAM });
+  } catch (err) {
+    console.error('[System Status]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/system/upgrade — pull from aipcorehub, optionally force-reset, npm install, restart
+app.post('/api/admin/system/upgrade', checkAdmin, async (req, res) => {
+  const { forceReset = false } = req.body || {};
+  const logs = [];
+  const run = async (cmd, label) => {
+    logs.push(`$ ${label || cmd}`);
+    try {
+      const { stdout, stderr } = await execAsync(cmd, { cwd: GIT_ROOT, timeout: 120000 });
+      if (stdout) logs.push(stdout.trim());
+      if (stderr) logs.push(stderr.trim());
+    } catch (e) {
+      logs.push(`ERROR: ${e.message}`);
+      throw e;
+    }
+  };
+
+  try {
+    // 1. Fetch latest from upstream (never push)
+    await run(`git fetch ${UPSTREAM} main`, 'Fetching from aipcorehub...');
+
+    // 2. Apply changes — force-reset discards local edits; standard merge keeps them
+    if (forceReset) {
+      await run('git reset --hard FETCH_HEAD', 'Force-resetting to upstream HEAD...');
+    } else {
+      await run('git merge FETCH_HEAD --no-edit', 'Merging upstream changes...');
+    }
+
+    // 3. Re-install dependencies in case package.json changed
+    await run('npm install --prefer-offline --no-audit --no-fund', 'Installing dependencies...');
+
+    logs.push('✅ Upgrade complete — restarting server...');
+    res.json({ success: true, logs });
+
+    // 4. Restart after flushing response (Docker restart:always or PM2 will spin it back up)
+    setTimeout(() => process.exit(0), 800);
+  } catch (err) {
+    console.error('[System Upgrade]', err.message);
+    res.status(500).json({ success: false, logs, error: err.message });
+  }
+});

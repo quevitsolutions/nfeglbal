@@ -157,6 +157,9 @@ contract AIPCore is ReentrancyGuard, IAIPCore {
     mapping(uint => mapping (uint => uint)) public nodeDayReward;
     // Pull-payment: failed transfers are credited here for the recipient to withdraw
     mapping(address => uint) public pendingReward;
+    mapping(uint => mapping(uint => uint)) public missedRewardsByTier; // nodeId -> tier -> amount
+    uint public totalMissedRewards;
+    uint public totalPendingRewards;
     address public owner;
 
     // All events are declared in INodeFlowEngine.sol and inherited via `is INodeFlowEngine`.
@@ -273,6 +276,7 @@ contract AIPCore is ReentrancyGuard, IAIPCore {
             if(!success) {
                 // Pull-payment fallback: credit recipient — no centralisation to feeReceiver
                 pendingReward[_to] += _amt;
+                totalPendingRewards += _amt;
                 emit RewardPending(_to, _amt);
             } else {
                 totalBNBDistributed += _amt; // track cumulative BNB flow for transparency
@@ -285,9 +289,17 @@ contract AIPCore is ReentrancyGuard, IAIPCore {
         uint amount = pendingReward[msg.sender];
         require(amount > 0, "Nothing");
         pendingReward[msg.sender] = 0; // zero before transfer (re-entrancy safe)
+        totalPendingRewards -= amount;
         totalBNBDistributed += amount; // A4 Fix: count pulled rewards in transparency tracker
         (bool ok,) = payable(msg.sender).call{value: amount}("");
         require(ok, "Withdraw failed");
+    }
+
+    /// @notice Returns total BNB locked in treasury as missed rewards for a node across all tiers
+    function getPendingUpgradeRewards(uint _nodeId) external view returns (uint total) {
+        for (uint i = 0; i < 18; i++) {
+            total += missedRewardsByTier[_nodeId][i];
+        }
     }
 
     function _routeToPool(address _pool, uint _amt) private {
@@ -388,13 +400,22 @@ contract AIPCore is ReentrancyGuard, IAIPCore {
         _distributeMatrixRewards(node.nodeId, 0);
         _distributeLayerRewards(node.nodeId, 0);
 
-        // Dust Disposal: Any residual BNB stays in contract = failure of zero-balance policy.
-        // Route any internal fragmentation to feeReceiver.
-        if (address(this).balance > 0) {
-            _pushReward(feeReceiver, address(this).balance);
+        // ── TREASURY RELEASE on node creation (tier 0) ──
+        if(missedRewardsByTier[node.nodeId][0] > 0) {
+            uint release = missedRewardsByTier[node.nodeId][0];
+            missedRewardsByTier[node.nodeId][0] = 0;
+            totalMissedRewards -= release;
+            _pushReward(node.wallet, release);
         }
-        // Dust Invariant: after dust sweep, contract must hold <= 1e12 wei (tiny dust allowed).
-        require(address(this).balance <= 1e12, "Dust too large");
+
+        // Dust Sweep: only sweep transaction dust, preserve treasury + pull-payment reserves.
+        uint reservedBalance = totalMissedRewards + totalPendingRewards;
+        uint sweepable = address(this).balance > reservedBalance
+            ? address(this).balance - reservedBalance
+            : 0;
+        if (sweepable > 1e12) {
+            _pushReward(feeReceiver, sweepable);
+        }
 
         node.joinedAt = uint40(block.timestamp);
         totalNodes += 1;
@@ -422,41 +443,60 @@ contract AIPCore is ReentrancyGuard, IAIPCore {
         require(_toTier <= 18, "Max tier");
 
         uint initialLvl = node.tier;
-        uint _lvls = _toTier - node.tier; // Calculate levels to unlockTier
-        uint totalAmount = 0;
-       
 
-        for(uint i=initialLvl; i<initialLvl+_lvls; i++) {
-            totalAmount += getTierCost(i);        
-        }
-      
+        // ── DYNAMIC TIER CALCULATION ──────────────────────────────────────────
+        // Start from the user's first target tier. If they have enough BNB to
+        // unlock at least 1 tier, proceed. Unlock as many tiers as msg.value
+        // covers (up to _toTier), then refund the remainder.
+        uint firstTierCost = getTierCost(initialLvl);
         if(!isSuper) {
-            require(msg.value >= totalAmount, "Low BNB");
-            if(msg.value > totalAmount) {
-                // M1: use .call instead of .transfer to support contract wallets
-                (bool ok,) = payable(msg.sender).call{value: msg.value - totalAmount}("");
-                require(ok, "Refund fail");
-            }
+            require(msg.value >= firstTierCost, "Insufficient BNB for 1 tier");
         }
-        // Platform fee removal: no upfront fee transfer in unlockTier
 
-        for(uint i=initialLvl; i<initialLvl+_lvls; i++)
+        // Calculate how many tiers can be unlocked with the sent value
+        uint totalAmount = 0;
+        uint lvlsAffordable = 0;
+        uint maxLvls = _toTier - initialLvl;
+        for(uint i = initialLvl; i < initialLvl + maxLvls; i++) {
+            uint c = getTierCost(i);
+            if(!isSuper && totalAmount + c > msg.value) break;
+            totalAmount += c;
+            lvlsAffordable++;
+        }
+
+        // Refund any excess BNB sent beyond what's needed
+        if(!isSuper && msg.value > totalAmount) {
+            (bool ok,) = payable(msg.sender).call{value: msg.value - totalAmount}("");
+            require(ok, "Refund fail");
+        }
+
+        // ── TIER UNLOCK LOOP ──────────────────────────────────────────────────
+        for(uint i = initialLvl; i < initialLvl + lvlsAffordable; i++)
         {
             uint costI = getTierCost(i);
 
             if(!isSuper)
             {
-                // Platform fee removal: send full toDist
+                // Direct sponsor reward
                 uint toDist = costI * directPercent / baseDivider;
-                uint toTransfer = toDist;
-                _pushReward(nodes[node.sponsor].wallet, toTransfer);
-
+                _pushReward(nodes[node.sponsor].wallet, toDist);
                 _recordReward(_nodeId, node.sponsor, i, toDist, 1, false, i+1);
+
                 uint rewardPoolAmount = costI * rewardPoolPercent / baseDivider;
                 _routeToPool(rewardPool, rewardPoolAmount);
 
                 _distributeLayerRewards(_nodeId, i);
                 _distributeMatrixRewards(_nodeId, i);
+            }
+
+            // ── TREASURY RELEASE: Pay out any missed rewards stored for this tier ──
+            // These were locked when the user's uplines were not yet at this tier.
+            // Now that the node itself is upgrading to i+1, release its own locked funds.
+            if(missedRewardsByTier[_nodeId][i] > 0) {
+                uint release = missedRewardsByTier[_nodeId][i];
+                missedRewardsByTier[_nodeId][i] = 0;
+                totalMissedRewards -= release;
+                _pushReward(node.wallet, release);
             }
 
             node.tier += 1;
@@ -465,13 +505,18 @@ contract AIPCore is ReentrancyGuard, IAIPCore {
             emit TierUnlocked(node.wallet, node.nodeId, i+1);
         }
 
-        // Zero-Balance Enforcement after all unlocks
-        if (address(this).balance > 0) {
-            _pushReward(feeReceiver, address(this).balance);
-        }
-        // Dust Invariant: allow tiny amounts of wei to remain to prevent reverts on float math.
-        require(address(this).balance <= 1e12, "Dust too large");
         node.totalContribution += totalAmount;
+
+        // ── DUST SWEEP ────────────────────────────────────────────────────────
+        // Only sweep true transaction dust — never touch treasury (missedRewards)
+        // or pull-payment reserves (totalPendingRewards).
+        uint reservedBalance = totalMissedRewards + totalPendingRewards;
+        uint sweepable = address(this).balance > reservedBalance
+            ? address(this).balance - reservedBalance
+            : 0;
+        if (sweepable > 1e12) {
+            _pushReward(feeReceiver, sweepable);
+        }
 
         // Signal keeper bot to handle pool registration off-chain (zero gas for user)
         emit PoolCheckRequired(_nodeId, block.timestamp);
@@ -510,8 +555,9 @@ contract AIPCore is ReentrancyGuard, IAIPCore {
                 _pushReward(nodes[parentId].wallet, toDist);
                 _recordReward(_nodeId, parentId, _tier, toDist, 2, false, i+1);
             } else {
-                // Not qualified: route directly to feeReceiver
-                _pushReward(feeReceiver, toDist);
+                // TREASURY: Lock missed reward in contract — released when upline upgrades
+                missedRewardsByTier[parentId][_tier] += toDist;
+                totalMissedRewards += toDist;
                 _recordReward(_nodeId, parentId, _tier, toDist, 2, true, i+1);
             }
 
@@ -558,7 +604,9 @@ contract AIPCore is ReentrancyGuard, IAIPCore {
                 _pushReward(nodes[current].wallet, reward);
                 _recordReward(_nodeId, current, _tier, reward, 3, false, i + 1);
             } else {
-                _routeToPool(rewardPool, reward);
+                // TREASURY: Lock missed matrix reward — released when upline upgrades
+                missedRewardsByTier[current][_tier] += reward;
+                totalMissedRewards += reward;
                 _recordReward(_nodeId, current, _tier, reward, 3, true, i + 1);
             }
 
@@ -566,7 +614,7 @@ contract AIPCore is ReentrancyGuard, IAIPCore {
             current = nodes[current].matrixParent;
         }
 
-        // 🔧 DUST HANDLING
+        // 🔧 DUST HANDLING — route tiny remainder to pool
         uint dust = totalMatrix - distributed;
         if (dust > 0) {
             _routeToPool(rewardPool, dust);

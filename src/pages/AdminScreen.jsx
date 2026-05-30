@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../store/gameStore.js';
 import { formatNumber, shortAddr } from '../utils/format.js';
 import { api } from '../services/api.js';
@@ -359,6 +359,148 @@ function TelegramAdminPanel({ adminWallet }) {
   );
 }
 
+// ── System Auto-Upgrade Panel ─────────────────────────────────────────────────
+function SystemAdminPanel({ adminWallet }) {
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
+  const [forceReset, setForceReset] = useState(false);
+  const [logs, setLogs] = useState([]);
+  const logsRef = useRef(null);
+
+  useEffect(() => { loadStatus(); }, [adminWallet]);
+  useEffect(() => {
+    if (logsRef.current) logsRef.current.scrollTop = logsRef.current.scrollHeight;
+  }, [logs]);
+
+  const loadStatus = async () => {
+    setLoading(true);
+    try {
+      const s = await api.fetchSystemStatus(adminWallet);
+      setStatus(s);
+    } catch { toast.error('Failed to fetch system status'); }
+    setLoading(false);
+  };
+
+  const handleUpgrade = async () => {
+    setUpgrading(true);
+    setLogs(['⏳ Starting upgrade from aipcorehub...']);
+    try {
+      const res = await api.triggerSystemUpgrade(adminWallet, { forceReset });
+      setLogs(res.logs || []);
+      if (res.success) {
+        toast.success('✅ Upgrade successful — server restarting...');
+        setTimeout(loadStatus, 3000);
+      } else {
+        toast.error(res.error || 'Upgrade failed');
+      }
+    } catch (e) {
+      setLogs(l => [...l, `ERROR: ${e.message}`]);
+      toast.error('Upgrade request failed');
+    }
+    setUpgrading(false);
+  };
+
+  const badgeColor = status?.behindCount > 0 ? '#FF5252' : '#A3FF12';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Status Card */}
+      <div style={{ background: 'var(--bg-card)', padding: 24, borderRadius: 24, border: '1px solid rgba(163,255,18,0.15)' }}>
+        <h3 style={{ fontSize: 13, fontWeight: 900, color: '#A3FF12', marginBottom: 20, letterSpacing: 1 }}>⚡ SYSTEM STATUS</h3>
+        {loading ? (
+          <div style={{ textAlign: 'center', color: '#A3FF12', fontSize: 13 }}>Checking...</div>
+        ) : status ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Commit info row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {[
+                { label: 'BRANCH', val: status.branch, color: '#4FC3F7' },
+                { label: 'COMMIT', val: status.hash, color: '#FFD700' },
+              ].map(({ label, val, color }) => (
+                <div key={label} style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: 12 }}>
+                  <div style={{ fontSize: 9, fontWeight: 800, color, marginBottom: 3 }}>{label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 900, fontFamily: 'monospace', color: '#fff' }}>{val}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Commit message */}
+            <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: 12 }}>
+              <div style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>LAST COMMIT</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{status.message}</div>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 3 }}>{status.date}</div>
+            </div>
+
+            {/* Update availability badge */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '12px 16px', borderRadius: 14, background: `${badgeColor}12`, border: `1px solid ${badgeColor}40` }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: badgeColor }}
+                >{status.behindCount > 0 ? `🔔 ${status.behindCount} UPDATE(S) AVAILABLE` : '✅ UP TO DATE'}</div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>Source: aipcorehub (pull-only)</div>
+              </div>
+              <button onClick={loadStatus} style={{
+                background: 'rgba(255,255,255,0.07)', color: '#fff', border: 'none',
+                padding: '7px 14px', borderRadius: 10, fontSize: 10, fontWeight: 900, cursor: 'pointer'
+              }}>🔄 RECHECK</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ color: 'rgba(255,255,255,0.3)', textAlign: 'center', fontSize: 11 }}>No status data</div>
+        )}
+      </div>
+
+      {/* Upgrade Control */}
+      <div style={{ background: 'var(--bg-card)', padding: 24, borderRadius: 24, border: '1px solid rgba(255,82,82,0.2)' }}>
+        <h3 style={{ fontSize: 13, fontWeight: 900, color: '#FF5252', marginBottom: 16, letterSpacing: 1 }}>🚀 TRIGGER UPGRADE</h3>
+
+        {/* Force-reset toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16,
+          background: 'rgba(255,82,82,0.06)', padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(255,82,82,0.15)' }}>
+          <input type="checkbox" id="force-reset" checked={forceReset}
+            onChange={e => setForceReset(e.target.checked)}
+            style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#FF5252' }} />
+          <label htmlFor="force-reset" style={{ fontSize: 11, fontWeight: 800, color: '#FF5252', cursor: 'pointer' }}>
+            ⚠️ FORCE OVERWRITE — discard local server edits and hard-reset to upstream
+          </label>
+        </div>
+
+        <motion.button
+          whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+          onClick={handleUpgrade} disabled={upgrading}
+          style={{
+            width: '100%', padding: '15px', borderRadius: 14, border: 'none', fontSize: 13,
+            fontWeight: 900, cursor: upgrading ? 'not-allowed' : 'pointer', letterSpacing: 1,
+            background: upgrading ? 'rgba(255,82,82,0.3)' : 'linear-gradient(135deg,#FF5252,#FF1744)',
+            color: '#fff'
+          }}
+        >
+          {upgrading ? '⏳ UPGRADING...' : '⬆ PULL & UPGRADE FROM AIPCOREHUB'}
+        </motion.button>
+      </div>
+
+      {/* Terminal Log */}
+      {logs.length > 0 && (
+        <div style={{ background: '#0a0a0a', borderRadius: 20, padding: 20, border: '1px solid rgba(163,255,18,0.15)' }}>
+          <div style={{ fontSize: 10, fontWeight: 900, color: '#A3FF12', letterSpacing: 2, marginBottom: 10 }}>📟 TERMINAL OUTPUT</div>
+          <div ref={logsRef} style={{
+            maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4,
+            fontFamily: 'monospace', fontSize: 11, lineHeight: 1.6
+          }}>
+            {logs.map((line, i) => (
+              <div key={i} style={{
+                color: line.startsWith('ERROR') ? '#FF5252' : line.startsWith('$') ? '#A3FF12' : line.startsWith('✅') ? '#69F0AE' : '#ccc',
+                paddingLeft: line.startsWith('$') ? 0 : 12
+              }}>{line}</div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Admin Screen ──────────────────────────────────────────────────────────
 export default function AdminScreen() {
   const {
@@ -413,7 +555,7 @@ export default function AdminScreen() {
   const freeCoins = parseFloat(s.coins_free_users || 0);
   const otherCoins = totalCoins - nodeCoins - freeCoins;
 
-  const TABS = ['overview', 'snapshot', 'tasks', 'events', 'users', 'logs', 'telegram'];
+  const TABS = ['overview', 'snapshot', 'tasks', 'events', 'users', 'logs', 'telegram', 'system'];
 
   return (
     <div className="page-content" style={{ padding: '0 20px 60px' }}>
@@ -657,6 +799,9 @@ export default function AdminScreen() {
       )}
       {activeAdminTab === 'telegram' && (
         <TelegramAdminPanel adminWallet={walletAddress} />
+      )}
+      {activeAdminTab === 'system' && (
+        <SystemAdminPanel adminWallet={walletAddress} />
       )}
     </div>
   );

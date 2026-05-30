@@ -374,6 +374,27 @@ class ApiService {
       return null;
     }
   }
+
+  // ── System Auto-Upgrade ───────────────────────────────────────────────────
+  async fetchSystemStatus(adminWallet) {
+    const res = await fetch(`${this.baseUrl}/admin/system/status`, {
+      headers: { 'x-admin-wallet': adminWallet }
+    });
+    if (!res.ok) throw new Error('Failed to fetch system status');
+    return res.json();
+  }
+
+  async triggerSystemUpgrade(adminWallet, { forceReset = false } = {}) {
+    const res = await fetch(`${this.baseUrl}/admin/system/upgrade`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-wallet': adminWallet
+      },
+      body: JSON.stringify({ forceReset })
+    });
+    return res.json();
+  }
 }
 
 export const api = new ApiService();
