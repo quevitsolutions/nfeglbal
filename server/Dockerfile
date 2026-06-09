@@ -1,4 +1,4 @@
-# AIPCore Backend Dockerfile
+# NFEGlobal Backend Dockerfile
 FROM node:20-alpine
 RUN apk add --no-cache curl git
 

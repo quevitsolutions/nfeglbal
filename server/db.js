@@ -9,8 +9,8 @@ const { Pool } = pg;
 const pool = new Pool({
   host: process.env.DB_HOST || 'db',
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'aipcore_pass',
-  database: process.env.DB_NAME || 'aipcore_game',
+  password: process.env.DB_PASSWORD || 'nfeglobal_pass',
+  database: process.env.DB_NAME || 'nfeglobal_game',
   port: process.env.DB_PORT || 5432,
 });
 
@@ -28,7 +28,7 @@ const connectWithRetry = async (retries = 5) => {
             title VARCHAR(255) NOT NULL,
             description TEXT,
             max_seats INTEGER DEFAULT 100,
-            price_aip NUMERIC(36, 18) DEFAULT 0,
+            price_nfeglobal NUMERIC(36, 18) DEFAULT 0,
             telegram_link VARCHAR(500),
             schedule_time VARCHAR(255),
             is_active BOOLEAN DEFAULT TRUE,
@@ -42,7 +42,7 @@ const connectWithRetry = async (retries = 5) => {
             id SERIAL PRIMARY KEY,
             event_id INTEGER REFERENCES events(id) ON DELETE CASCADE,
             wallet_address VARCHAR(42) NOT NULL,
-            paid_aip NUMERIC(36, 18) DEFAULT 0,
+            paid_nfeglobal NUMERIC(36, 18) DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(event_id, wallet_address)
         );

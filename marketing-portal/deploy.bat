@@ -1,13 +1,13 @@
 @echo off
 REM ═══════════════════════════════════════════════════════
-REM  AIP CORE — MARKETING PORTAL — Windows Deploy Script
+REM  NFEGlobal CORE — MARKETING PORTAL — Windows Deploy Script
 REM  Standalone — zero impact on main core app
 REM  Usage: deploy.bat
 REM ═══════════════════════════════════════════════════════
 
 echo.
 echo  ╔══════════════════════════════════════╗
-echo  ║  AIP CORE — Marketing Portal Deploy  ║
+echo  ║  NFEGlobal CORE — Marketing Portal Deploy  ║
 echo  ╚══════════════════════════════════════╝
 echo.
 
@@ -52,6 +52,6 @@ if %errorlevel% == 0 (
 echo.
 echo  ✅  Marketing Portal is running!
 echo      Local:   http://localhost:8080
-echo      Domain:  https://promo.aipcore.online
+echo      Domain:  https://promo.nfeglobal.online
 echo.
 pause

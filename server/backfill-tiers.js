@@ -1,9 +1,9 @@
 /**
- * AIPCore Tier Backfill — eth_call Sequential Scan (Correct ABI)
+ * NFEGlobal Tier Backfill — eth_call Sequential Scan (Correct ABI)
  * Scans nodeIds sequentially using contract.nodes(id) and nodeId(wallet).
  * Pure eth_call — NOT affected by eth_getLogs rate limits.
  *
- * Usage: docker exec aipcore-api node backfill-tiers.js
+ * Usage: docker exec nfeglobal-api node backfill-tiers.js
  */
 import { ethers } from 'ethers';
 import pg from 'pg';
@@ -15,37 +15,37 @@ const { Pool } = pg;
 const pool = new Pool({
   host:     process.env.DB_HOST     || 'db',
   user:     process.env.DB_USER     || 'postgres',
-  password: process.env.DB_PASSWORD || 'aipcore_pass',
-  database: process.env.DB_NAME     || 'aipcore_game',
+  password: process.env.DB_PASSWORD || 'nfeglobal_pass',
+  database: process.env.DB_NAME     || 'nfeglobal_game',
   port:     Number(process.env.DB_PORT || 5432),
 });
 
-const AIPCORE_ADDRESS = '0xB6CbD70147835D4eA93B4a768D8e101B6E9A420f';
+const NFEGLOBAL_ADDRESS = '0xda0d24aAd1685F59614c1a347826fA1100aBd9F6';
 
 // CORRECT ABI from frontend abi.js:
 // nodes(nodeId) returns (address wallet, uint88 nodeId_, uint256 sponsor,
 //   uint256 matrixParent, uint40 joinedAt, uint256 tier, ...)
 // nodeId(address user) returns (uint256)
-const AIPCORE_ABI = [
+const NFEGLOBAL_ABI = [
   'function nodes(uint256 nodeId) view returns (address wallet, uint88 nodeId_, uint256 sponsor, uint256 matrixParent, uint40 joinedAt, uint256 tier, uint256 directNodes, uint256 totalMatrixNodes, uint256 totalContribution)',
   'function nodeId(address user) view returns (uint256)',
   'function getNodeStats(uint256 _userId) view returns (uint256 tier, uint256 directCount, uint256 matrixCount, uint256 totalRewards, uint256 totalContribution, uint256 daysActive)'
 ];
 
 const RPC_LIST = [
-  'https://bsc-dataseed1.defibit.io',
-  'https://bsc-dataseed2.defibit.io',
-  'https://bsc-dataseed1.ninicoin.io',
-  'https://rpc.ankr.com/bsc',
-  'https://bsc-dataseed.binance.org',
-  process.env.VITE_BSC_MAINNET_RPC,
+  'https://bsc-testnet.bnbchain.org',
+  'https://data-seed-prebsc-1-s1.binance.org:8545/',
+  'https://data-seed-prebsc-2-s1.binance.org:8545/',
+  'https://data-seed-prebsc-1-s2.binance.org:8545/',
+  'https://data-seed-prebsc-2-s2.binance.org:8545/',
+  process.env.VITE_RPC_URL,
 ].filter(r => r && r.trim() !== '');
 
-// NodeId ranges to scan — all nodes appear to be in the 36999+ range
-// 36999 = genesis. New nodes increment from there.
-// Scan 36999..37100 covers current deployment. Extend if needed.
+// NodeId ranges to scan — all nodes appear to be in the 55555+ range
+// 55555 = genesis. New nodes increment from there.
+// Scan 55555..55700 covers current deployment. Extend if needed.
 const SCAN_RANGES = [
-  { from: 36999, to: 37200 }
+  { from: 55555, to: 55700 }
 ];
 
 const ZERO = '0x0000000000000000000000000000000000000000';
@@ -66,10 +66,10 @@ async function getProvider() {
 }
 
 async function run() {
-  console.log('\n🔧 AIPCore Tier Backfill (correct ABI)\n' + '─'.repeat(55));
+  console.log('\n🔧 NFEGlobal Tier Backfill (correct ABI)\n' + '─'.repeat(55));
 
   const provider = await getProvider();
-  const contract = new ethers.Contract(AIPCORE_ADDRESS, AIPCORE_ABI, provider);
+  const contract = new ethers.Contract(NFEGLOBAL_ADDRESS, NFEGLOBAL_ABI, provider);
   const client   = await pool.connect();
   console.log('✅ DB connected\n');
 

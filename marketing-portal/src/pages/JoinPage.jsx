@@ -5,12 +5,12 @@ import { ExternalLink, Copy, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { ParticleField } from '../components/UI.jsx'
 
-const APP_URL = import.meta.env.VITE_APP_URL || 'https://aipcore.online'
+const APP_URL = import.meta.env.VITE_APP_URL || 'https://nfeglobal.online'
 
 const STEPS = [
   { step: '01', icon: '🔗', title: 'Get Your Referral Link', desc: 'Your unique link is generated when you activate your node. Share it to earn 10% from every referral.' },
   { step: '02', icon: '💼', title: 'Activate a Node on BSC', desc: 'Connect your BSC wallet, pay the one-time activation fee and your node goes live instantly.' },
-  { step: '03', icon: '⛏️', title: 'Start Mining $AIP', desc: 'Your node auto-mines $AIP tokens every hour — 100 coins/hr at Tier 1, scaling to 200+/hr.' },
+  { step: '03', icon: '⛏️', title: 'Start Mining $NFEGLOBAL', desc: 'Your node auto-mines $NFEGLOBAL tokens every hour — 100 coins/hr at Tier 1, scaling to 200+/hr.' },
   { step: '04', icon: '💰', title: 'Earn BNB Passively', desc: 'All 4 income streams run on autopilot. Referrals, matrix, level and global pool — all on-chain.' },
 ]
 
@@ -19,7 +19,7 @@ const FAQS = [
   { q: 'Is there a referral code I need?', a: 'Yes — use your sponsor\'s referral link when you join. If you reached this page via a referral link, their Node ID is pre-filled automatically.' },
   { q: 'Which wallet should I use?', a: 'Any BSC-compatible wallet works — MetaMask, Trust Wallet, or any WalletConnect-supported wallet.' },
   { q: 'How do I withdraw my earnings?', a: 'All earnings are on-chain and can be withdrawn directly from the app at any time. No lock-up periods.' },
-  { q: 'Is the smart contract audited?', a: 'Yes. The AIP Core smart contract is deployed on BSC Mainnet and has been independently audited. Contract address is publicly verifiable on BscScan.' },
+  { q: 'Is the smart contract audited?', a: 'Yes. The NFEGlobal Core smart contract is deployed on BSC Mainnet and has been independently audited. Contract address is publicly verifiable on BscScan.' },
   { q: 'Can I have multiple nodes?', a: 'Each wallet address can hold one node. You can use multiple wallets, each with its own separate node.' },
 ]
 
@@ -72,7 +72,7 @@ export default function JoinPage() {
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
             >
-              ⚡ Open AIP Core App <ExternalLink size={18} />
+              ⚡ Open NFEGlobal Core App <ExternalLink size={18} />
             </motion.a>
 
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 32 }}>
@@ -198,7 +198,7 @@ export default function JoinPage() {
               Join our Telegram community — 12,000+ members ready to help.
             </p>
             <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <a href="https://t.me/aipcore" target="_blank" rel="noreferrer" className="btn-primary" style={{ fontSize: 15, animation: 'none' }}>
+              <a href="https://t.me/nfeglobal" target="_blank" rel="noreferrer" className="btn-primary" style={{ fontSize: 15, animation: 'none' }}>
                 ✈️ Join Telegram
               </a>
               <a href={referralLink} target="_blank" rel="noreferrer" className="btn-outline" style={{ fontSize: 15 }}>

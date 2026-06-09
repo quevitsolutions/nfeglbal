@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNativePrice, useNativeTokenSymbol } from '../hooks/useNativePrice.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../store/gameStore.js';
 import { formatNumber, shortAddr } from '../utils/format.js';
@@ -48,16 +49,24 @@ function MilestoneTracker({ total }) {
 // Binary matrix: 2^level people. 70% of level USD cost = matrix income/person.
 // Level USD costs from contract: $5,$5,$10,$20,$40,$80,$160… doubling to $327,680
 const LVL_USD_COST = [5,5,10,20,40,80,160,320,640,1280,2560,5120,10240,20480,40960,81920,163840,327680];
-const TIER_AIP_RATE = [100,200,200,300,300,300,500,500,500,800,800,800,1200,1200,1200,2000,2000,2500];
+const TIER_NFEGlobal_RATE = [100,200,200,300,300,300,500,500,500,800,800,800,1200,1200,1200,2000,2000,2500];
 const TC = ['#A3FF12','#B4FF3A','#FFD700','#FFC107','#FF9800','#FF7043','#FF5252','#E91E63','#AB47BC','#7E57C2','#5C6BC0','#42A5F5','#26C6DA','#26A69A','#66BB6A','#8BC34A','#CDDC39','#FF6B35'];
 function calcFmt(n){ if(n>=1e9)return(n/1e9).toFixed(2)+'B'; if(n>=1e6)return(n/1e6).toFixed(2)+'M'; if(n>=1e3)return(n/1e3).toFixed(1)+'K'; return n.toFixed?n.toFixed(2):String(n); }
 
 function IncomeCalculator({ currentTier }) {
   const [open, setOpen]           = useState(false);
-  const [bnbPrice, setBnbPrice]   = useState(600);
+  const currentPrice              = useNativePrice();
+  const nativeSymbol              = useNativeTokenSymbol();
+  const [nativePrice, setNativePrice] = useState(600);
   const [myTier, setMyTier]       = useState(Math.max(1, Number(currentTier)||1));
   const [showTiers, setShowTiers] = useState(false);
   const acc = '#FFB74D';
+
+  useEffect(() => {
+    if (currentPrice > 0) {
+      setNativePrice(currentPrice);
+    }
+  }, [currentPrice]);
 
   const levels = Array.from({ length: 18 }, (_, i) => {
     const lv        = i + 1;
@@ -65,15 +74,15 @@ function IncomeCalculator({ currentTier }) {
     const costUsd   = LVL_USD_COST[i];          // fixed USD from contract
     const earnPer   = costUsd * 0.70;            // 70% matrix income per activation
     const totalEarn = people * earnPer;
-    const costBnb   = bnbPrice > 0 ? costUsd / bnbPrice : 0;
+    const costNative = nativePrice > 0 ? costUsd / nativePrice : 0;
     const locked    = lv > myTier;
-    return { lv, people, costUsd, costBnb, earnPer, totalEarn, locked };
+    return { lv, people, costUsd, costNative, earnPer, totalEarn, locked };
   });
 
   const unlocked  = levels.filter(l => !l.locked);
   const totPeople = unlocked.reduce((s,l) => s + l.people, 0);
   const totUsd    = unlocked.reduce((s,l) => s + l.totalEarn, 0);
-  const totBnb    = bnbPrice > 0 ? totUsd / bnbPrice : 0;
+  const totNative = nativePrice > 0 ? totUsd / nativePrice : 0;
 
   return (
     <div style={{ marginBottom: 24 }}>
@@ -96,10 +105,10 @@ function IncomeCalculator({ currentTier }) {
           {/* Controls */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
             <div style={{ background:'rgba(255,255,255,0.04)', borderRadius:10, padding:'10px 12px', border:'1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize:8, fontWeight:900, color:'#888', letterSpacing:1, marginBottom:5 }}>BNB PRICE (USD)</div>
+              <div style={{ fontSize:8, fontWeight:900, color:'#888', letterSpacing:1, marginBottom:5 }}>{nativeSymbol} PRICE (USD)</div>
               <div style={{ display:'flex', alignItems:'center', gap:4 }}>
                 <span style={{ fontSize:12, color:'#FFD700' }}>$</span>
-                <input type="number" value={bnbPrice} onChange={e => setBnbPrice(Number(e.target.value)||0)} min={0}
+                <input type="number" value={nativePrice} onChange={e => setNativePrice(Number(e.target.value)||0)} min={0}
                   style={{ width:'100%', background:'transparent', border:'none', outline:'none', color:'#fff', fontWeight:900, fontSize:15, fontFamily:'monospace' }} />
               </div>
             </div>
@@ -116,7 +125,7 @@ function IncomeCalculator({ currentTier }) {
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:14 }}>
             {[
               {label:'MATRIX NODES',val:calcFmt(totPeople),unit:'people',color:'#4FC3F7'},
-              {label:'EST. BNB',val:totBnb.toFixed(3),unit:'BNB',color:'#FFD700'},
+              {label:`EST. ${nativeSymbol}`,val:totNative.toFixed(3),unit:nativeSymbol,color:'#FFD700'},
               {label:'EST. USD',val:'$'+calcFmt(totUsd),unit:'70% income',color:'#A3FF12'},
             ].map((c,i) => (
               <div key={i} style={{ background:'rgba(255,255,255,0.04)', borderRadius:10, padding:'10px 8px', textAlign:'center', border:`1px solid ${c.color}20` }}>
@@ -166,19 +175,19 @@ function IncomeCalculator({ currentTier }) {
           {showTiers && (
             <div style={{ marginTop:10, background:'rgba(0,0,0,0.3)', borderRadius:12, overflow:'hidden' }}>
               <div style={{ display:'grid', gridTemplateColumns:'40px 60px 60px 70px 1fr 1fr', gap:4, padding:'8px 10px', background:'rgba(255,255,255,0.03)', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
-                {['LVL','COST $','BNB~','AIP/hr','L1 EARN $','STATUS'].map(h => <span key={h} style={{ fontSize:7, fontWeight:900, color:'#555', letterSpacing:0.5 }}>{h}</span>)}
+                {['LVL','COST $','BNB~','NFEGlobal/hr','L1 EARN $','STATUS'].map(h => <span key={h} style={{ fontSize:7, fontWeight:900, color:'#555', letterSpacing:0.5 }}>{h}</span>)}
               </div>
               <div style={{ maxHeight:300, overflowY:'auto' }}>
                 {LVL_USD_COST.map((costUsd,i) => {
                   const color  = TC[i];
                   const l1Earn = 2 * costUsd * 0.70;           // L1: 2^1=2 people × 70%
-                  const costBnb= bnbPrice > 0 ? (costUsd/bnbPrice).toFixed(4) : '—';
+                  const costNative = nativePrice > 0 ? (costUsd/nativePrice).toFixed(4) : '—';
                   return (
                     <div key={i} style={{ display:'grid', gridTemplateColumns:'40px 60px 60px 70px 1fr 1fr', gap:4, padding:'7px 10px', borderBottom:'1px solid rgba(255,255,255,0.03)', alignItems:'center', background:i+1===myTier?`${color}0c`:'transparent' }}>
                       <span style={{ fontSize:9, fontWeight:900, color, background:`${color}20`, borderRadius:4, padding:'2px 5px', textAlign:'center' }}>L{i+1}</span>
                       <span style={{ fontSize:9, color:'#FFB74D', fontWeight:800 }}>${costUsd}</span>
-                      <span style={{ fontSize:9, color:'#FFD700', fontWeight:700 }}>{costBnb}</span>
-                      <span style={{ fontSize:9, color:'#4FC3F7', fontWeight:700 }}>{TIER_AIP_RATE[i]}</span>
+                      <span style={{ fontSize:9, color:'#FFD700', fontWeight:700 }}>{costNative}</span>
+                      <span style={{ fontSize:9, color:'#4FC3F7', fontWeight:700 }}>{TIER_NFEGlobal_RATE[i]}</span>
                       <span style={{ fontSize:9, color:'#A3FF12', fontWeight:800 }}>${l1Earn.toFixed(2)}</span>
                       <span style={{ fontSize:8, fontWeight:900, color:i+1<=myTier?'#A3FF12':'#555' }}>{i+1<=myTier?'✅':'🔒'}</span>
                     </div>
@@ -187,8 +196,8 @@ function IncomeCalculator({ currentTier }) {
               </div>
             </div>
           )}
-          <div style={{ fontSize:8, color:'#333', fontWeight:700, marginTop:12, textAlign:'center', lineHeight:1.6 }}>
-            ⚠️ ESTIMATES ONLY · BINARY MATRIX · 70% DISTRIBUTION · BNB PRICE VARIABLE
+          <div style={{ fontSize:8, color:'#333', fontWeight:700, marginTop:12, textAlign: 'center', lineHeight:1.6 }}>
+            ⚠️ ESTIMATES ONLY · BINARY MATRIX · 70% DISTRIBUTION · {nativeSymbol} PRICE VARIABLE
           </div>
         </div>
       )}
@@ -200,6 +209,11 @@ function IncomeCalculator({ currentTier }) {
 function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteLink, hasNode }) {
   const [copied, setCopied] = useState(false);
   const [dlLoading, setDlLoading] = useState(false);
+  const nativeSymbol = useNativeTokenSymbol();
+  const chainName = nativeSymbol === 'BNB' ? 'BSC' 
+                  : nativeSymbol === 'POL' ? 'Polygon' 
+                  : nativeSymbol === 'AVAX' ? 'Avalanche' 
+                  : 'Arbitrum/Base';
   const tierColors = ['#A3FF12','#B4FF3A','#FFD700','#FFC107','#FF9800','#FF7043','#FF5252','#E91E63','#AB47BC','#7E57C2','#5C6BC0','#42A5F5','#26C6DA','#26A69A','#66BB6A','#8BC34A','#CDDC39','#FF9800'];
 
   const downloadQRCard = async () => {
@@ -229,7 +243,7 @@ function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteL
 
       // Header label
       ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = 'bold 11px monospace';
-      ctx.fillText('AIPCORE PROTOCOL · BSC', 22, 36);
+      ctx.fillText(`NFEGLOBAL PROTOCOL · ${chainName}`, 22, 36);
 
       // Node ID
       ctx.fillStyle = '#ffffff'; ctx.font = 'bold 30px sans-serif';
@@ -250,7 +264,7 @@ function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteL
       ctx.beginPath(); ctx.moveTo(22, 88); ctx.lineTo(W-22, 88); ctx.stroke();
 
       // Stats
-      const stats = [['MINING', `${miningRate} $AIP/hr`, tierColor], ['TEAM', `${teamSize} nodes`, '#4FC3F7'], ['DIRECTS', `${directRefs}`, '#FFD700']];
+      const stats = [['TIER', `T${nodeTier || 1}`, tierColor], ['TEAM', `${teamSize} nodes`, '#4FC3F7'], ['DIRECTS', `${directRefs}`, '#FFD700']];
       stats.forEach(([lbl, val, col], i) => {
         const x = 22 + i * 120;
         ctx.fillStyle = 'rgba(255,255,255,0.04)';
@@ -283,16 +297,16 @@ function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteL
 
       // BSC badge
       ctx.fillStyle = 'rgba(163,255,18,0.6)'; ctx.font = 'bold 9px monospace';
-      ctx.fillText('● BSC SMART CONTRACT · AUDITABLE ON-CHAIN', W/2, 472);
+      ctx.fillText(`● ${chainName} SMART CONTRACT · AUDITABLE ON-CHAIN`, W/2, 472);
 
       // Powered by
       ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.font = '9px monospace';
-      ctx.fillText('aipcore.online', W/2, 494);
+      ctx.fillText('nfeglobal.online', W/2, 494);
       ctx.textAlign = 'left';
 
       // Download
       const a = document.createElement('a');
-      a.download = `aipcore-qr-node${nodeId || 'free'}.png`;
+      a.download = `nfeglobal-qr-node${nodeId || 'free'}.png`;
       a.href = canvas.toDataURL('image/png');
       a.click();
     } catch(e) {
@@ -305,29 +319,27 @@ function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteL
   const tierColor = tierColors[Math.max(0, (nodeTier || 1) - 1)];
 
   const cardMsg = hasNode
-    ? `🌟 Join me on AIPCore Protocol!
+    ? `🌟 Join me on NFEGlobal Protocol!
 
 ⬡ Node #${nodeId} | Tier ${nodeTier} ACTIVE
-⚡ Mining: ${miningRate} $AIP/hr  
 👥 My Team: ${teamSize} nodes | ${directRefs} directs
 
-✅ 18-tier matrix on BSC
-✅ Real BNB — 4 income streams  
+✅ 18-tier matrix on ${chainName}
+✅ Real ${nativeSymbol} — 4 income streams  
 ✅ Runs 24/7, zero maintenance
 
 👇 Activate under my node:
 ${inviteLink}
 
-Powered by AIPCore Smart Contract 🔗`
-    : `🆓 Join AIPCore FREE for 30 days!
+Powered by NFEGlobal Smart Contract 🔗`
+    : `🆓 Join NFEGlobal Matrix Network!
 
-Mine $AIP tokens with zero upfront cost.
-Upgrade anytime to unlock BNB rewards + 70% matrix income.
+Activate your node on ${chainName} to unlock ${nativeSymbol} rewards + 70% matrix income.
 
-👇 Join free under my link:
+👇 Register under my link:
 ${inviteLink}
 
-#AIPCore #BSC #Crypto #Mining`;
+#NFEGlobal #${chainName} #Crypto #${nativeSymbol}`;
 
   const copy = () => {
     navigator.clipboard.writeText(cardMsg).then(() => {
@@ -339,7 +351,7 @@ ${inviteLink}
 
   const toTelegram  = () => window.open(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(cardMsg)}`, '_blank');
   const toWhatsApp  = () => window.open(`https://wa.me/?text=${encodeURIComponent(cardMsg)}`, '_blank');
-  const toTwitter   = () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(hasNode ? `⬡ Mining on AIPCore — Node #${nodeId} Tier ${nodeTier} ACTIVE\n${miningRate} $AIP/hr | Real BNB rewards | 18-tier BSC matrix\n\nActivate under my node 👇\n${inviteLink}\n\n#AIPCore #BSC #DeFi #Mining` : `🆓 Try AIPCore FREE — mine $AIP on BSC\n\n${inviteLink}\n\n#AIPCore #BSC #Mining`)}`, '_blank');
+  const toTwitter   = () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(hasNode ? `⬡ Nodes on NFEGlobal — Node #${nodeId} Tier ${nodeTier} ACTIVE\n100% On-Chain | Real ${nativeSymbol} rewards | 18-tier ${chainName} matrix\n\nActivate under my node 👇\n${inviteLink}\n\n#NFEGlobal #${chainName} #DeFi` : `⬡ Join NFEGlobal — Decentralized ${nativeSymbol} Matrix Network on ${chainName}\n\n${inviteLink}\n\n#NFEGlobal #${chainName}`)}`, '_blank');
 
   return (
     <div style={{ marginBottom: 20 }}>
@@ -352,7 +364,7 @@ ${inviteLink}
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.4)', letterSpacing: 1.5 }}>AIPCORE PROTOCOL · BSC</div>
+            <div style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.4)', letterSpacing: 1.5 }}>NFEGLOBAL PROTOCOL · BSC</div>
             {hasNode ? (
               <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginTop: 2 }}>NODE #{nodeId}</div>
             ) : (
@@ -377,9 +389,9 @@ ${inviteLink}
         {/* Stats row */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
           {[
-            { label: 'MINING', val: `${miningRate}`, unit: '$AIP/hr', color: tierColor },
-            { label: 'DAILY',  val: `${(miningRate * 24).toLocaleString()}`, unit: '$AIP', color: '#FFD700' },
-            { label: 'TEAM',   val: `${teamSize}`, unit: 'nodes', color: '#4FC3F7' },
+            { label: 'ACTIVE LEVEL', val: `TIER ${nodeTier}`, unit: 'level', color: tierColor },
+            { label: 'DIRECTS',      val: `${directRefs}`, unit: 'friends', color: '#FFD700' },
+            { label: 'TEAM SIZE',    val: `${teamSize}`, unit: 'nodes', color: '#4FC3F7' },
           ].map((s, i) => (
             <div key={i} style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 10, padding: '8px 6px', textAlign: 'center' }}>
               <div style={{ fontSize: 16, fontWeight: 900, color: s.color }}>{s.val}</div>
@@ -540,6 +552,11 @@ function FreeInviteProjection({ directRefs }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ReferralScreen() {
   const store             = useGameStore();
+  const nativeSymbol      = useNativeTokenSymbol();
+  const chainName = nativeSymbol === 'BNB' ? 'BSC' 
+                  : nativeSymbol === 'POL' ? 'Polygon' 
+                  : nativeSymbol === 'AVAX' ? 'Avalanche' 
+                  : 'Arbitrum/Base';
   const walletAddress     = store?.walletAddress;
   const directRefs        = store?.directRefs || 0;
   const teamSize          = store?.teamSize || 0;
@@ -724,7 +741,7 @@ export default function ReferralScreen() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                 <div style={{ fontSize: 20 }}>✅</div>
                 <a
-                  href={`https://t.me/aipcore_bot?start=conn_${walletAddress}`}
+                  href={`https://t.me/nfeglobal_bot?start=conn_${walletAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setTimeout(() => {
@@ -746,7 +763,7 @@ export default function ReferralScreen() {
               </div>
             ) : (
               <a
-                href={`https://t.me/aipcore_bot?start=conn_${walletAddress}`}
+                href={`https://t.me/nfeglobal_bot?start=conn_${walletAddress}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setTimeout(() => {
@@ -803,9 +820,9 @@ export default function ReferralScreen() {
         {!showShareCard && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
             {[
-              { label: 'TELEGRAM', emoji: '✈️', color: '#2AABEE', bg: 'rgba(42,171,238,0.1)', border: 'rgba(42,171,238,0.3)', onClick: () => { const msg = hasNode ? `🚀 Join me on AIPCore!\n\n⬡ Node #${nodeId} | Tier ${nodeTier}\n⚡ ${miningRate} $AIP/hr mining\n\nActivate under my node:\n${inviteLink}` : `🆓 Try AIPCore FREE for 30 days!\n\n${inviteLink}`; window.open(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(msg)}`, '_blank'); } },
-              { label: 'WHATSAPP', emoji: '💬', color: '#25D366', bg: 'rgba(37,211,102,0.1)', border: 'rgba(37,211,102,0.3)', onClick: () => { const msg = hasNode ? `🌟 Join me on AIPCore Protocol!\n\nNode #${nodeId} | Tier ${nodeTier} ACTIVE\n⚡ ${miningRate} $AIP/hr | Real BNB rewards\n\n${inviteLink}` : `🆓 Try AIPCore FREE!\n${inviteLink}`; window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'); } },
-              { label: 'TWITTER/X', emoji: '𝕏', color: '#fff', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)', onClick: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`⬡ Mining on AIPCore — Node #${nodeId} Tier ${nodeTier}\n${miningRate} $AIP/hr | Real BNB rewards\n\n${inviteLink}\n\n#AIPCore #BSC #DeFi`)}`, '_blank') },
+              { label: 'TELEGRAM', emoji: '✈️', color: '#2AABEE', bg: 'rgba(42,171,238,0.1)', border: 'rgba(42,171,238,0.3)', onClick: () => { const msg = hasNode ? `🚀 Join me on NFEGlobal!\n\n⬡ Node #${nodeId} | Tier ${nodeTier}\n⚡ ${miningRate} $NFEGLOBAL/hr mining\n\nActivate under my node:\n${inviteLink}` : `🆓 Try NFEGlobal FREE for 30 days!\n\n${inviteLink}`; window.open(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(msg)}`, '_blank'); } },
+              { label: 'WHATSAPP', emoji: '💬', color: '#25D366', bg: 'rgba(37,211,102,0.1)', border: 'rgba(37,211,102,0.3)', onClick: () => { const msg = hasNode ? `🌟 Join me on NFEGlobal Protocol!\n\nNode #${nodeId} | Tier ${nodeTier} ACTIVE\n⚡ ${miningRate} $NFEGLOBAL/hr | Real ${nativeSymbol} rewards\n\n${inviteLink}` : `🆓 Try NFEGlobal FREE!\n${inviteLink}`; window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'); } },
+              { label: 'TWITTER/X', emoji: '𝕏', color: '#fff', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)', onClick: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`⬡ Mining on NFEGlobal — Node #${nodeId} Tier ${nodeTier}\n${miningRate} $NFEGLOBAL/hr | Real ${nativeSymbol} rewards\n\n${inviteLink}\n\n#NFEGlobal #${chainName} #DeFi`)}`, '_blank') },
             ].map((btn, i) => (
               <button key={i} onClick={btn.onClick} style={{ background: btn.bg, border: `1px solid ${btn.border}`, borderRadius: 14, padding: '12px 6px', color: btn.color, fontWeight: 900, fontSize: 10, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
                 <span style={{ fontSize: 20 }}>{btn.emoji}</span> {btn.label}
@@ -898,7 +915,7 @@ export default function ReferralScreen() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
                   <span style={{ fontSize: 12, fontWeight: 900, color: rowColor }}>{Number(friend.local_reward || 0) >= 1000 ? `${(friend.local_reward / 1000).toFixed(1)}K` : Math.floor(friend.local_reward || 0)}</span>
-                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>$AIP</span>
+                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>$NFEGLOBAL</span>
                 </div>
               </div>
             );
@@ -1063,7 +1080,7 @@ export default function ReferralScreen() {
                   <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(79,195,247,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>👋</div>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 800 }}>{m.label}</div>
-                    <div style={{ fontSize: 11, color: '#4FC3F7', fontWeight: 700 }}>+{formatNumber(m.reward)} $AIP</div>
+                    <div style={{ fontSize: 11, color: '#4FC3F7', fontWeight: 700 }}>+{formatNumber(m.reward)} $NFEGLOBAL</div>
                   </div>
                 </div>
                 {isClaimed ? (
@@ -1072,7 +1089,7 @@ export default function ReferralScreen() {
                   <button onClick={async () => {
                     if (!canClaim) { toast.error(`Need ${m.threshold} friends to claim!`); return; }
                     const tid = toast.loading('Claiming...');
-                    try { await claimFreeMilestoneAction(m.threshold); toast.success(`+${formatNumber(m.reward)} AIP claimed!`, { id: tid }); }
+                    try { await claimFreeMilestoneAction(m.threshold); toast.success(`+${formatNumber(m.reward)} NFEGlobal claimed!`, { id: tid }); }
                     catch (err) { toast.error(err.message, { id: tid }); }
                   }} style={{ background: canClaim ? '#4FC3F7' : 'rgba(255,255,255,0.05)', color: canClaim ? '#000' : 'rgba(255,255,255,0.3)', border: 'none', padding: '6px 14px', borderRadius: 20, fontSize: 11, fontWeight: 900, cursor: canClaim ? 'pointer' : 'not-allowed' }}>
                     {canClaim ? 'CLAIM' : 'LOCKED'}

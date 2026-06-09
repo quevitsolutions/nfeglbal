@@ -5,12 +5,12 @@ import toast from 'react-hot-toast';
 
 // Meeting link config — update these URLs as needed
 const ROOM_LINKS = {
-  auditorium:  { type: 'jitsi',    url: 'https://meet.jit.si/AIPCoreAuditorium',      label: 'Join Live Auditorium' },
-  networking:  { type: 'jitsi',    url: 'https://meet.jit.si/AIPCoreNetworking',      label: 'Join Networking Lounge' },
-  'vip-hall':  { type: 'telegram', url: 'https://t.me/+aipcore_vip',                  label: 'Join VIP Telegram Room' },
-  'dao-room':  { type: 'telegram', url: 'https://t.me/+aipcore_dao',                  label: 'Join DAO Meeting' },
-  'nft-gallery': { type: 'jitsi', url: 'https://meet.jit.si/AIPCoreNFTGallery',       label: 'Enter NFT Gallery' },
-  'sponsor-expo': { type: 'jitsi', url: 'https://meet.jit.si/AIPCoreSponsorExpo',     label: 'Visit Sponsor Expo' },
+  auditorium:  { type: 'jitsi',    url: 'https://meet.jit.si/NFEGlobalAuditorium',      label: 'Join Live Auditorium' },
+  networking:  { type: 'jitsi',    url: 'https://meet.jit.si/NFEGlobalNetworking',      label: 'Join Networking Lounge' },
+  'vip-hall':  { type: 'telegram', url: 'https://t.me/+nfeglobal_vip',                  label: 'Join VIP Telegram Room' },
+  'dao-room':  { type: 'telegram', url: 'https://t.me/+nfeglobal_dao',                  label: 'Join DAO Meeting' },
+  'nft-gallery': { type: 'jitsi', url: 'https://meet.jit.si/NFEGlobalNFTGallery',       label: 'Enter NFT Gallery' },
+  'sponsor-expo': { type: 'jitsi', url: 'https://meet.jit.si/NFEGlobalSponsorExpo',     label: 'Visit Sponsor Expo' },
 };
 
 const ROOMS = [
@@ -32,8 +32,8 @@ const MEMBERS = [
 ];
 
 const ANNOUNCEMENTS = [
-  { title: 'Webinar Tonight 8PM UTC', msg: 'AI Income Masterclass — 500 $AIP reward for attendance!', time: '2h ago', icon: '📢', urgent: true },
-  { title: 'New DAO Proposal AIP-009', msg: 'Vote to increase referral commission to 15%. Ends in 1 day.', time: '5h ago', icon: '🗳️', urgent: false },
+  { title: 'Webinar Tonight 8PM UTC', msg: 'AI Income Masterclass — 500 $NFEGLOBAL reward for attendance!', time: '2h ago', icon: '📢', urgent: true },
+  { title: 'New DAO Proposal NFEGlobal-009', msg: 'Vote to increase referral commission to 15%. Ends in 1 day.', time: '5h ago', icon: '🗳️', urgent: false },
   { title: 'NFT Badge Drop', msg: 'Top 50 community builders receive Achievement NFT this Friday.', time: '1d ago', icon: '🏅', urgent: false },
 ];
 
@@ -46,12 +46,12 @@ const CHAT_ROOMS = [
 
 const GLOBAL_CHAT = [
   { user: '🦁 0x8f2...', msg: 'Just hit 4.2 BNB this month from referrals alone 🔥', time: '1m' },
-  { user: '🐯 0xa91...', msg: 'New proposal AIP-009 looks great — voting FOR', time: '3m' },
+  { user: '🐯 0xa91...', msg: 'New proposal NFEGlobal-009 looks great — voting FOR', time: '3m' },
   { user: '🦊 0x3c4...', msg: 'Anyone joining the webinar tonight?', time: '5m' },
-  { user: '🤖 AI Host', msg: 'Welcome to AIP Community Hub! Tonight\'s masterclass starts at 8PM UTC 🎙️', time: '10m', isAI: true },
+  { user: '🤖 AI Host', msg: 'Welcome to NFEGlobal Community Hub! Tonight\'s masterclass starts at 8PM UTC 🎙️', time: '10m', isAI: true },
 ];
 
-export default function AIPCommunityScreen({ onBack, onNavigate }) {
+export default function NFEGlobalCommunityScreen({ onBack, onNavigate }) {
   const { hasNode, nodeId, nodeTier, walletAddress } = useGameStore();
   const [tab, setTab] = useState('rooms');
   const [activeRoom, setActiveRoom] = useState(null);
@@ -107,7 +107,7 @@ export default function AIPCommunityScreen({ onBack, onNavigate }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
         <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', fontSize: 18, width: 36, height: 36, borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 900 }}>🌐 AIP Community Hub</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 900 }}>🌐 NFEGlobal Community Hub</h1>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 1 }}>Virtual Rooms · Networking · Sponsor Expo</div>
         </div>
       </div>

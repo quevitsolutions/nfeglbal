@@ -9,11 +9,11 @@ if (!projectId) {
 }
 
 export const config = getDefaultConfig({
-  appName: 'AIPCore Hub',
+  appName: 'NFEGlobal Hub',
   projectId: projectId || 'ad615b7c3d0dc4e3aee306104d15c745', // Legacy fallback only
   chains: [bsc],
   transports: {
-    [bsc.id]: http(import.meta.env.VITE_BSC_MAINNET_RPC || 'https://bsc-dataseed.binance.org'),
+    [bsc.id]: http('https://bsc-dataseed.binance.org/'),
   },
   ssr: true,
 });

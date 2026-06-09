@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 
 const AI_AGENTS = [
   {
-    id: 'host', name: 'AIP AI Host', icon: '🎙️', color: '#FF4444',
+    id: 'host', name: 'NFEGlobal AI Host', icon: '🎙️', color: '#FF4444',
     role: 'Event Host & Presenter',
     status: 'active',
     capabilities: ['Welcome attendees', 'Narrate presentations', 'Introduce speakers', 'Announce schedules', 'Handle Q&A transitions'],
@@ -13,7 +13,7 @@ const AI_AGENTS = [
     voice: 'ElevenLabs v3 — Adam',
   },
   {
-    id: 'moderator', name: 'AIP Moderator', icon: '🛡️', color: '#A3FF12',
+    id: 'moderator', name: 'NFEGlobal Moderator', icon: '🛡️', color: '#A3FF12',
     role: 'Chat & Content Moderator',
     status: 'active',
     capabilities: ['Spam filtering', 'Scam detection', 'Auto moderation', 'Chat control', 'Toxic content removal'],
@@ -21,7 +21,7 @@ const AI_AGENTS = [
     voice: 'Text-only agent',
   },
   {
-    id: 'support', name: 'AIP Support Agent', icon: '💬', color: '#4FC3F7',
+    id: 'support', name: 'NFEGlobal Support Agent', icon: '💬', color: '#4FC3F7',
     role: '24/7 Community Support',
     status: 'active',
     capabilities: ['Answer FAQs', 'Navigation help', 'Wallet support', 'Technical guidance', 'Onboarding assistance'],
@@ -29,7 +29,7 @@ const AI_AGENTS = [
     voice: 'ElevenLabs v3 — Rachel',
   },
   {
-    id: 'marketing', name: 'AIP Marketing Agent', icon: '📣', color: '#CE93D8',
+    id: 'marketing', name: 'NFEGlobal Marketing Agent', icon: '📣', color: '#CE93D8',
     role: 'Marketing & Content Creator',
     status: 'active',
     capabilities: ['Generate event posters', 'Create social content', 'WhatsApp campaigns', 'Promo video scripts', 'Telegram announcements'],
@@ -37,7 +37,7 @@ const AI_AGENTS = [
     voice: 'ElevenLabs v3 — Bella',
   },
   {
-    id: 'analytics', name: 'AIP Analytics Agent', icon: '📊', color: '#FFD700',
+    id: 'analytics', name: 'NFEGlobal Analytics Agent', icon: '📊', color: '#FFD700',
     role: 'Performance & Analytics AI',
     status: 'active',
     capabilities: ['Engagement tracking', 'User behavior analysis', 'Watch time reports', 'Conversion optimization', 'Revenue attribution'],
@@ -47,21 +47,21 @@ const AI_AGENTS = [
 ];
 
 const HOST_MESSAGES = [
-  { id: 1, from: 'AIP AI Host', msg: "Welcome, everyone! I'm your AI host for tonight's BNB Income Masterclass. We'll be covering 5 proven strategies that our community has used to generate passive income.", time: '8:00 PM', icon: '🎙️', color: '#FF4444' },
-  { id: 2, from: 'AIP AI Host', msg: "Before we begin — please check your reward panel. Attending this full session earns you 500 $AIP plus an Attendance NFT badge!", time: '8:01 PM', icon: '🎙️', color: '#FF4444' },
-  { id: 3, from: 'AIP Moderator', msg: "🛡️ Chat moderation is active. Please keep discussions respectful and relevant. Spam or scam links will result in immediate removal.", time: '8:01 PM', icon: '🛡️', color: '#A3FF12' },
-  { id: 4, from: 'AIP Support', msg: "👋 If you need help navigating the MetaVerse or have wallet questions, type /help and I'll assist you instantly!", time: '8:02 PM', icon: '💬', color: '#4FC3F7' },
+  { id: 1, from: 'NFEGlobal AI Host', msg: "Welcome, everyone! I'm your AI host for tonight's BNB Income Masterclass. We'll be covering 5 proven strategies that our community has used to generate passive income.", time: '8:00 PM', icon: '🎙️', color: '#FF4444' },
+  { id: 2, from: 'NFEGlobal AI Host', msg: "Before we begin — please check your reward panel. Attending this full session earns you 500 $NFEGLOBAL plus an Attendance NFT badge!", time: '8:01 PM', icon: '🎙️', color: '#FF4444' },
+  { id: 3, from: 'NFEGlobal Moderator', msg: "🛡️ Chat moderation is active. Please keep discussions respectful and relevant. Spam or scam links will result in immediate removal.", time: '8:01 PM', icon: '🛡️', color: '#A3FF12' },
+  { id: 4, from: 'NFEGlobal Support', msg: "👋 If you need help navigating the MetaVerse or have wallet questions, type /help and I'll assist you instantly!", time: '8:02 PM', icon: '💬', color: '#4FC3F7' },
 ];
 
 const FAQS = [
-  { q: 'How do I claim BNB rewards?', a: 'Go to AIP Rewards Arena → Claim BNB. Rewards are claimable every 24 hours to your connected wallet.' },
+  { q: 'How do I claim BNB rewards?', a: 'Go to NFEGlobal Rewards Arena → Claim BNB. Rewards are claimable every 24 hours to your connected wallet.' },
   { q: 'What is an Attendance NFT?', a: 'An on-chain proof of webinar participation. Collecting them unlocks VIP rooms, higher mining rates, and exclusive events.' },
   { q: 'How does the referral system work?', a: 'Share your unique link. When someone activates a node through your link, you earn multi-level BNB commissions automatically.' },
-  { q: 'How do I vote in the DAO?', a: 'Go to AIP DAO Hall → Proposals. Connect your wallet and vote FOR, AGAINST, or ABSTAIN. Votes are submitted via Snapshot on-chain.' },
+  { q: 'How do I vote in the DAO?', a: 'Go to NFEGlobal DAO Hall → Proposals. Connect your wallet and vote FOR, AGAINST, or ABSTAIN. Votes are submitted via Snapshot on-chain.' },
   { q: 'What chains are supported?', a: 'BNB Chain is primary. Polygon, Ethereum, and Base bridges are planned for Phase 2 via cross-chain DAO vote.' },
 ];
 
-export default function AIPAIHostScreen({ onBack }) {
+export default function NFEGlobalAIHostScreen({ onBack }) {
   const { hasNode } = useGameStore();
   const [tab, setTab] = useState('host');
   const [activeAgent, setActiveAgent] = useState(null);
@@ -92,10 +92,10 @@ export default function AIPAIHostScreen({ onBack }) {
     const faqMatch = FAQS.find(f => userMsg.toLowerCase().includes(f.q.toLowerCase().split(' ')[1]));
     const response = faqMatch
       ? faqMatch.a
-      : "Great question! I'm processing your request. In the meantime, check the AIP Academy for in-depth guides on this topic, or visit the Community Hub to ask fellow members. 🤖";
+      : "Great question! I'm processing your request. In the meantime, check the NFEGlobal Academy for in-depth guides on this topic, or visit the Community Hub to ask fellow members. 🤖";
 
     setConversation(prev => [...prev, {
-      id: Date.now() + 1, from: 'AIP Support', msg: response, time: 'now', icon: '💬', color: '#4FC3F7',
+      id: Date.now() + 1, from: 'NFEGlobal Support', msg: response, time: 'now', icon: '💬', color: '#4FC3F7',
     }]);
   };
 
@@ -105,7 +105,7 @@ export default function AIPAIHostScreen({ onBack }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
         <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', fontSize: 18, width: 36, height: 36, borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 900 }}>🤖 AIP AI Host</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 900 }}>🤖 NFEGlobal AI Host</h1>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 1 }}>5 AI Agents · OpenAI · ElevenLabs · LangChain</div>
         </div>
       </div>
@@ -145,9 +145,9 @@ export default function AIPAIHostScreen({ onBack }) {
           }}>
             <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
               style={{ fontSize: 72, marginBottom: 12 }}>🤖</motion.div>
-            <div style={{ fontSize: 16, fontWeight: 900, color: '#80CBC4', marginBottom: 4 }}>AIP AI Host</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: '#80CBC4', marginBottom: 4 }}>NFEGlobal AI Host</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 16, lineHeight: 1.5 }}>
-              "Good evening, AIP Core community! Tonight we're exploring passive income strategies powered by BNB Chain and AI automation. Get ready — your financial future starts tonight."
+              "Good evening, NFEGlobal Core community! Tonight we're exploring passive income strategies powered by BNB Chain and AI automation. Get ready — your financial future starts tonight."
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
               <div style={{ background: 'rgba(255,68,68,0.15)', border: '1px solid rgba(255,68,68,0.3)', borderRadius: 8, padding: '5px 12px', fontSize: 10, fontWeight: 800, color: '#FF4444' }}>
@@ -241,7 +241,7 @@ export default function AIPAIHostScreen({ onBack }) {
             {isTyping && (
               <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '8px 0' }}>
                 <span style={{ fontSize: 12 }}>💬</span>
-                <span style={{ fontSize: 10, color: '#4FC3F7', fontWeight: 700 }}>AIP Support is typing</span>
+                <span style={{ fontSize: 10, color: '#4FC3F7', fontWeight: 700 }}>NFEGlobal Support is typing</span>
                 <div style={{ display: 'flex', gap: 3 }}>
                   {[0,1,2].map(d => <div key={d} style={{ width: 4, height: 4, borderRadius: '50%', background: '#4FC3F7', opacity: 0.7, animation: `pulse 1s ${d * 0.3}s infinite` }} />)}
                 </div>
@@ -250,7 +250,7 @@ export default function AIPAIHostScreen({ onBack }) {
             <div ref={chatRef} />
           </div>
           <form onSubmit={handleAsk} style={{ display: 'flex', gap: 8 }}>
-            <input value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Ask AIP AI Support anything..."
+            <input value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Ask NFEGlobal AI Support anything..."
               style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(79,195,247,0.2)', borderRadius: 12, padding: '10px 14px', color: '#fff', fontSize: 12, outline: 'none' }} />
             <button type="submit" style={{ background: '#4FC3F7', border: 'none', borderRadius: 12, padding: '10px 16px', fontSize: 14, fontWeight: 900, color: '#000', cursor: 'pointer' }}>↑</button>
           </form>

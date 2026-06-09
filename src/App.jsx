@@ -9,34 +9,26 @@ import { useChainEvents } from './hooks/useChainEvents.js';
 import LoginScreen from './components/LoginScreen.jsx';
 import TopBar from './components/TopBar.jsx';
 import TabBar from './components/TabBar.jsx';
-import EarnScreen from './pages/EarnScreen.jsx';
 import UpgradeScreen from './pages/UpgradeScreen.jsx';
-import TaskScreen from './pages/TaskScreen.jsx';
-import MarketingScreen from './pages/MarketingScreen.jsx';
-import ReferralScreen from './pages/ReferralScreen.jsx';
 import DashboardScreen from './pages/DashboardScreen.jsx';
 import ContractsScreen from './pages/ContractsScreen.jsx';
 import TeamScreen from './pages/TeamScreen.jsx';
 import AdminScreen from './pages/AdminScreen.jsx';
-import NodePopup from './components/NodePopup.jsx';
-import DailyPopup from './components/DailyPopup.jsx';
+import NFEGlobalDAOScreen from './pages/NFEGlobalDAOScreen.jsx';
 import DynamicPortal from './components/DynamicPortal.jsx';
 
 // Sidebar nav definition (desktop)
 const NAV_ITEMS = [
-  { id: 'earn',      icon: '⛏️',  label: 'Mine' },
-  { id: 'mine',      icon: '🚀',  label: 'Boost' },
-  { id: 'friends',   icon: '👥',  label: 'Friends' },
-  { id: 'team',      icon: '🌐',  label: 'Team' },
-  { id: 'dash',      icon: '📊',  label: 'Stats' },
-  { id: 'contracts', icon: '📄',  label: 'Docs' },
-  { id: 'tasks',     icon: '✅',  label: 'Tasks' },
-  { id: 'marketing', icon: '🚀',  label: 'Promo' },
+  { id: 'dash',      icon: '📊',  label: 'Dashboard' },
+  { id: 'mine',      icon: '🚀',  label: 'Activate' },
+  { id: 'team',      icon: '🕸️',  label: 'Network' },
+  { id: 'dao',       icon: '🏛️',  label: 'Governance' },
+  { id: 'contracts', icon: '📄',  label: 'Contracts' },
 ];
 
 function DesktopSidebar({ activeTab, setActiveTab, nodeId, nodeTier, isAdmin, hasNode }) {
   const tabs = [...NAV_ITEMS].map(t => 
-    t.id === 'mine' ? { ...t, label: hasNode ? 'Boost' : 'Upgrade' } : t
+    t.id === 'mine' ? { ...t, label: hasNode ? 'Upgrade' : 'Activate' } : t
   );
   if (isAdmin) {
     tabs.push({ id: 'admin', icon: '⚡', label: 'Master Admin' });
@@ -45,9 +37,9 @@ function DesktopSidebar({ activeTab, setActiveTab, nodeId, nodeTier, isAdmin, ha
   return (
     <aside className="desktop-sidebar">
       <div className="sidebar-logo">
-        <div style={{ width: 32, height: 32, background: 'var(--neon-lime)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: '#000' }}>A</div>
+        <div style={{ width: 32, height: 32, background: 'var(--neon-lime)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: '#000' }}>N</div>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 900 }}>AIPCORE <span style={{ fontSize: 9, color: 'var(--neon-lime)', opacity: 0.7 }}>PRO</span></div>
+          <div style={{ fontSize: 15, fontWeight: 900 }}>NFEGLOBAL <span style={{ fontSize: 9, color: 'var(--neon-lime)', opacity: 0.7 }}>PRO</span></div>
           {nodeId && <div style={{ fontSize: 9, color: '#A3FF12', fontWeight: 700 }}>NODE #{nodeId} · T{nodeTier}</div>}
         </div>
       </div>
@@ -106,7 +98,7 @@ export default function App() {
     if (ref && /^(0x[a-fA-F0-9]{40}|\d+)$/i.test(ref)) {
       setReferrerId(ref);
       // Persist to localStorage immediately — survives MetaMask redirect & page reload
-      try { localStorage.setItem('aipcore_ref', ref); } catch(e) {}
+      try { localStorage.setItem('nfeglobal_ref', ref); } catch(e) {}
     }
   }, [setReferrerId]);
 
@@ -117,7 +109,7 @@ export default function App() {
     if (sponsorWallet) {
       setTimeout(() => {
         toast(
-          `🤝 Referred by ${shortAddr(sponsorWallet)} — Welcome to AIPCore!`,
+          `🤝 Referred by ${shortAddr(sponsorWallet)} — Welcome to NFEGlobal!`,
           {
             duration: 6000,
             icon: '🔗',
@@ -134,7 +126,7 @@ export default function App() {
     } else if (isNewUser) {
       setTimeout(() => {
         toast(
-          '🚀 Welcome to AIPCore! Start mining and invite friends to earn more.',
+          '🚀 Welcome to NFEGlobal! Start mining and invite friends to earn more.',
           { duration: 5000, icon: '⬡', style: { background: 'rgba(203,255,1,0.1)', border: '1px solid rgba(203,255,1,0.3)', color: '#fff', fontWeight: 800, fontSize: 13 } }
         );
       }, 1500);
@@ -142,21 +134,12 @@ export default function App() {
   }, [isConnected, sponsorWallet, isNewUser]);
 
   useEffect(() => {
-    const { initialLoaded } = useGameStore.getState();
-    if (!isConnected || !initialLoaded) return;
-    
-    const now = Date.now();
-    // Show if never claimed, or if 24 hours have passed since the last claim
-    if (!lastClaimDate || (now - lastClaimDate >= 24 * 60 * 60 * 1000)) {
-      setTimeout(() => setShowDailyPopup(true), 1200);
-    }
-  }, [isConnected, lastClaimDate, setShowDailyPopup]);
-
-  useEffect(() => {
     if (!isConnected) return;
-    // fetchTasksData on connect (not covered by useWalletLifecycle)
-    const { fetchTasksData } = useGameStore.getState();
-    fetchTasksData().catch(() => {});
+    const { fetchUserData, walletAddress } = useGameStore.getState();
+    if (walletAddress) {
+      useGameStore.setState({ lastBackendSync: null });
+      fetchUserData().catch(() => {});
+    }
   }, [isConnected]);
 
   // Auto-refresh user data every 30s when connected (keeps balance and stats live)
@@ -175,16 +158,12 @@ export default function App() {
   // Tab-switch refresh: instantly reload data when navigating to data-heavy screens
   useEffect(() => {
     if (!isConnected) return;
-    const { fetchReferralData, fetchUserData, fetchTasksData, fetchLeaderboardData, walletAddress } = useGameStore.getState();
+    const { fetchReferralData, fetchUserData, walletAddress } = useGameStore.getState();
     if (!walletAddress) return;
 
-    if (activeTab === 'friends') {
+    if (activeTab === 'team') {
       fetchReferralData().catch(() => {});
-      fetchLeaderboardData().catch(() => {});
-    } else if (activeTab === 'tasks') {
-      fetchTasksData().catch(() => {});
-    } else if (activeTab === 'earn' || activeTab === 'dash' || activeTab === 'mine') {
-      // Force latest user data on earn/stats/upgrade tabs
+    } else if (activeTab === 'dash' || activeTab === 'mine' || activeTab === 'dao') {
       useGameStore.setState({ lastBackendSync: null });
       fetchUserData().catch(() => {});
     }
@@ -240,24 +219,16 @@ export default function App() {
             transition={{ duration: 0.18, ease: 'easeOut' }}
             style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 'min-content' }}
           >
-            {activeTab === 'earn'      && <EarnScreen />}
-            {activeTab === 'mine'      && <UpgradeScreen />}
-            {activeTab === 'tasks'     && <TaskScreen />}
-            {activeTab === 'friends'   && <ReferralScreen />}
-            {activeTab === 'team'      && <TeamScreen />}
             {activeTab === 'dash'      && <DashboardScreen />}
+            {activeTab === 'mine'      && <UpgradeScreen />}
+            {activeTab === 'team'      && <TeamScreen />}
+            {activeTab === 'dao'       && <NFEGlobalDAOScreen />}
             {activeTab === 'contracts' && <ContractsScreen />}
-            {activeTab === 'marketing' && <MarketingScreen />}
             {activeTab === 'admin'     && <AdminScreen />}
           </motion.div>
         </AnimatePresence>
       </main>
-
-      {/* Bottom tabs — hidden on desktop via CSS */}
       <TabBar />
-
-      {showNodePopup  && <NodePopup />}
-      {showDailyPopup && <DailyPopup />}
     </div>
   );
 }

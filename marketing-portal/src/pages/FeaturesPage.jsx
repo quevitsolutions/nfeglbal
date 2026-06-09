@@ -8,7 +8,7 @@ const FEATURES = [
     icon: '⬡', color: '#CBFF01',
     title: 'Mining Node Activation',
     badge: 'CORE FEATURE',
-    desc: 'Activate your decentralized mining node with a single BNB transaction on BSC. Your node starts generating $AIP tokens immediately at 100 coins/hour, upgrading to 200/hr on Tier 2.',
+    desc: 'Activate your decentralized mining node with a single BNB transaction on BSC. Your node starts generating $NFEGLOBAL tokens immediately at 100 coins/hour, upgrading to 200/hr on Tier 2.',
     points: ['100–200 🪙/hr mining rate', 'Offline passive generation', '18 upgrade tiers', 'Instant activation'],
   },
   {
@@ -43,7 +43,7 @@ const FEATURES = [
     icon: '🤝', color: '#4FC3F7',
     title: 'AI Host & Virtual Events',
     badge: 'ECOSYSTEM',
-    desc: 'Participate in AI-hosted virtual summits, networking halls, and community events inside the AIP Core Metaverse — exclusive to active node holders.',
+    desc: 'Participate in AI-hosted virtual summits, networking halls, and community events inside the NFEGlobal Core Metaverse — exclusive to active node holders.',
     points: ['AI avatar interaction', 'Live virtual halls', 'Community summits', 'Exclusive node-holder access'],
   },
 ]
@@ -51,7 +51,7 @@ const FEATURES = [
 const HOW_IT_WORKS = [
   { step: '01', title: 'Connect Your Wallet', desc: 'Connect MetaMask or any WalletConnect-compatible BSC wallet to the app.', color: '#CBFF01' },
   { step: '02', title: 'Activate Mining Node', desc: 'Pay the one-time BNB activation fee to the audited smart contract.', color: '#4FFFFF' },
-  { step: '03', title: 'Mine $AIP 24/7', desc: 'Your node auto-mines $AIP tokens every hour — online or offline.', color: '#FF6BFF' },
+  { step: '03', title: 'Mine $NFEGLOBAL 24/7', desc: 'Your node auto-mines $NFEGLOBAL tokens every hour — online or offline.', color: '#FF6BFF' },
   { step: '04', title: 'Earn BNB Passively', desc: 'All 4 income streams run automatically. Withdraw anytime on-chain.', color: '#FF9F43' },
 ]
 
@@ -67,7 +67,7 @@ export default function FeaturesPage() {
             <div className="section-label">◈ PROTOCOL FEATURES</div>
             <h1 className="section-title">Everything You Need to<br /><span className="text-lime">Earn in Web3</span></h1>
             <p className="section-desc" style={{ margin: '0 auto 40px' }}>
-              AIP Core combines AI-powered community tools with a bulletproof DeFi income engine — all on BNB Smart Chain.
+              NFEGlobal Core combines AI-powered community tools with a bulletproof DeFi income engine — all on BNB Smart Chain.
             </p>
             <Link to="/join" className="btn-primary" style={{ fontSize: 15 }}>
               Activate Your Node ⚡
@@ -115,7 +115,7 @@ export default function FeaturesPage() {
       {/* How It Works */}
       <section className="section" style={{ background: 'rgba(255,255,255,0.01)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
         <div className="container">
-          <SectionHeader label="HOW IT WORKS" title="Up & Running in Minutes" desc="Four simple steps to activate all income streams on the AIP Core protocol." center />
+          <SectionHeader label="HOW IT WORKS" title="Up & Running in Minutes" desc="Four simple steps to activate all income streams on the NFEGlobal Core protocol." center />
           <div className="grid-4">
             {HOW_IT_WORKS.map((step, i) => (
               <motion.div key={i}

@@ -1,4 +1,4 @@
--- AIPCore Game Database Schema (Modernized Web3 Version)
+-- NFEGlobal Game Database Schema (Modernized Web3 Version)
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     wallet_address VARCHAR(42) UNIQUE NOT NULL,
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS events (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     max_seats INTEGER DEFAULT 100,
-    price_aip NUMERIC(36, 18) DEFAULT 0,
+    price_nfeglobal NUMERIC(36, 18) DEFAULT 0,
     telegram_link VARCHAR(500),
     schedule_time VARCHAR(255),   -- FIX: was missing — used by admin event creation endpoint
     is_active BOOLEAN DEFAULT TRUE,
@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS event_bookings (
     id SERIAL PRIMARY KEY,
     event_id INTEGER REFERENCES events(id) ON DELETE CASCADE,
     wallet_address VARCHAR(42) NOT NULL,
-    paid_aip NUMERIC(36, 18) DEFAULT 0,
+    paid_nfeglobal NUMERIC(36, 18) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(event_id, wallet_address)
 );

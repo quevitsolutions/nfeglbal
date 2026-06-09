@@ -1,0 +1,18 @@
+DEPLOYER_PRIVATE_KEY=21a5e3d8d3c20a7f9e5bdcba38d8c35928d344cfccf49fd97e9a00d64f93a1d1
+BSCSCAN_API_KEY=6RDAKJA74DPRFCMA4Z2FUDM9TVQ7M88KT1
+
+# ── DEPLOYMENT ROLES (MUST BE DISTINCT ADDRESSES ON LIVE NETWORKS) ────────────
+# The first registered user (genesis node ID 55555) on the connected chain
+GENESIS_USER_ADDRESS=0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+
+# The address where community registration and upgrade fees are routed
+FEE_RECEIVER_ADDRESS=0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+
+# Optional: The final administrative owner address (defaults to deployer if empty)
+OWNER_ADDRESS=0x90F79bf6EB2c4f870365E785982E1f101E93b906
+
+# Optional: The admin address who can reset oracle circuit breakers (defaults to deployer)
+ORACLE_ADMIN_ADDRESS=0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+
+# Optional: The admin address who can manage matrix operations (defaults to deployer)
+MATRIX_ADMIN_ADDRESS=0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc

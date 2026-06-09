@@ -1,32 +1,35 @@
 {
-  "name": "aipcore-tap-app",
+  "name": "nfeglobal-tap-app",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host",
+    "dev:api": "node server/index.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:api\"",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@rainbow-me/rainbowkit": "^2.1.2",
+    "@tanstack/react-query": "^5.45.1",
+    "axios": "^1.6.8",
     "ethers": "^6.11.1",
+    "framer-motion": "^11.1.7",
+    "lucide-react": "^0.363.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.22.3",
-    "zustand": "^4.5.2",
-    "axios": "^1.6.8",
     "react-hot-toast": "^2.4.1",
-    "framer-motion": "^11.1.7",
-    "@rainbow-me/rainbowkit": "^2.1.2",
-    "wagmi": "^2.10.8",
+    "react-router-dom": "^6.22.3",
     "viem": "^2.17.0",
-    "@tanstack/react-query": "^5.45.1",
-    "lucide-react": "^0.363.0"
+    "wagmi": "^2.10.8",
+    "zustand": "^4.5.2"
   },
   "devDependencies": {
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
     "vite": "^5.2.0",
     "vite-plugin-node-polyfills": "^0.22.0"
   }

@@ -1,0 +1,2460 @@
+
+
+// ----- nfeglobal.sol -----
+
+
+pragma solidity ^0.8.20;
+
+
+
+
+import "./Infeglobal.sol";
+import "./nfeglobalViews.sol";
+
+interface AggregatorV3Interface {
+  function latestRoundData() external view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
+}
+
+
+
+interface IRewardPool {
+    function registerNode(uint nodeId) external;
+}
+
+contract ReentrancyGuard {
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+    uint256 private _status;
+
+    constructor() {
+        _status = _NOT_ENTERED;
+    }
+
+    modifier nonReentrant() {
+        require(_status != _ENTERED);
+        _status = _ENTERED;
+        _;
+        _status = _NOT_ENTERED;
+    }
+}
+
+
+
+contract nfeglobal is ReentrancyGuard, Infeglobal {
+
+    
+    error NodeNotExist();
+    error AlreadyProposed();
+    error AlreadyDormant();
+    error NotInactiveLongEnough();
+    error TransferFailed();
+    error InvalidNode();
+
+    event FreeNodeRegistered(uint256 indexed nodeId, address indexed wallet, uint256 indexed sponsor);
+    event FreeNodeUpgraded(uint256 indexed nodeId, address indexed wallet);
+
+    ChainConfig public config;
+
+    uint private constant baseDivider = 10000;
+    uint private constant TRANSFER_GAS_LIMIT = 100000; 
+    uint public immutable defaultRefer;
+    address private feeReceiver;
+    address private rewardPool;
+    address public oracleAdmin;
+    address public matrixAdmin;
+    uint256 public daoTreasury;
+    address public governance;
+    uint public constant CLAIM_PERIOD = 30 days;
+    uint public dormancyThreshold = 1095 days; 
+
+    uint256 public registrationFeeUSD = 7e17; // 0.70 USD (in 18 decimals)
+
+    mapping(uint256 => bool) public isFreeRegistered;
+    uint256 public totalFreeUsers;
+    uint256 public totalFreeUpgraded;
+    uint256[] public conversionTimestamps;
+    mapping(uint256 => uint256) public totalTreasuryUsed;
+
+    string public nativeTokenSymbol;
+    uint public nativeTokenPrice;
+    uint public lastPriceUpdate;
+    uint public maxAllowedPrice;
+    uint public minAllowedPrice;
+    uint public lastOracleRoundTime; 
+    uint private lastManualPriceUpdate; 
+    
+    
+    uint public queueHead;
+    uint public queueTail;
+    mapping(uint => uint) public queue; 
+    mapping(uint => bool) public inTreasuryQueue; 
+    mapping(uint => uint) public queuedTier; 
+    mapping(uint => uint) public queuedCostBNB; 
+    mapping(uint => uint) public lastTreasuryActivity; 
+    mapping(uint => bool) public treasuryDormant; 
+    mapping(uint => uint) public dormantStart; 
+    mapping(uint => bool) public dormancyProposed;
+    mapping(uint => uint) public dormancyProposalTime;
+
+    
+    struct DaoProposal {
+        address target;
+        uint amount;
+        uint executeAfter;
+        bool executed;
+        string purpose;
+    }
+    mapping(uint => DaoProposal) public daoProposals;
+    uint public nextProposalId;
+
+    
+    bool public oracleCircuitBreaker;
+    uint public circuitBreakerActivatedAt;
+    
+    
+    mapping(uint => uint) public matrixDepth;
+    mapping(uint => uint) public minVacancyDepth;
+    
+    uint public constant AUTO_BATCH = 1; 
+    
+
+    uint private constant MAX_PRICE_DEVIATION = 2000; 
+    uint private constant MAX_MANUAL_PRICE_DEVIATION = 5000; 
+    
+    
+    uint private constant ORACLE_HEARTBEAT = 28 hours;
+    uint private constant PRICE_STALENESS_THRESHOLD = 27 hours; 
+    uint private rescueTimeLock;
+    uint private constant RESCUE_DELAY = 48 hours;
+    
+    uint public maxMatrixDepth = 25;
+    uint private constant directPercent = 1000;
+    uint private constant layerDepth = 10;
+    uint private constant minDirectNodes = 2;
+
+
+    uint private constant cyclicPercent = 7000;
+    
+    uint private constant rewardPoolPercent = 500;
+
+    
+    
+    uint[18] private tierPriceUSD = [
+        5e18,       
+        5e18,       
+        10e18,      
+        20e18,      
+        40e18,      
+        80e18,      
+        160e18,     
+        320e18,     
+        640e18,     
+        1280e18,    
+        2560e18,    
+        5120e18,    
+        10240e18,   
+        20480e18,   
+        40960e18,   
+        81920e18,   
+        163840e18,  
+        327680e18   
+    ];
+
+
+    
+
+
+    uint public totalNodes;
+    uint public totalBNBDistributed;   
+    uint private _nextId; 
+    uint[] public globalNodes;
+    mapping (uint => Node) public nodes;
+    mapping (uint => RewardInfo) public rewardInfo;
+    mapping (uint => RewardEvent[]) public rewardHistory;
+    mapping (uint => mapping (uint => uint[])) public teams;
+    mapping (uint => mapping (uint => uint[])) public networkTree;
+    mapping (uint => uint) public matrixChildCount;
+    mapping(address => uint) public nodeId;
+    mapping(uint => mapping (uint => uint)) public nodeDayReward;
+    
+    mapping(address => uint) public pendingReward;
+    mapping(uint => uint) public treasuryBalance;
+    uint public totalTreasuryBalance;
+    uint public totalPendingRewards;
+    bool public migrationLocked;
+    address public owner;
+
+    function _checkOwner() internal view {
+        require(msg.sender == owner);
+    }
+    modifier onlyOwner() {
+        _checkOwner();
+        _;
+    }
+    function _checkOwnerOrOracleAdmin() internal view {
+        require(msg.sender == owner || msg.sender == oracleAdmin);
+    }
+    modifier onlyOwnerOrOracleAdmin() {
+        _checkOwnerOrOracleAdmin();
+        _;
+    }
+    function _checkOwnerOrMatrixAdmin() internal view {
+        require(msg.sender == owner || msg.sender == matrixAdmin);
+    }
+    modifier onlyOwnerOrMatrixAdmin() {
+        _checkOwnerOrMatrixAdmin();
+        _;
+    }
+    function _checkGovernance() internal view {
+        require(msg.sender == governance);
+    }
+    modifier onlyGovernance() {
+        _checkGovernance();
+        _;
+    }
+
+    
+    
+
+    
+
+
+    constructor(
+        address _firstUser,
+        address _feeReceiver,
+        address _rewardPool,
+        address _owner,
+        address _oracleAdmin,
+        address _matrixAdmin
+    ) {
+        require(_firstUser   != address(0));
+        require(_feeReceiver != address(0));
+        require(_owner       != address(0));
+        require(_oracleAdmin != address(0));
+        require(_matrixAdmin != address(0));
+
+        owner       = _owner;
+        oracleAdmin = _oracleAdmin;
+        matrixAdmin = _matrixAdmin;
+
+        string memory sym = "BNB";
+        if (block.chainid == 137 || block.chainid == 80001 || block.chainid == 80002) {
+            sym = "POL";
+        } else if (block.chainid == 8453 || block.chainid == 84531 || block.chainid == 84532 || block.chainid == 42161 || block.chainid == 421613 || block.chainid == 421614) {
+            sym = "ETH";
+        } else if (block.chainid == 43114 || block.chainid == 43113) {
+            sym = "AVAX";
+        }
+
+        nativeTokenSymbol = sym;
+        maxAllowedPrice = 5000e8;
+        minAllowedPrice = 100e8;
+
+        config = ChainConfig({
+            nativeSymbol: sym,
+            priceFeed: address(0),
+            maxAllowedPrice: 5000e8,
+            minAllowedPrice: 100e8
+        });
+
+        nativeTokenPrice = 60000000000; 
+        lastPriceUpdate = block.timestamp;
+
+        feeReceiver = _feeReceiver;
+        if (_rewardPool != address(0)) {
+            rewardPool = _rewardPool;
+        }
+
+        defaultRefer = 55555;
+        _nextId      = defaultRefer + 1;
+
+        uint newId = defaultRefer;
+        nodeId[_firstUser] = newId;
+        Node storage node  = nodes[newId];
+        node.nodeId        = uint64(newId);
+        node.sponsor       = 0;
+        node.matrixParent  = 0;
+        node.wallet        = _firstUser;
+        globalNodes.push(node.nodeId);
+        totalNodes += 1;
+        node.tier     = 1;
+        node.joinedAt = uint40(block.timestamp);
+        node.totalContribution += getTierCost(0);
+
+        matrixDepth[newId] = 1;
+        minVacancyDepth[newId] = 1;
+    }
+    receive() external payable {}
+
+    
+    function nativePrice() public view returns (uint) {
+        return nativeTokenPrice;
+    }
+
+    
+    function bnbPrice() public view returns (uint) {
+        return nativeTokenPrice;
+    }
+
+    
+    function totalMissedRewards() public view returns (uint) {
+        return totalTreasuryBalance;
+    }
+
+    
+    function lastActivity(uint _nodeId) public view returns (uint) {
+        return lastTreasuryActivity[_nodeId];
+    }
+
+    
+    function missedRewardsByTier(uint _nodeId, uint _tier) public view returns (uint) {
+        return nfeglobalViews.missedRewardsByTier(rewardHistory, _nodeId, _tier);
+    }
+
+    
+    function treasury(uint _nodeId) public view returns (uint bnbAmount, uint usdValue) {
+        return (treasuryBalance[_nodeId], (treasuryBalance[_nodeId] * nativeTokenPrice) / 1e8);
+    }
+
+    function getTierCost(uint tier) public view returns (uint) {
+        return tierPriceUSD[tier] * 1e8 / nativeTokenPrice;
+    }
+
+    function _syncOraclePrice() private {
+        if(config.priceFeed != address(0)) {
+             try AggregatorV3Interface(config.priceFeed).latestRoundData() returns (
+                 uint80 ,
+                 int256 price,
+                 uint256 ,
+                 uint256 updatedAt,
+                 uint80 
+             ) {
+                  
+                  
+                  if (block.timestamp - updatedAt > ORACLE_HEARTBEAT) return;
+                  
+                  if (updatedAt <= lastOracleRoundTime) return;
+                  if (price <= 0) return;
+                  
+                  uint newPrice = uint(price);
+                  
+                  
+                  if (newPrice < config.minAllowedPrice || newPrice > config.maxAllowedPrice) return;
+                  
+                  
+                  uint deviation = newPrice > nativeTokenPrice ? 
+                      ((newPrice - nativeTokenPrice) * 10000) / nativeTokenPrice :
+                      ((nativeTokenPrice - newPrice) * 10000) / nativeTokenPrice;
+                      
+                   if (deviation > 5000) {
+                       oracleCircuitBreaker = true;
+                       circuitBreakerActivatedAt = block.timestamp;
+                       emit OracleCircuitBreakerTriggered(nativeTokenPrice, newPrice, deviation);
+                   }
+                  if (deviation > MAX_PRICE_DEVIATION) {
+                      
+                      
+                      emit OracleDeviationTooHigh(nativeTokenPrice, newPrice, deviation, block.timestamp);
+                  }
+                 nativeTokenPrice = newPrice;
+                 lastOracleRoundTime = updatedAt;
+                 lastPriceUpdate = block.timestamp;
+                 emit OraclePriceUpdated(nativeTokenPrice, block.timestamp);
+             } catch {
+                 emit OracleError(config.priceFeed, block.timestamp);
+             }
+        }
+    }
+
+    function _pushReward(address _to, uint _amt) private {
+        if(_amt > 0) {
+            require(_to != address(0));
+            (bool success, ) = payable(_to).call{value: _amt, gas: TRANSFER_GAS_LIMIT}("");
+            if(!success) {
+                
+                pendingReward[_to] += _amt;
+                totalPendingRewards += _amt;
+                emit RewardPending(_to, _amt);
+            } else {
+                totalBNBDistributed += _amt; 
+            }
+        }
+    }
+
+    
+    function withdraw() external nonReentrant {
+        uint amount = pendingReward[msg.sender];
+        require(amount > 0);
+        uint nid = nodeId[msg.sender];
+        if (nid != 0) {
+            lastTreasuryActivity[nid] = block.timestamp;
+        }
+        pendingReward[msg.sender] = 0; 
+        totalPendingRewards -= amount;
+        totalBNBDistributed += amount; 
+        (bool ok,) = payable(msg.sender).call{value: amount}("");
+        require(ok);
+    }
+
+    
+    function getPendingUpgradeRewards(uint _nodeId) public view returns (uint) {
+        return treasuryBalance[_nodeId];
+    }
+
+    function _routeToPool(address _pool, uint _amt) private {
+        if(_amt > 0) {
+            _pushReward(_pool == address(0) ? feeReceiver : _pool, _amt);
+        }
+    }
+
+    
+    
+    
+    
+    function _recordReward(uint _fromNode, uint _toNode, uint _tier, uint _amount, uint _type, bool _isMissed, uint _layerIndex) private {
+        if (_isMissed) {
+            rewardInfo[_toNode].missedReward += _amount;
+        } else {
+            rewardInfo[_toNode].totalRewards += _amount;
+            if (_type == 1) {
+                rewardInfo[_toNode].sponsorReward += _amount;
+                rewardInfo[_toNode].directReward += _amount; 
+            }
+            else if (_type == 2) rewardInfo[_toNode].layerReward += _amount;
+            else if (_type == 3) rewardInfo[_toNode].matrixReward += _amount;
+            
+            rewardInfo[_toNode].tierRewards[_tier] += _amount;
+            nodeDayReward[_toNode][getNodeCurDay(_toNode)] += _amount;
+        }
+
+        rewardHistory[_toNode].push(RewardEvent(_fromNode, _layerIndex, _amount, block.timestamp, _isMissed, _type, _tier));
+        emit RewardDistributed(nodes[_fromNode].wallet, _toNode, _fromNode, _layerIndex, _amount, block.timestamp, _isMissed, _type, _tier);
+    }
+
+
+    
+    
+    function scheduleRescueNative() external onlyOwner {
+        _scheduleRescueNativeInternal();
+    }
+
+    function _scheduleRescueNativeInternal() private {
+        rescueTimeLock = block.timestamp + RESCUE_DELAY;
+        emit RescueScheduled(rescueTimeLock);
+    }
+
+    
+    
+    
+    
+    
+    function rescueNative(uint _amount) external onlyOwner {
+        _rescueNativeInternal(_amount);
+    }
+
+    function _rescueNativeInternal(uint _amount) private {
+        require(rescueTimeLock != 0);
+        require(block.timestamp >= rescueTimeLock);
+
+        
+        uint reserved = totalTreasuryBalance + daoTreasury + totalPendingRewards;
+        require(address(this).balance > reserved);
+        uint maxDust = address(this).balance - reserved;
+        uint toSend  = _amount > maxDust ? maxDust : _amount;
+
+        rescueTimeLock = 0; 
+
+        
+        address destination = rewardPool != address(0) ? rewardPool : feeReceiver;
+        (bool ok,) = payable(destination).call{value: toSend}("");
+        require(ok);
+
+        emit DustSwept(toSend, destination, block.timestamp);
+    }
+
+    
+    
+    
+
+    function _createNodeInternal(address _user, uint _sponsor, uint _value) internal {
+        
+        uint newId = _nextId;
+        _nextId += 1;
+        nodeId[_user] = newId;
+        Node storage node = nodes[newId];
+        node.nodeId = uint64(newId);
+        lastTreasuryActivity[newId] = block.timestamp;
+
+        uint regFee = getRegistrationFee();
+        require(_value >= regFee, "Insufficient registration fee"); 
+        
+        // Forward registration fee to feeReceiver
+        _pushReward(feeReceiver, regFee);
+
+        if(_value > regFee) {
+            (bool ok,) = payable(_user).call{value: _value - regFee}("");
+            require(ok, "Refund failed");
+        }
+
+        node.sponsor = uint64(_sponsor);
+        node.wallet = _user;
+        node.joinedAt = uint40(block.timestamp);
+        node.tier = 0; // Starts at Tier 0
+        node.totalContribution = 0;
+
+        isFreeRegistered[newId] = true;
+        totalFreeUsers += 1;
+       
+        nodes[node.sponsor].directNodes += 1;
+        nfeglobalViews.updateNetworkTree(nodes, networkTree, node.nodeId, node.sponsor, layerDepth);
+
+        globalNodes.push(node.nodeId);
+        totalNodes += 1;
+
+        if(totalNodes > 1){ 
+            _assignMatrixPosition(node.nodeId, node.sponsor);
+        }
+
+        emit NodeCreated(node.wallet, node.nodeId, node.sponsor, node.matrixParent);
+        emit FreeNodeRegistered(newId, _user, _sponsor);
+        emit PoolCheckRequired(newId, block.timestamp);
+        _autoUpgradeBatch();
+    }
+
+    function createNode(uint _sponsor) external payable nonReentrant {
+        require(!oracleCircuitBreaker);
+        if(block.timestamp > lastPriceUpdate + 24 hours) {
+            _syncOraclePrice();
+        }
+
+        require(nodeId[msg.sender] == 0);
+        require(nodes[_sponsor].joinedAt > 0 || _sponsor == defaultRefer);
+
+        _createNodeInternal(msg.sender, _sponsor, msg.value);
+    }
+
+    
+    
+    function createNodeWithSponsorAddress(address _sponsorAddress) external payable nonReentrant {
+        require(!oracleCircuitBreaker);
+        if(block.timestamp > lastPriceUpdate + 24 hours) {
+            _syncOraclePrice();
+        }
+        require(nodeId[msg.sender] == 0);
+        uint sponsorId = nodeId[_sponsorAddress];
+        require(sponsorId != 0); 
+        _createNodeInternal(msg.sender, sponsorId, msg.value);
+    }
+
+
+    function _applyTreasuryDiscount(uint _nodeId, uint cost) private returns (uint) {
+        uint disc = treasuryBalance[_nodeId];
+        if (disc >= cost) {
+            treasuryBalance[_nodeId] -= cost;
+            totalTreasuryBalance = totalTreasuryBalance >= cost ? totalTreasuryBalance - cost : 0;
+            totalTreasuryUsed[_nodeId] += cost;
+            emit TreasuryUsed(_nodeId, cost, treasuryBalance[_nodeId]);
+            return 0;
+        }
+        treasuryBalance[_nodeId] = 0;
+        totalTreasuryBalance = totalTreasuryBalance >= disc ? totalTreasuryBalance - disc : 0;
+        if (disc > 0) {
+            totalTreasuryUsed[_nodeId] += disc;
+            emit TreasuryUsed(_nodeId, disc, 0);
+        }
+        return cost - disc;
+    }
+
+    function _unlockTierCore(uint _nodeId, uint _toTier) private {
+        bool isSuper = (_nodeId == defaultRefer);
+        Node storage node = nodes[_nodeId];
+        require(node.nodeId != 0);
+        require(msg.sender == node.wallet);
+
+        lastTreasuryActivity[_nodeId] = block.timestamp;
+        if (dormancyProposed[_nodeId]) {
+            dormancyProposed[_nodeId] = false;
+            dormancyProposalTime[_nodeId] = 0;
+        }
+
+        require(_toTier > node.tier);
+        require(_toTier <= 18);
+
+        uint initialLvl = node.tier;
+        uint totalCostBNB;
+        for (uint i = initialLvl; i < _toTier; i++) {
+            totalCostBNB += getTierCost(i);
+        }
+
+        uint valueToSend = isSuper ? 0 : _applyTreasuryDiscount(_nodeId, totalCostBNB);
+
+        require(msg.value >= valueToSend);
+        if (msg.value > valueToSend) {
+            (bool refundOk, ) = payable(msg.sender).call{value: msg.value - valueToSend}("");
+            require(refundOk);
+        }
+
+        for (uint i = initialLvl; i < _toTier; i++) {
+            uint costI = getTierCost(i);
+            if (!isSuper) _executeTierDistribution(_nodeId, i, costI);
+            node.tier += 1;
+            node.totalContribution += costI;
+            uint rankIdx = i < 18 ? i : 17;
+            nodes[node.sponsor].sponsorTierRanks[rankIdx] += 1;
+            emit TierUnlocked(node.wallet, _nodeId, i + 1);
+        }
+
+        if (initialLvl == 0 && isFreeRegistered[_nodeId]) {
+            isFreeRegistered[_nodeId] = false;
+            totalFreeUpgraded += 1;
+            conversionTimestamps.push(block.timestamp);
+            emit FreeNodeUpgraded(_nodeId, node.wallet);
+        }
+
+        emit PoolCheckRequired(_nodeId, block.timestamp);
+        _releaseTier18Treasury(_nodeId);
+        _autoUpgradeBatch();
+    }
+
+    function unlockTier(uint _nodeId, uint _toTier) external payable nonReentrant {
+        require(!oracleCircuitBreaker);
+        if (block.timestamp > lastPriceUpdate + 24 hours) _syncOraclePrice();
+        _unlockTierCore(_nodeId, _toTier);
+    }
+
+    function activateTier1() external payable nonReentrant {
+        require(!oracleCircuitBreaker);
+        if (block.timestamp > lastPriceUpdate + 24 hours) _syncOraclePrice();
+        uint256 _nodeId = nodeId[msg.sender];
+        require(_nodeId != 0, "Node does not exist");
+        require(isFreeRegistered[_nodeId], "Already activated or not free");
+        _unlockTierCore(_nodeId, 1);
+    }
+
+
+
+    function _executeTierDistribution(uint _nodeId, uint _tier, uint costI) private {
+        
+        uint toDist = costI * directPercent / baseDivider;
+        _routeReward(nodes[_nodeId].sponsor, toDist);
+        _recordReward(_nodeId, nodes[_nodeId].sponsor, _tier, toDist, 1, false, _tier + 1);
+
+        
+        uint rewardPoolAmount = costI * rewardPoolPercent / baseDivider;
+        _routeToPool(rewardPool, rewardPoolAmount);
+
+        
+        
+        _distributeLayerRewards(_nodeId, _tier, costI);
+        _distributeMatrixRewards(_nodeId, _tier, costI);
+    }
+
+    
+
+
+    function _enqueueIfEligible(uint nodeId_) private {
+        if (nodeId_ == defaultRefer) return;
+        if (inTreasuryQueue[nodeId_]) return;
+        uint8 nextTier = nodes[nodeId_].tier;
+        if (nextTier >= 18) return;
+        
+        uint costSnapshot = getTierCost(nextTier);
+        if (treasuryBalance[nodeId_] >= costSnapshot) {
+            queue[queueTail] = nodeId_;
+            queueTail++;
+            inTreasuryQueue[nodeId_] = true;
+            queuedTier[nodeId_] = nextTier;
+            queuedCostBNB[nodeId_] = costSnapshot;
+            emit TreasuryNodeQueued(nodeId_, nextTier);
+        }
+    }
+
+    
+    
+    
+    
+    function _routeReward(
+        uint256 recipientNodeId,
+        uint256 amount
+    ) internal {
+        if (nodes[recipientNodeId].nodeId != 0) {
+            if (nodes[recipientNodeId].tier == 0) {
+                treasuryBalance[recipientNodeId] += amount;
+                totalTreasuryBalance += amount;
+                lastTreasuryActivity[recipientNodeId] = block.timestamp;
+                emit TreasuryCredited(recipientNodeId, amount, treasuryBalance[recipientNodeId]);
+                _enqueueIfEligible(recipientNodeId);
+            } else {
+                _pushReward(nodes[recipientNodeId].wallet, amount);
+            }
+        } else {
+            revert InvalidNode();
+        }
+    }
+
+    function _processRewardRouting(
+        uint _fromNode,
+        uint _toNode,
+        uint _tier,
+        uint _amount,
+        uint _rewardType,
+        uint _layerIndex,
+        bool _isQualified
+    ) private {
+        if (nodes[_toNode].nodeId != 0) {
+            if (nodes[_toNode].tier == 0) {
+                treasuryBalance[_toNode] += _amount;
+                totalTreasuryBalance += _amount;
+                lastTreasuryActivity[_toNode] = block.timestamp;
+                emit TreasuryCredited(_toNode, _amount, treasuryBalance[_toNode]);
+                _enqueueIfEligible(_toNode);
+                _recordReward(_fromNode, _toNode, _tier, _amount, _rewardType, false, _layerIndex);
+            } else {
+                if (_isQualified || nodes[_toNode].tier >= 18) {
+                    _routeReward(_toNode, _amount);
+                    _recordReward(_fromNode, _toNode, _tier, _amount, _rewardType, false, _layerIndex);
+                } else {
+                    treasuryBalance[_toNode] += _amount;
+                    totalTreasuryBalance += _amount;
+                    lastTreasuryActivity[_toNode] = block.timestamp;
+                    emit TreasuryCredited(_toNode, _amount, treasuryBalance[_toNode]);
+                    _enqueueIfEligible(_toNode);
+                    _recordReward(_fromNode, _toNode, _tier, _amount, _rewardType, true, _layerIndex);
+                }
+            }
+        } else {
+            revert InvalidNode();
+        }
+    }
+
+    function _distributeLayerRewards(uint _nodeId, uint _tier, uint cost) private {
+        uint parentId = nodes[_nodeId].sponsor;
+
+        for(uint i=0; i<layerDepth; i++)
+        {
+            if(parentId == 0) break;
+
+            uint _percent = 150; 
+
+            uint toDist = cost * _percent / baseDivider;
+            bool isQualified = false;
+            if (nodes[parentId].nodeId != 0) {
+                if (nodes[parentId].tier == 0) {
+                    isQualified = true;
+                } else {
+                    isQualified = (nodes[parentId].tier > _tier && (i < 5 || nodes[parentId].directNodes >= minDirectNodes));
+                }
+            }
+
+            _processRewardRouting(_nodeId, parentId, _tier, toDist, 2, i+1, isQualified);
+
+            parentId = nodes[parentId].sponsor;
+        }
+    }
+ 
+    
+    
+    function _distributeMatrixRewards(uint _nodeId, uint _tier, uint cost) private {
+        
+        uint totalMatrix = cost * cyclicPercent / baseDivider;
+
+        
+        uint primary = nodes[_nodeId].matrixRewardReceiver[_tier];
+        if (primary == 0) primary = defaultRefer; 
+
+        bool isQualified = false;
+        if (nodes[primary].nodeId != 0) {
+            if (nodes[primary].tier == 0) {
+                isQualified = true;
+            } else {
+                isQualified = (nodes[primary].tier > _tier);
+            }
+        }
+        _processRewardRouting(_nodeId, primary, _tier, totalMatrix, 3, _tier + 1, isQualified);
+    }
+ 
+    function _assignMatrixPosition(uint _nodeId, uint _sponsor) private {
+        (, bool isFallback) = nfeglobalViews.assignMatrixPosition(
+            nodes,
+            teams,
+            matrixChildCount,
+            matrixDepth,
+            minVacancyDepth,
+            _nodeId,
+            _sponsor,
+            defaultRefer,
+            maxMatrixDepth
+        );
+        if (isFallback) {
+            emit MatrixFallback(_nodeId, _sponsor, block.timestamp);
+        }
+    }
+
+
+
+    function getMatrixUsers(uint _nodeId, uint _layer, uint _startIndex, uint _num) external view returns(Node[] memory) {
+        return nfeglobalViews.getMatrixUsers(nodes, teams, _nodeId, _layer, _startIndex, _num);
+    }
+
+    function getIncome(uint _nodeId, uint _length) external view returns(RewardEvent[] memory) {
+        return nfeglobalViews.getIncome(rewardHistory, _nodeId, _length);
+    }
+
+
+
+    function getMatrixDirect(uint _nodeId) external view returns(uint[2] memory) {
+        return nfeglobalViews.getMatrixDirect(teams, _nodeId);
+    }
+
+    function getNetworkNodes(uint _nodeId, uint _layer, uint _num) external view returns(Node[] memory) {
+        return nfeglobalViews.getNetworkNodes(nodes, networkTree, _nodeId, _layer, _num);
+    } 
+
+
+
+
+
+    function getNodeCurDay(uint _nodeId) public view returns(uint) {
+        return nfeglobalViews.getNodeCurDay(nodes, _nodeId);
+    }
+
+
+    function getTierRewards(uint _nodeId) external view returns(uint[18] memory) {
+        return nfeglobalViews.getTierRewards(rewardInfo, _nodeId);
+    }   
+
+
+    function setAddr(uint _type, address _new, uint _num) external {
+        if(_type == 0) {
+            _checkOwner();
+            require(_new != address(0));
+            address oldAddr = feeReceiver;
+            feeReceiver = _new;
+            emit AddressUpdated(0, _new, oldAddr);                  
+        } 
+        else if(_type == 1) {
+            _checkOwner();
+            require(_new != address(0));
+            address oldAddr = rewardPool;
+            rewardPool = _new;
+            emit AddressUpdated(1, _new, oldAddr);                  
+        } 
+        else if(_type == 12) { 
+            revert("");
+        }
+        else if(_type == 13) {
+            _checkOwner();
+            require(_new != address(0));
+            address oldAddr = governance;
+            governance = _new;
+            emit AddressUpdated(13, _new, oldAddr);
+        }
+        else if(_type == 14) {
+            _checkOwner();
+            require(_num > 0);
+            uint oldVal = dormancyThreshold;
+            dormancyThreshold = _num;
+            emit DormancyThresholdUpdated(oldVal, _num);
+        }
+
+        else if(_type == 6) {
+            _checkOwnerOrMatrixAdmin();
+            require(_num >= 1);
+            require(_num <= 50); 
+            uint oldValue = maxMatrixDepth;
+            maxMatrixDepth = _num;
+            emit LayersUpdated(0, oldValue, _num);
+        }
+        else if(_type == 7) {
+            _checkOwnerOrMatrixAdmin();
+            require(_new != address(0));
+            matrixAdmin = _new;
+            emit MatrixAdminUpdated(_new);
+        }
+        
+        else if(_type == 10) {
+            _checkOwnerOrOracleAdmin();
+            require(_new != address(0));
+            oracleAdmin = _new;
+            emit OracleAdminUpdated(_new);
+        }
+        else if(_type == 11) {
+            _checkOwnerOrOracleAdmin();
+            require(_new != address(0)); 
+            config.priceFeed = _new;
+            _syncOraclePrice();
+        }
+        else {
+            revert(""); 
+        }
+    }
+
+    function setRegistrationFeeUSD(uint256 newFee) external onlyOwner {
+        registrationFeeUSD = newFee;
+    }
+
+    function getRegistrationFee() public view returns (uint256) {
+        uint256 price = nativeTokenPrice;
+        require(price > 0, "Invalid price");
+        return (registrationFeeUSD * 1e8) / price;
+    }
+
+    function manualUpdatePrice(uint _newPrice) external onlyOwnerOrOracleAdmin {
+        
+        
+        require(block.timestamp >= lastManualPriceUpdate + 1 hours);
+        require(_newPrice >= config.minAllowedPrice);
+        require(_newPrice <= config.maxAllowedPrice);
+        
+        
+        uint deviation = _newPrice > nativeTokenPrice ? 
+            ((_newPrice - nativeTokenPrice) * 10000) / nativeTokenPrice :
+            ((nativeTokenPrice - _newPrice) * 10000) / nativeTokenPrice;
+            
+        require(deviation <= MAX_MANUAL_PRICE_DEVIATION);
+        
+        nativeTokenPrice = _newPrice;
+        lastPriceUpdate = block.timestamp;
+        lastManualPriceUpdate = block.timestamp; 
+        emit OraclePriceUpdated(_newPrice, block.timestamp);
+    }
+    
+    function setPriceBounds(uint _min, uint _max) external onlyOwnerOrOracleAdmin {
+        require(_min > 0);
+        require(_max > _min);
+        uint oldMin = config.minAllowedPrice;
+        uint oldMax = config.maxAllowedPrice;
+        config.minAllowedPrice = _min;
+        config.maxAllowedPrice = _max;
+        minAllowedPrice = _min;
+        maxAllowedPrice = _max;
+        
+        emit PriceBoundsUpdated(oldMin, oldMax, _min, _max);
+    }
+
+    function setNativeTokenSymbol(string calldata _symbol) external onlyOwnerOrOracleAdmin {
+        nativeTokenSymbol = _symbol;
+        config.nativeSymbol = _symbol;
+    }
+    
+    
+    function getTierCosts() external view returns(uint[18] memory _costs) {
+        return nfeglobalViews.getTierCosts(nativeTokenPrice, tierPriceUSD);
+    }
+
+    function renounceOwnership() external onlyOwner {
+        address oldOwner = owner;
+        owner = address(0);
+        emit OwnershipTransferred(oldOwner, address(0));
+    }
+
+    function transferOwnership(address _newOwner) external onlyOwner {
+        require(_newOwner != address(0));
+        address oldOwner = owner;
+        owner = _newOwner;
+        emit OwnershipTransferred(oldOwner, _newOwner);
+    }
+
+
+
+    
+
+
+    function getNode(uint256 _nodeId) external view returns (Node memory) {
+        return nfeglobalViews.getNode(nodes, _nodeId);
+    }
+
+    function getNodeByAddress(address _addr) external view returns (Node memory) {
+        return nfeglobalViews.getNodeByAddress(nodes, nodeId, _addr);
+    }
+
+    function getNodeStats(uint _userId) external view returns (
+        uint tier,
+        uint directCount,
+        uint matrixCount,
+        uint totalRewards,
+        uint totalContribution,
+        uint daysActive
+    ) {
+        return nfeglobalViews.getNodeStats(nodes, rewardInfo, rewardPool, _userId);
+    }
+
+
+
+
+
+
+    
+    
+    function getTeamSize(uint _userId, uint _depth) external view returns (uint) {
+        return nfeglobalViews.getTeamSize(networkTree, layerDepth, _userId, _depth);
+    }
+
+    function getUserLevel(uint _userId) external view returns (uint) {
+        return nfeglobalViews.getUserLevel(nodes, _userId);
+    }
+
+    function canUpgrade(uint _userId, uint _levels) external view returns (bool) {
+        return nfeglobalViews.canUpgrade(nodes, _userId, _levels);
+    }
+
+    function getUpgradeCost(uint _fromLevel, uint _levels) external view returns (uint) {
+        return nfeglobalViews.getUpgradeCost(_fromLevel, _levels, nativeTokenPrice, tierPriceUSD);
+    }
+
+    
+    
+    
+    
+    
+
+
+    function getPoolQualificationData(uint _userId) external view returns (
+        uint totalDeposited,
+        uint directReferrals,
+        uint totalTeam,
+        uint currentLevel,
+        uint directTeamL1,
+        uint matrixTeam,
+        uint registrationTime,
+        bool isActive
+    ) {
+        return nfeglobalViews.getPoolQualificationData(nodes, networkTree, _userId);
+    }
+
+
+
+    
+    
+    
+
+
+    
+    
+    
+
+    
+
+
+    function getTransparencyData() external view returns (
+        uint  _totalNodes,
+        uint  _totalBNBDistributed,
+        uint  _totalTiers,
+        address _contractAddress,
+        address _ownerAddress,
+        bool  _isRenounced
+    ) {
+        return nfeglobalViews.getTransparencyData(totalNodes, totalBNBDistributed, address(this), owner);
+    }
+
+    function getConfig() external view returns (
+        uint _defaultRefer,
+        uint _totalNodes,
+        uint _maxMatrixDepth,
+        uint _bnbPrice,
+        uint _lastUpdate,
+        address _owner,
+        address _oracleAdmin,
+        address _matrixAdmin,
+        address _feeReceiver,
+        address _rewardPool,
+        uint _maxAllowedPrice,
+        uint _minAllowedPrice
+    ) {
+        return nfeglobalViews.getConfig(
+            defaultRefer,
+            totalNodes,
+            maxMatrixDepth,
+            nativeTokenPrice,
+            lastPriceUpdate,
+            owner,
+            oracleAdmin,
+            matrixAdmin,
+            feeReceiver,
+            rewardPool,
+            config.maxAllowedPrice,
+            config.minAllowedPrice
+        );
+    }
+
+    function getFreeStats() external view returns (
+        uint256 totalFree,
+        uint256 totalUpgraded,
+        uint256 conversionRate
+    ) {
+        return nfeglobalViews.getFreeStats(totalFreeUsers, totalFreeUpgraded);
+    }
+
+    function getFreeUserList(
+        uint256 start,
+        uint256 length
+    ) external view returns (uint256[] memory freeUsers, uint256 totalFreeCount) {
+        return nfeglobalViews.getFreeUserList(isFreeRegistered, _nextId, start, length);
+    }
+
+    function getFreeUserDetails(uint256 _nodeId) external view returns (
+        address wallet,
+        uint256 sponsor,
+        uint256 tier,
+        uint256 treasuryBal,
+        uint256 joinedAt,
+        bool isConverted,
+        uint256 totalRewards
+    ) {
+        return nfeglobalViews.getFreeUserDetails(nodes, treasuryBalance, rewardInfo, isFreeRegistered, _nodeId);
+    }
+
+    function getConversionDashboard() external view returns (
+        uint256 totalFree,
+        uint256 totalConverted,
+        uint256 conversionRate,
+        uint256 todayConversions,
+        uint256 weeklyConversions,
+        uint256 monthlyConversions
+    ) {
+        return nfeglobalViews.getConversionDashboard(
+            totalFreeUsers,
+            totalFreeUpgraded,
+            conversionTimestamps
+        );
+    }
+
+    function getLevelWiseTeamStats(uint256 _nodeId) external view returns (
+        uint256[10] memory freeUsers,
+        uint256[10] memory paidUsers,
+        uint256[10] memory teamSize,
+        uint256[10] memory treasuryGenerated,
+        uint256[10] memory treasuryUsed,
+        uint256[10] memory conversions,
+        uint256[10] memory rewardsDistributed
+    ) {
+        return nfeglobalViews.getLevelWiseTeamStats(
+            networkTree,
+            isFreeRegistered,
+            treasuryBalance,
+            totalTreasuryUsed,
+            rewardInfo,
+            _nodeId
+        );
+    }
+
+    function getPotentialIncome(uint256 _nodeId) external view returns (
+        uint256 directIncomePotential,
+        uint256 layerIncomePotential,
+        uint256 matrixIncomePotential,
+        uint256 totalPotentialIncome
+    ) {
+        return nfeglobalViews.getPotentialIncome(
+            nodes,
+            networkTree,
+            nativeTokenPrice,
+            _nodeId
+        );
+    }
+
+    function getTeamRevenueStats(uint256 _nodeId) external view returns (
+        uint256 teamTreasuryGenerated,
+        uint256 teamTreasuryUsed,
+        uint256 remainingTreasury,
+        uint256 totalUpgrades,
+        uint256 teamRewardsDistributed
+    ) {
+        return nfeglobalViews.getTeamRevenueStats(
+            nodes,
+            networkTree,
+            treasuryBalance,
+            totalTreasuryUsed,
+            rewardInfo,
+            _nodeId
+        );
+    }
+
+    function getSponsorPerformance(uint256 _nodeId) external view returns (
+        uint256 freeUsers,
+        uint256 convertedUsers,
+        uint256 conversionRate,
+        uint256 teamGrowth
+    ) {
+        return nfeglobalViews.getSponsorPerformance(
+            nodes,
+            networkTree,
+            isFreeRegistered,
+            _nodeId
+        );
+    }
+
+    function getTopConverters() external view returns (
+        uint256[5] memory topSponsors,
+        uint256[5] memory freeRegistrations,
+        uint256[5] memory paidConversions,
+        uint256[5] memory conversionRate
+    ) {
+        return nfeglobalViews.getTopConverters(
+            nodes,
+            networkTree,
+            isFreeRegistered,
+            _nextId
+        );
+    }
+
+    function getAchievementLevel(uint256 _nodeId) external view returns (string memory) {
+        return nfeglobalViews.getAchievementLevel(nodes, _nodeId);
+    }
+
+    function getMissionProgress(uint256 _nodeId) external view returns (
+        uint256 directsCount,
+        uint256 remaining,
+        uint256 progressPercent,
+        bool isCompleted
+    ) {
+        return nfeglobalViews.getMissionProgress(nodes, _nodeId);
+    }
+
+    function _autoUpgradeTier(uint nodeId_, uint costBNB) private {
+        Node storage node = nodes[nodeId_];
+        uint8 currentTier = node.tier;
+        if (currentTier >= 18 || nodeId_ == defaultRefer) {
+            return;
+        }
+
+        if (treasuryBalance[nodeId_] >= costBNB) {
+            
+            treasuryBalance[nodeId_] -= costBNB;
+            totalTreasuryBalance = (totalTreasuryBalance >= costBNB) ? (totalTreasuryBalance - costBNB) : 0;
+            totalTreasuryUsed[nodeId_] += costBNB;
+            emit TreasuryUsed(nodeId_, costBNB, treasuryBalance[nodeId_]);
+
+            
+            _executeTierDistribution(nodeId_, currentTier, costBNB);
+
+            
+            node.tier += 1;
+            node.totalContribution += costBNB;
+
+            if (currentTier == 0 && isFreeRegistered[nodeId_]) {
+                isFreeRegistered[nodeId_] = false;
+                totalFreeUpgraded += 1;
+                conversionTimestamps.push(block.timestamp);
+                emit FreeNodeUpgraded(nodeId_, node.wallet);
+            }
+            
+            uint rankIdx = currentTier < 18 ? currentTier : 17;
+            nodes[node.sponsor].sponsorTierRanks[rankIdx] += 1;
+
+            emit TierUnlocked(node.wallet, nodeId_, currentTier + 1);
+            emit TreasuryUpgradeExecuted(nodeId_, currentTier, currentTier + 1, costBNB);
+            emit PoolCheckRequired(nodeId_, block.timestamp);
+
+            
+            lastTreasuryActivity[nodeId_] = block.timestamp;
+            if (dormancyProposed[nodeId_]) {
+                dormancyProposed[nodeId_] = false;
+                dormancyProposalTime[nodeId_] = 0;
+            }
+
+            
+            _releaseTier18Treasury(nodeId_);
+        }
+    }
+
+    function _autoUpgradeBatch() internal {
+        if (queueHead >= queueTail) return; 
+
+        uint snapshotTail = queueTail;
+        uint processed    = 0;
+
+        while (processed < AUTO_BATCH && queueHead < snapshotTail) {
+            uint nodeId_ = queue[queueHead];
+            delete queue[queueHead];
+            queueHead++;
+            processed++;
+
+            if (!inTreasuryQueue[nodeId_]) continue;
+
+            Node storage node = nodes[nodeId_];
+            uint8 currentTier = node.tier;
+
+            if (queuedTier[nodeId_] != currentTier) {
+                
+                inTreasuryQueue[nodeId_] = false;
+                delete queuedTier[nodeId_];
+                delete queuedCostBNB[nodeId_];
+                _enqueueIfEligible(nodeId_);
+                continue;
+            }
+
+            _processAutoUpgradeLoop(nodeId_);
+
+            inTreasuryQueue[nodeId_] = false;
+            delete queuedTier[nodeId_];
+            delete queuedCostBNB[nodeId_];
+            _enqueueIfEligible(nodeId_);
+
+            emit TreasuryQueueProcessed(nodeId_, queueTail > queueHead ? queueTail - queueHead : 0);
+        }
+    }
+
+    function _releaseTier18Treasury(uint _nodeId) private {
+        Node storage node = nodes[_nodeId];
+        if (node.tier >= 18) {
+            uint remaining = treasuryBalance[_nodeId];
+            if (remaining > 0) {
+                treasuryBalance[_nodeId] = 0;
+                totalTreasuryBalance = (totalTreasuryBalance >= remaining) ? (totalTreasuryBalance - remaining) : 0;
+                _routeReward(_nodeId, remaining);
+                emit Tier18TreasuryReleased(_nodeId, remaining);
+            }
+        }
+    }
+
+    function _processAutoUpgradeLoop(uint _nodeId) private {
+        Node storage node = nodes[_nodeId];
+        if (node.tier >= 18) {
+            return;
+        }
+
+        uint cost = queuedCostBNB[_nodeId];
+        if (cost == 0) {
+            cost = getTierCost(node.tier);
+        }
+
+        if (treasuryBalance[_nodeId] < cost) {
+            return;
+        }
+
+        _autoUpgradeTier(_nodeId, cost);
+    }
+
+    
+    
+    function selfUpgrade() external payable nonReentrant {
+        require(!oracleCircuitBreaker);
+        if (block.timestamp > lastPriceUpdate + 24 hours) _syncOraclePrice();
+        uint _nodeId = nodeId[msg.sender];
+        require(_nodeId != 0);
+        _unlockTierCore(_nodeId, nodes[_nodeId].tier + 1);
+    }
+
+    
+    
+    
+    
+    function processTreasuryQueue() external nonReentrant {
+        _autoUpgradeBatch();
+    }
+
+
+
+    function proposeDormancy(uint _nodeId) external {
+        Node storage node = nodes[_nodeId];
+        if (node.nodeId == 0)          revert NodeNotExist();
+        if (dormancyProposed[_nodeId])  revert AlreadyProposed();
+        if (treasuryDormant[_nodeId])   revert AlreadyDormant();
+        
+        uint lastAct = lastTreasuryActivity[_nodeId];
+        if (lastAct == 0) {
+            lastAct = node.joinedAt;
+        }
+        
+        require(block.timestamp > lastAct + dormancyThreshold);
+        
+        dormancyProposed[_nodeId] = true;
+        dormancyProposalTime[_nodeId] = block.timestamp;
+        
+        emit DormancyProposed(_nodeId, block.timestamp);
+    }
+
+    function _activateDormancy(uint _nodeId) private {
+        treasuryDormant[_nodeId] = true;
+        dormantStart[_nodeId] = block.timestamp;
+        emit DormancyActivated(_nodeId, block.timestamp);
+        emit TreasuryDormant(_nodeId, treasuryBalance[_nodeId], block.timestamp);
+    }
+
+    function _clearDormancyAndQueue(uint _nodeId, uint _amount) private {
+        treasuryBalance[_nodeId] = 0;
+        totalTreasuryBalance = (totalTreasuryBalance >= _amount) ? (totalTreasuryBalance - _amount) : 0;
+        treasuryDormant[_nodeId] = false;
+        dormantStart[_nodeId] = 0;
+        dormancyProposed[_nodeId] = false;
+        dormancyProposalTime[_nodeId] = 0;
+        inTreasuryQueue[_nodeId] = false;
+        delete queuedTier[_nodeId];
+        delete queuedCostBNB[_nodeId];
+    }
+
+    function activateDormancy(uint _nodeId) external {
+        require(dormancyProposed[_nodeId]);
+        require(block.timestamp >= dormancyProposalTime[_nodeId] + 30 days);
+        require(!treasuryDormant[_nodeId]);
+        
+        _activateDormancy(_nodeId);
+    }
+
+    function _claimDormant() private {
+        uint _nodeId = nodeId[msg.sender];
+        require(_nodeId != 0);
+        if (dormancyProposed[_nodeId]) {
+            dormancyProposed[_nodeId] = false;
+            dormancyProposalTime[_nodeId] = 0;
+        }
+        if (treasuryDormant[_nodeId]) {
+            require(block.timestamp <= dormantStart[_nodeId] + CLAIM_PERIOD);
+            treasuryDormant[_nodeId] = false;
+            dormantStart[_nodeId] = 0;
+            emit DormancyRecovered(_nodeId);
+        }
+        lastTreasuryActivity[_nodeId] = block.timestamp;
+    }
+
+    function claimDormantTreasury() external { _claimDormant(); }
+
+    function migrateDormantTreasury(uint _nodeId) external nonReentrant {
+        require(treasuryDormant[_nodeId]);
+        require(block.timestamp > dormantStart[_nodeId] + CLAIM_PERIOD);
+        
+        uint amount = treasuryBalance[_nodeId];
+        require(amount > 0);
+        
+        daoTreasury += amount;
+        _clearDormancyAndQueue(_nodeId, amount);
+        
+        emit DormantTreasuryTransferred(_nodeId, amount);
+        emit DaoTreasuryIncreased(_nodeId, amount, daoTreasury);
+    }
+
+    function declareDormant(uint _nodeId) external {
+        Node storage node = nodes[_nodeId];
+        if (node.nodeId == 0) revert NodeNotExist();
+        if (treasuryDormant[_nodeId]) revert AlreadyDormant();
+        
+        uint lastAct = lastTreasuryActivity[_nodeId];
+        if (lastAct == 0) {
+            lastAct = node.joinedAt;
+        }
+        
+        if (block.timestamp <= lastAct + dormancyThreshold) revert NotInactiveLongEnough();
+        
+        _activateDormancy(_nodeId);
+    }
+
+    function dormantSince(uint _nodeId) external view returns (uint) {
+        return dormantStart[_nodeId];
+    }
+
+    function reclaimDormantNode() external { _claimDormant(); }
+
+    function abandonTreasury(uint _nodeId) external nonReentrant {
+        require(treasuryDormant[_nodeId]);
+        require(block.timestamp > dormantStart[_nodeId] + CLAIM_PERIOD);
+        
+        uint amount = treasuryBalance[_nodeId];
+        require(amount > 0);
+        
+        _clearDormancyAndQueue(_nodeId, amount);
+
+        (bool success, ) = governance.call{value: amount}("");
+        if (!success) revert TransferFailed();
+        
+        emit TreasuryAbandoned(_nodeId, governance, amount);
+    }
+
+
+    function setGovernance(address _newGovernance) public onlyOwner {
+        require(_newGovernance != address(0));
+        address oldGov = governance;
+        governance = _newGovernance;
+        emit AddressUpdated(13, _newGovernance, oldGov);
+    }
+
+    function createDaoProposal(address target, uint amount, string calldata purpose) external onlyGovernance returns (uint proposalId) {
+        require(amount <= daoTreasury);
+        require(target != address(0));
+
+        proposalId = nextProposalId;
+        nextProposalId++;
+
+        daoProposals[proposalId] = DaoProposal({
+            target: target,
+            amount: amount,
+            executeAfter: block.timestamp + 48 hours,
+            executed: false,
+            purpose: purpose
+        });
+
+        emit DaoProposalCreated(proposalId, target, amount, block.timestamp + 48 hours);
+    }
+
+    function executeDaoProposal(uint proposalId) external nonReentrant onlyGovernance {
+        DaoProposal storage prop = daoProposals[proposalId];
+        require(!prop.executed);
+        require(block.timestamp >= prop.executeAfter);
+        require(prop.amount <= daoTreasury);
+
+        prop.executed = true;
+        daoTreasury -= prop.amount;
+
+        (bool ok, ) = prop.target.call{value: prop.amount}("");
+        require(ok);
+
+        emit DaoProposalExecuted(proposalId);
+        emit DaoTreasuryDecreased(prop.target, prop.amount, daoTreasury);
+    }
+
+    function migrateNode(
+        Node calldata nodeData,
+        uint256 _treasuryBalance
+    ) external onlyOwner {
+        require(!migrationLocked);
+        uint64 _nodeId = nodeData.nodeId;
+        require(nodes[_nodeId].nodeId == 0);
+        address _wallet = nodeData.wallet;
+        require(nodeId[_wallet] == 0);
+        
+        nodeId[_wallet] = _nodeId;
+        nodes[_nodeId] = nodeData;
+        
+        if (_treasuryBalance > 0) {
+            treasuryBalance[_nodeId] = _treasuryBalance;
+            totalTreasuryBalance += _treasuryBalance;
+            lastTreasuryActivity[_nodeId] = block.timestamp;
+        }
+        
+        globalNodes.push(_nodeId);
+        totalNodes += 1;
+        
+        if (_nodeId >= _nextId) {
+            _nextId = _nodeId + 1;
+        }
+        
+        emit NodeCreated(_wallet, _nodeId, nodeData.sponsor, nodeData.matrixParent);
+    }
+
+    function migratePendingReward(address _wallet, uint256 _amount) external onlyOwner {
+        require(!migrationLocked);
+        require(pendingReward[_wallet] == 0);
+        
+        pendingReward[_wallet] = _amount;
+        totalPendingRewards += _amount;
+    }
+
+    function lockMigrationForever() external onlyOwner {
+        migrationLocked = true;
+        emit MigrationLocked();
+    }
+
+    function resetOracleCircuitBreaker() external {
+        if (msg.sender != owner && msg.sender != oracleAdmin) {
+            require(oracleCircuitBreaker && block.timestamp >= circuitBreakerActivatedAt + 48 hours);
+        }
+        
+        uint256 activatedAtBefore = circuitBreakerActivatedAt;
+        _syncOraclePrice();
+        
+        require(block.timestamp - lastPriceUpdate <= ORACLE_HEARTBEAT);
+        require(nativeTokenPrice >= config.minAllowedPrice && nativeTokenPrice <= config.maxAllowedPrice);
+        require(circuitBreakerActivatedAt == activatedAtBefore);
+        
+        oracleCircuitBreaker = false;
+        circuitBreakerActivatedAt = 0;
+    }
+
+    function skimDust() external nonReentrant {
+        uint bal = address(this).balance;
+        uint reserved = totalTreasuryBalance + daoTreasury + totalPendingRewards;
+        if (bal > reserved) {
+            address target = rewardPool == address(0) ? feeReceiver : rewardPool;
+            (bool ok, ) = payable(target).call{value: bal - reserved}("");
+            require(ok);
+            emit DustSkimmed(bal - reserved, target);
+        }
+    }
+}
+
+
+
+
+// ----- RewardPool.sol -----
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+/**
+ * @title  RewardPool  v2.0 — Hardened & Future-Compatible
+ * @notice Receives BNB from NFEGlobal and distributes proportionally to
+ *         qualified nodes via three exclusive tiers:
+ *
+ *         🥉 Bronze  — NFEGlobal tier ≥ 6  and < 10   (30% of inflow)
+ *         🥈 Silver  — NFEGlobal tier ≥ 10 and < 14   (35% of inflow)
+ *         🥇 Gold    — NFEGlobal tier ≥ 14             (35% of inflow)
+ *
+ * @dev    Changes in v2.0 vs v1:
+ *         - SECURITY: ReentrancyGuard added to claim()
+ *         - SECURITY: registerNode() restricted to authorised callers only
+ *         - FUTURE: authorizedCallers whitelist — any future NFEGlobal upgrade
+ *           or helper contract can be whitelisted by owner without redeployment
+ *         - FUTURE: setEngine() already present, now also clears old-engine
+ *           from authorizedCallers automatically and adds new engine
+ *         - FUTURE: emergencyRescue with 48-hour timelock for owner fund recovery
+ *         - FUTURE: pool parameters (tier thresholds, directs, team) are now
+ *           owner-updatable so future business rule changes don't need redeploy
+ */
+
+interface Infeglobal {
+    // ── Qualification data (used by registerNode & views) ──────────────────
+    function getPoolQualificationData(uint _userId) external view returns (
+        uint totalDeposited,
+        uint directReferrals,
+        uint totalTeam,
+        uint currentLevel,
+        uint directTeamL1,
+        uint matrixTeam,
+        uint registrationTime,
+        bool isActive
+    );
+
+    // ── Node struct getter (ABI exposes only scalar fields) ─────────────────
+    // Matches Node struct: wallet, nodeId(uint64), sponsor(uint64),
+    // matrixParent(uint64), joinedAt(uint40), tier(uint8),
+    // directNodes(uint32), totalMatrixNodes(uint32), totalContribution(uint)
+    function nodes(uint nodeId) external view returns (
+        address wallet,
+        uint64  id,
+        uint64  sponsor,
+        uint64  matrixParent,
+        uint40  joinedAt,
+        uint8   tier,
+        uint32  directNodes,
+        uint32  totalMatrixNodes,
+        uint    totalContribution
+    );
+
+    // ── Node registration & upgrade ─────────────────────────────────────────
+    function createNode(uint _sponsor) external payable;
+    function unlockTier(uint _nodeId, uint _toTier) external payable;
+    function selfUpgrade() external payable;
+
+    // ── Missed / pending rewards (treasury accounting) ──────────────────────
+    function missedRewardsByTier(uint nodeId, uint tier) external view returns (uint);
+    function getPendingUpgradeRewards(uint nodeId) external view returns (uint total);
+    function pendingReward(address wallet) external view returns (uint);
+    function totalMissedRewards() external view returns (uint);
+    function totalPendingRewards() external view returns (uint);
+
+    // ── Address / node lookups ──────────────────────────────────────────────
+    function nodeId(address wallet) external view returns (uint);
+    function isNodeActive(uint _nodeId) external view returns (bool);
+    function defaultRefer() external view returns (uint);
+}
+
+
+contract RewardPool {
+
+    /* ─────────────────────────────────────────────
+       REENTRANCY GUARD (inline — no external import)
+    ───────────────────────────────────────────── */
+
+    uint8 private _locked;
+    modifier nonReentrant() {
+        require(_locked == 0, "Reentrant call");
+        _locked = 1;
+        _;
+        _locked = 0;
+    }
+
+    /* ─────────────────────────────────────────────
+       CONSTANTS
+    ───────────────────────────────────────────── */
+
+    uint private constant BASE       = 10000;
+    uint private constant BRONZE_PCT = 3000;  // 30%
+    uint private constant SILVER_PCT = 3500;  // 35%
+    uint private constant GOLD_PCT   = 3500;  // 35%
+
+    uint private constant TRANSFER_GAS = 100_000;
+
+    /* ─────────────────────────────────────────────
+       CONFIGURABLE POOL PARAMETERS (owner-updatable)
+       Allows future business rule changes without redeployment
+    ───────────────────────────────────────────── */
+
+    uint public BRONZE_MIN_TIER   = 6;
+    uint public SILVER_MIN_TIER   = 10;
+    uint public GOLD_MIN_TIER     = 14;
+
+    uint public BRONZE_MIN_DIRECT = 2;
+    uint public SILVER_MIN_DIRECT = 5;
+    uint public GOLD_MIN_DIRECT   = 10;
+
+    uint public BRONZE_MIN_TEAM   = 30;
+    uint public SILVER_MIN_TEAM   = 500;
+    uint public GOLD_MIN_TEAM     = 5000;
+
+    uint public BRONZE_CAP_MULT   = 3;
+    uint public SILVER_CAP_MULT   = 10;
+    uint public GOLD_CAP_MULT     = 25;
+
+    /* ─────────────────────────────────────────────
+       STATE
+    ───────────────────────────────────────────── */
+
+    Infeglobal public engine;
+    address  public owner;
+
+    // Cumulative BNB per pool (wei, scaled ×1e18 for precision)
+    uint public bronzeAccPerNode;
+    uint public silverAccPerNode;
+    uint public goldAccPerNode;
+
+    // Active node counts
+    uint public bronzeNodes;
+    uint public silverNodes;
+    uint public goldNodes;
+
+    // Per-node accounting
+    mapping(uint => uint8) public nodePool;
+    mapping(uint => uint)  public bronzeDebt;
+    mapping(uint => uint)  public silverDebt;
+    mapping(uint => uint)  public goldDebt;
+    mapping(uint => uint)  public pendingClaim;
+    mapping(uint => uint)  public totalClaimed;
+
+    // Super nodes — in ALL pools simultaneously, no cap, no exit
+    mapping(uint => bool) public isSuperNode;
+    mapping(uint => bool) public superRegistered;
+
+    // SECURITY: Authorized callers for registerNode()
+    // Includes: owner, engine, node's own wallet, any whitelisted contract
+    // This allows future NFEGlobal upgrades to trigger pool registration automatically
+    mapping(address => bool) public authorizedCallers;
+
+    // Residual BNB accumulated when a pool has 0 members
+    uint public residualBronze;
+    uint public residualSilver;
+    uint public residualGold;
+
+    // Transparency counters
+    uint public totalReceived;
+    uint public totalDistributed;
+
+    // Emergency rescue timelock
+    uint public rescueTimeLock;
+    uint private constant RESCUE_DELAY = 48 hours;
+
+    /* ─────────────────────────────────────────────
+       EVENTS
+    ───────────────────────────────────────────── */
+
+    event PoolReceived(uint amount, uint bronze, uint silver, uint gold, uint timestamp);
+    event NodeRegistered(uint nodeId, uint8 poolId);
+    event PoolTransition(uint nodeId, uint8 fromPool, uint8 toPool, uint pendingCarried);
+    event RewardClaimed(uint nodeId, address wallet, uint amount);
+    event CapReached(uint indexed nodeId, address indexed wallet, uint totalEarned);
+    event SuperNodeUpdated(uint indexed nodeId, bool status);
+    event EngineUpdated(address oldEngine, address newEngine);
+    event OwnershipTransferred(address newOwner);
+    event CallerAuthorized(address caller, bool status);
+    event PoolParamsUpdated(string param, uint value);
+    event RescueScheduled(uint executeAfter);
+    event RescueExecuted(address to, uint amount);
+
+    /* ─────────────────────────────────────────────
+       MODIFIERS
+    ───────────────────────────────────────────── */
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
+
+    /**
+     * @dev Allows: owner, engine contract, whitelisted contracts, or the node's own wallet.
+     *      The `nodeId` param is used to resolve the wallet check.
+     */
+    modifier onlyAuthorized(uint nodeId) {
+        if (msg.sender != owner && !authorizedCallers[msg.sender] && msg.sender != address(engine)) {
+            // Also allow the node's own registered wallet
+            (address wallet,,,,,,,,) = engine.nodes(nodeId);
+            require(msg.sender == wallet, "Not authorized");
+        }
+        _;
+    }
+
+    /* ─────────────────────────────────────────────
+       CONSTRUCTOR
+    ───────────────────────────────────────────── */
+
+    /**
+     * @param _engine        NFEGlobal contract address
+     * @param _owner         Contract owner
+     * @param _genesisNodeId Genesis node ID to auto-register into all pools as super node.
+     *                       Set to 0 to skip — then call initializeGenesis() after deployment.
+     */
+    constructor(address _engine, address _owner, uint _genesisNodeId) {
+        require(_engine != address(0), "Zero engine");
+        require(_owner  != address(0), "Zero owner");
+        engine = Infeglobal(_engine);
+        owner  = _owner;
+        // Auto-authorize engine on construction
+        authorizedCallers[_engine] = true;
+
+        // Auto-register genesis as super node in all 3 pools if provided
+        if (_genesisNodeId > 0) {
+            isSuperNode[_genesisNodeId]      = true;
+            superRegistered[_genesisNodeId]  = true;
+            _enterPool(_genesisNodeId, 1);
+            _enterPool(_genesisNodeId, 2);
+            _enterPool(_genesisNodeId, 3);
+            emit SuperNodeUpdated(_genesisNodeId, true);
+            emit NodeRegistered(_genesisNodeId, 255);
+        }
+    }
+
+    /**
+     * @notice Fallback initializer for the 2-step deploy scenario where
+     *         genesisNodeId was not passed to constructor (set to 0).
+     *         Can only be called once — reverts if genesis is already registered.
+     */
+    function initializeGenesis(uint nodeId) external onlyOwner {
+        require(nodeId > 0, "Invalid nodeId");           // M-03 Fix: reject zero-ID
+        require(!superRegistered[nodeId], "Already initialized");
+        isSuperNode[nodeId]     = true;
+        superRegistered[nodeId] = true;
+        _enterPool(nodeId, 1);
+        _enterPool(nodeId, 2);
+        _enterPool(nodeId, 3);
+        emit SuperNodeUpdated(nodeId, true);
+        emit NodeRegistered(nodeId, 255);
+    }
+
+    /* ─────────────────────────────────────────────
+       RECEIVE — called by NFEGlobal on every fee inflow
+    ───────────────────────────────────────────── */
+
+    receive() external payable {
+        if (msg.value == 0) return;
+
+        totalReceived += msg.value;
+
+        uint bronzeShare = msg.value * BRONZE_PCT / BASE;
+        uint silverShare = msg.value * SILVER_PCT / BASE;
+        uint goldShare   = msg.value - bronzeShare - silverShare;
+
+        if (bronzeNodes > 0) {
+            bronzeAccPerNode += bronzeShare * 1e18 / bronzeNodes;
+        } else {
+            residualBronze += bronzeShare;
+        }
+        if (silverNodes > 0) {
+            silverAccPerNode += silverShare * 1e18 / silverNodes;
+        } else {
+            residualSilver += silverShare;
+        }
+        if (goldNodes > 0) {
+            goldAccPerNode += goldShare * 1e18 / goldNodes;
+        } else {
+            residualGold += goldShare;
+        }
+
+        emit PoolReceived(msg.value, bronzeShare, silverShare, goldShare, block.timestamp);
+    }
+
+    /* ─────────────────────────────────────────────
+       REGISTER NODE
+    ───────────────────────────────────────────── */
+
+    /**
+     * @notice Register or upgrade a node's pool membership.
+     *         Callable by: owner, engine, whitelisted contracts, or the node's own wallet.
+     *         Future NFEGlobal upgrades can be whitelisted via setAuthorizedCaller().
+     */
+    function registerNode(uint nodeId) external nonReentrant onlyAuthorized(nodeId) {
+        // ── Super node path ───────────────────────────────────────────────
+        if (isSuperNode[nodeId]) {
+            require(!superRegistered[nodeId], "Super node already registered");
+            (,,,,,,, bool sIsActive) = engine.getPoolQualificationData(nodeId);
+            require(sIsActive, "Node not active in engine");
+
+            _enterPool(nodeId, 1);
+            _enterPool(nodeId, 2);
+            _enterPool(nodeId, 3);
+            superRegistered[nodeId] = true;
+            emit NodeRegistered(nodeId, 255);
+            return;
+        }
+
+        // ── Normal node path ───────────────────────────────────────────────
+        (, uint directRefs, , uint currentTier, , uint matrixTeam, , bool isActive)
+            = engine.getPoolQualificationData(nodeId);
+        require(isActive, "Node not active in engine");
+
+        uint8 newPool = _qualifies(currentTier, directRefs, matrixTeam);
+        uint8 oldPool = nodePool[nodeId];
+
+        require(newPool >= oldPool, "Cannot downgrade pool");
+        require(newPool > 0, "Does not meet pool qualification criteria");
+
+        if (newPool == oldPool) return;
+
+        // H-03 Fix: Prevent cap-reached node from re-entering pool.
+        // A capped node would inflate pool counts and can never claim, permanently
+        // locking a pool slot and diluting rewards for all other members.
+        {
+            (,,,,,,,, uint totalContribution) = engine.nodes(nodeId);
+            uint capMult = newPool == 3 ? GOLD_CAP_MULT : newPool == 2 ? SILVER_CAP_MULT : BRONZE_CAP_MULT;
+            uint lifetimeCap = totalContribution * capMult;
+            require(lifetimeCap == 0 || totalClaimed[nodeId] < lifetimeCap, "Node earnings cap already reached");
+        }
+
+        if (oldPool > 0) {
+            uint earned = _pendingFromPool(nodeId, oldPool);
+            if (earned > 0) pendingClaim[nodeId] += earned;
+            _exitPool(nodeId, oldPool);
+        }
+
+        _enterPool(nodeId, newPool);
+        nodePool[nodeId] = newPool;
+
+        emit PoolTransition(nodeId, oldPool, newPool, pendingClaim[nodeId]);
+        if (oldPool == 0) emit NodeRegistered(nodeId, newPool);
+    }
+
+    /* ─────────────────────────────────────────────
+       CLAIM — nonReentrant
+    ───────────────────────────────────────────── */
+
+    /**
+     * @notice Claim all accrued rewards for your node.
+     *         Protected by reentrancy guard.
+     */
+    function claim(uint nodeId) external nonReentrant {
+        (address wallet,,,,,,,, uint totalContribution) = engine.nodes(nodeId);
+        require(wallet != address(0), "Invalid wallet");
+        require(msg.sender == wallet, "Not node wallet");
+
+        // ── Super node: all pools, no cap ─────────────────────────────────
+        if (isSuperNode[nodeId]) {
+            require(superRegistered[nodeId], "Super node not registered");
+            uint sTotal = _pendingFromPool(nodeId, 1)
+                        + _pendingFromPool(nodeId, 2)
+                        + _pendingFromPool(nodeId, 3)
+                        + pendingClaim[nodeId];
+            require(sTotal > 0, "Nothing to claim");
+
+            _updateDebt(nodeId, 1);
+            _updateDebt(nodeId, 2);
+            _updateDebt(nodeId, 3);
+            pendingClaim[nodeId] = 0;
+            totalDistributed += sTotal;
+
+            (bool sOk,) = payable(wallet).call{value: sTotal, gas: TRANSFER_GAS}("");
+            require(sOk, "Transfer failed");
+            emit RewardClaimed(nodeId, wallet, sTotal);
+            return;
+        }
+
+        // ── Normal node ────────────────────────────────────────────────────
+        uint8 pool = nodePool[nodeId];
+        require(pool > 0, "Not in a pool - call registerNode first");
+
+        uint capMult = pool == 3 ? GOLD_CAP_MULT : pool == 2 ? SILVER_CAP_MULT : BRONZE_CAP_MULT;
+        uint cap = totalContribution * capMult;
+        require(cap > 0, "No contribution recorded");
+        if (totalClaimed[nodeId] >= cap) {
+            _exitPool(nodeId, pool);
+            nodePool[nodeId] = 0;
+            if (pendingClaim[nodeId] > 0) {
+                if (pool == 1) residualBronze += pendingClaim[nodeId];
+                else if (pool == 2) residualSilver += pendingClaim[nodeId];
+                else residualGold += pendingClaim[nodeId];
+                pendingClaim[nodeId] = 0;
+            }
+            emit CapReached(nodeId, wallet, totalClaimed[nodeId]);
+            return;
+        }
+
+        uint current = _pendingFromPool(nodeId, pool);
+        _updateDebt(nodeId, pool);
+
+        uint gross = current + pendingClaim[nodeId];
+        require(gross > 0, "Nothing to claim");
+
+        uint capRemaining = cap - totalClaimed[nodeId];
+        uint total = gross > capRemaining ? capRemaining : gross;
+        uint leftover = gross - total;
+
+        pendingClaim[nodeId] = leftover;
+        totalClaimed[nodeId] += total;
+        totalDistributed    += total;
+
+        // Auto-Exit on Cap: stop accruing shares if they hit their limit
+        if (totalClaimed[nodeId] >= cap) {
+            _exitPool(nodeId, pool);
+            nodePool[nodeId] = 0;
+            // M-02 Fix: clear trapped leftover — it can never be claimed once cap is
+            // reached (subsequent claim() reverts). Route to residual instead of locking.
+            if (leftover > 0) {
+                if (pool == 1) residualBronze += leftover;
+                else if (pool == 2) residualSilver += leftover;
+                else residualGold += leftover;
+                pendingClaim[nodeId] = 0;
+            }
+            emit CapReached(nodeId, wallet, totalClaimed[nodeId]);
+        }
+
+        (bool ok,) = payable(wallet).call{value: total, gas: TRANSFER_GAS}("");
+        require(ok, "Transfer failed");
+        emit RewardClaimed(nodeId, wallet, total);
+    }
+
+    /* ─────────────────────────────────────────────
+       VIEWS
+    ───────────────────────────────────────────── */
+
+    function getClaimable(uint nodeId) external view returns (
+        uint fromCurrentPool,
+        uint fromExitedPools,
+        uint total
+    ) {
+        if (isSuperNode[nodeId] && superRegistered[nodeId]) {
+            fromCurrentPool = _pendingFromPool(nodeId, 1)
+                            + _pendingFromPool(nodeId, 2)
+                            + _pendingFromPool(nodeId, 3);
+            fromExitedPools = pendingClaim[nodeId];
+            total = fromCurrentPool + fromExitedPools;
+            return (fromCurrentPool, fromExitedPools, total);
+        }
+
+        uint8 pool = nodePool[nodeId];
+        fromCurrentPool = (pool > 0) ? _pendingFromPool(nodeId, pool) : 0;
+        fromExitedPools = pendingClaim[nodeId];
+        total = fromCurrentPool + fromExitedPools;
+
+        if (pool > 0) {
+            (,,,,,,,, uint totalContribution) = engine.nodes(nodeId);
+            uint capMult = pool == 3 ? GOLD_CAP_MULT : pool == 2 ? SILVER_CAP_MULT : BRONZE_CAP_MULT;
+            uint cap = totalContribution * capMult;
+            // H-02 Fix: safe subtraction prevents underflow revert if capMult was
+            // reduced by owner after the node has already claimed above the new cap.
+            uint capRemaining = cap > totalClaimed[nodeId] ? cap - totalClaimed[nodeId] : 0;
+            if (total > capRemaining) total = capRemaining;
+        }
+    }
+
+    function getCapInfo(uint nodeId) external view returns (
+        uint capMultiplier,
+        uint totalDeposited,
+        uint lifetimeCap,
+        uint claimed,
+        uint remaining
+    ) {
+        uint8 pool = nodePool[nodeId];
+        (,,,,,,,, uint totalContribution) = engine.nodes(nodeId);
+        capMultiplier = pool == 3 ? GOLD_CAP_MULT : pool == 2 ? SILVER_CAP_MULT : pool == 1 ? BRONZE_CAP_MULT : 0;
+        totalDeposited = totalContribution;
+        lifetimeCap    = totalContribution * capMultiplier;
+        claimed        = totalClaimed[nodeId];
+        remaining      = lifetimeCap > claimed ? lifetimeCap - claimed : 0;
+    }
+
+    function getPoolForNode(uint nodeId) external view returns (uint8) {
+        (, uint directRefs, , uint currentTier, , uint matrixTeam, ,) = engine.getPoolQualificationData(nodeId);
+        return _qualifies(currentTier, directRefs, matrixTeam);
+    }
+
+    function getQualificationStatus(uint nodeId) external view returns (
+        uint8 currentPool,
+        uint  nfeTier,
+        uint  directRefs,
+        uint  matrixTeam,
+        bool  bronzeQualified,
+        bool  silverQualified,
+        bool  goldQualified,
+        uint  directNeededBronze,
+        uint  directNeededSilver,
+        uint  directNeededGold,
+        uint  teamNeededBronze,
+        uint  teamNeededSilver,
+        uint  teamNeededGold
+    ) {
+        (, uint dRefs, , uint tier, , uint mTeam, ,) = engine.getPoolQualificationData(nodeId);
+        currentPool = nodePool[nodeId];
+        nfeTier     = tier;
+        directRefs  = dRefs;
+        matrixTeam  = mTeam;
+
+        bronzeQualified = (tier >= BRONZE_MIN_TIER && dRefs >= BRONZE_MIN_DIRECT && mTeam >= BRONZE_MIN_TEAM);
+        silverQualified = (tier >= SILVER_MIN_TIER && dRefs >= SILVER_MIN_DIRECT && mTeam >= SILVER_MIN_TEAM);
+        goldQualified   = (tier >= GOLD_MIN_TIER   && dRefs >= GOLD_MIN_DIRECT   && mTeam >= GOLD_MIN_TEAM);
+
+        directNeededBronze = dRefs >= BRONZE_MIN_DIRECT ? 0 : BRONZE_MIN_DIRECT - dRefs;
+        directNeededSilver = dRefs >= SILVER_MIN_DIRECT ? 0 : SILVER_MIN_DIRECT - dRefs;
+        directNeededGold   = dRefs >= GOLD_MIN_DIRECT   ? 0 : GOLD_MIN_DIRECT   - dRefs;
+
+        teamNeededBronze = mTeam >= BRONZE_MIN_TEAM ? 0 : BRONZE_MIN_TEAM - mTeam;
+        teamNeededSilver = mTeam >= SILVER_MIN_TEAM ? 0 : SILVER_MIN_TEAM - mTeam;
+        teamNeededGold   = mTeam >= GOLD_MIN_TEAM   ? 0 : GOLD_MIN_TEAM   - mTeam;
+    }
+
+    function getPoolStats() external view returns (
+        uint _bronzeNodes,
+        uint _silverNodes,
+        uint _goldNodes,
+        uint _bronzeAccPerNode,
+        uint _silverAccPerNode,
+        uint _goldAccPerNode,
+        uint _totalReceived,
+        uint _totalDistributed
+    ) {
+        return (
+            bronzeNodes, silverNodes, goldNodes,
+            bronzeAccPerNode, silverAccPerNode, goldAccPerNode,
+            totalReceived, totalDistributed
+        );
+    }
+
+    function getNodeInfo(uint nodeId) external view returns (
+        uint8  currentPool,
+        string memory poolName,
+        uint   nfeTier,
+        uint   claimable,
+        uint   lifetimeCap,
+        uint   lifetimeClaimed,
+        uint   capRemaining,
+        bool   capReached,
+        uint   totalDeposited
+    ) {
+        currentPool = nodePool[nodeId];
+        poolName    = _poolName(currentPool);
+
+        (,,,,,,,, uint totalContribution) = engine.nodes(nodeId);
+        (uint deposited, , , uint tier, , , ,) = engine.getPoolQualificationData(nodeId);
+        totalDeposited = deposited;
+        nfeTier        = tier;
+
+        uint capMult = currentPool == 3 ? GOLD_CAP_MULT
+                     : currentPool == 2 ? SILVER_CAP_MULT
+                     : currentPool == 1 ? BRONZE_CAP_MULT : 0;
+
+        lifetimeCap     = totalContribution * capMult;
+        lifetimeClaimed = totalClaimed[nodeId];
+        capRemaining    = lifetimeCap > lifetimeClaimed ? lifetimeCap - lifetimeClaimed : 0;
+        capReached      = (lifetimeClaimed >= lifetimeCap && lifetimeCap > 0);
+
+        uint fromPool = (currentPool > 0) ? _pendingFromPool(nodeId, currentPool) : 0;
+        uint rawTotal = fromPool + pendingClaim[nodeId];
+        claimable     = rawTotal > capRemaining ? capRemaining : rawTotal;
+    }
+
+    /**
+     * @notice Comprehensive view helper for the frontend.
+     *         Returns everything needed for the Pool Dashboard in ONE call.
+     */
+    function getPoolViewHelper(uint nodeId) external view returns (
+        uint8   currentPoolId,
+        string  memory poolName,
+        uint    claimable,
+        uint    totalEarned,
+        uint    totalClaimedAmount,
+        uint    remainingCap,
+        uint    lifetimeCap,
+        uint    totalDeposited,
+        uint    nfeTier,
+        bool    isQualifiedForNext,
+        uint8   nextPoolId,
+        uint[3] memory missingRequirements // [missingTier, missingDirects, missingTeam]
+    ) {
+        currentPoolId = nodePool[nodeId];
+        poolName      = _poolName(currentPoolId);
+        
+        (,,,,,,,, uint totalContribution) = engine.nodes(nodeId);
+        (, uint dRefs, , uint tier, , uint mTeam, , ) = engine.getPoolQualificationData(nodeId);
+        
+        totalDeposited     = totalContribution;
+        nfeTier            = tier;
+        totalClaimedAmount = totalClaimed[nodeId];
+
+        uint8 p = currentPoolId;
+        uint capMult = p == 3 ? GOLD_CAP_MULT : p == 2 ? SILVER_CAP_MULT : p == 1 ? BRONZE_CAP_MULT : 0;
+        lifetimeCap = totalContribution * capMult;
+        
+        uint fromPool = (p > 0) ? _pendingFromPool(nodeId, p) : 0;
+        uint rawTotal = fromPool + pendingClaim[nodeId];
+        
+        remainingCap = lifetimeCap > totalClaimedAmount ? lifetimeCap - totalClaimedAmount : 0;
+        claimable    = rawTotal > remainingCap ? remainingCap : rawTotal;
+        totalEarned  = totalClaimedAmount + claimable;
+
+        // Next pool logic
+        nextPoolId = p < 3 ? p + 1 : 0;
+        if (nextPoolId > 0) {
+            uint reqTier   = nextPoolId == 3 ? GOLD_MIN_TIER : nextPoolId == 2 ? SILVER_MIN_TIER : BRONZE_MIN_TIER;
+            uint reqDirect = nextPoolId == 3 ? GOLD_MIN_DIRECT : nextPoolId == 2 ? SILVER_MIN_DIRECT : BRONZE_MIN_DIRECT;
+            uint reqTeam   = nextPoolId == 3 ? GOLD_MIN_TEAM : nextPoolId == 2 ? SILVER_MIN_TEAM : BRONZE_MIN_TEAM;
+            
+            isQualifiedForNext = (tier >= reqTier && dRefs >= reqDirect && mTeam >= reqTeam);
+            
+            missingRequirements[0] = tier >= reqTier ? 0 : reqTier - tier;
+            missingRequirements[1] = dRefs >= reqDirect ? 0 : reqDirect - dRefs;
+            missingRequirements[2] = mTeam >= reqTeam ? 0 : reqTeam - mTeam;
+        }
+    }
+
+    function getContractInfo() external view returns (
+        uint    _totalReceived,
+        uint    _totalDistributed,
+        uint    _pendingInContract,
+        uint    _bronzeNodes,
+        uint    _silverNodes,
+        uint    _goldNodes,
+        address _contractAddress,
+        address _engineAddress
+    ) {
+        _totalReceived     = totalReceived;
+        _totalDistributed  = totalDistributed;
+        _pendingInContract = address(this).balance;
+        _bronzeNodes       = bronzeNodes;
+        _silverNodes       = silverNodes;
+        _goldNodes         = goldNodes;
+        _contractAddress   = address(this);
+        _engineAddress     = address(engine);
+    }
+
+    function isCapReached(uint nodeId) external view returns (bool) {
+        uint8 pool = nodePool[nodeId];
+        if (pool == 0) return false;
+        (,,,,,,,, uint totalContribution) = engine.nodes(nodeId);
+        uint capMult = pool == 3 ? GOLD_CAP_MULT : pool == 2 ? SILVER_CAP_MULT : BRONZE_CAP_MULT;
+        return totalClaimed[nodeId] >= totalContribution * capMult;
+    }
+
+    function getPoolName(uint8 pool) external pure returns (string memory) {
+        return _poolName(pool);
+    }
+
+    /* ─────────────────────────────────────────────
+       ADMIN — SECURITY & FUTURE COMPATIBILITY
+    ───────────────────────────────────────────── */
+
+    /**
+     * @notice Grant or revoke a contract/address as an authorised caller of registerNode().
+     *         Use this to whitelist future NFEGlobal versions or helper contracts
+     *         so they can auto-register nodes without redeploying RewardPool.
+     */
+    function setAuthorizedCaller(address caller, bool status) external onlyOwner {
+        require(caller != address(0), "Zero address");
+        authorizedCallers[caller] = status;
+        emit CallerAuthorized(caller, status);
+    }
+
+    /**
+     * @notice Update the NFEGlobal engine address.
+     *         Old engine is removed from authorizedCallers; new engine is added.
+     *         All existing pool positions and debts are preserved.
+     */
+    function setEngine(address _engine) external onlyOwner {
+        require(_engine != address(0), "Zero engine");
+        address old = address(engine);
+        // Revoke old engine
+        if (authorizedCallers[old]) {
+            authorizedCallers[old] = false;
+            emit CallerAuthorized(old, false);
+        }
+        engine = Infeglobal(_engine);
+        // Authorise new engine automatically
+        authorizedCallers[_engine] = true;
+        emit CallerAuthorized(_engine, true);
+        emit EngineUpdated(old, _engine);
+    }
+
+    /**
+     * @notice Designate a super node (genesis / owner-designated).
+     *         Call registerNode() after this to enter all pools.
+     */
+    function setSuperNode(uint nodeId, bool status) external onlyOwner {
+        if (!status && superRegistered[nodeId]) {
+            // M-01/M-05 Fix: exit all pools before revoking super status so node
+            // counts stay accurate and nodePool mapping is cleaned up correctly.
+            // Super nodes are registered in pools 1, 2, 3 independently
+            _exitPool(nodeId, 1);
+            _exitPool(nodeId, 2);
+            _exitPool(nodeId, 3);
+            nodePool[nodeId] = 0;
+            superRegistered[nodeId] = false;
+        }
+        isSuperNode[nodeId] = status;
+        emit SuperNodeUpdated(nodeId, status);
+    }
+
+    /**
+     * @notice Update pool tier thresholds (future business rule changes).
+     *         param: "BRONZE_TIER", "SILVER_TIER", "GOLD_TIER"
+     */
+    function setPoolTierThreshold(string calldata pool, uint value) external onlyOwner {
+        bytes32 p = keccak256(bytes(pool));
+        if (p == keccak256("BRONZE_TIER"))       { BRONZE_MIN_TIER = value; }
+        else if (p == keccak256("SILVER_TIER"))  { SILVER_MIN_TIER = value; }
+        else if (p == keccak256("GOLD_TIER"))    { GOLD_MIN_TIER   = value; }
+        else revert("Unknown param");
+        emit PoolParamsUpdated(pool, value);
+    }
+
+    /**
+     * @notice Update pool direct referral requirements.
+     *         param: "BRONZE_DIRECT", "SILVER_DIRECT", "GOLD_DIRECT"
+     */
+    function setPoolDirectReq(string calldata pool, uint value) external onlyOwner {
+        bytes32 p = keccak256(bytes(pool));
+        if (p == keccak256("BRONZE_DIRECT"))      { BRONZE_MIN_DIRECT = value; }
+        else if (p == keccak256("SILVER_DIRECT")) { SILVER_MIN_DIRECT = value; }
+        else if (p == keccak256("GOLD_DIRECT"))   { GOLD_MIN_DIRECT   = value; }
+        else revert("Unknown param");
+        emit PoolParamsUpdated(pool, value);
+    }
+
+    /**
+     * @notice Update pool team size requirements.
+     *         param: "BRONZE_TEAM", "SILVER_TEAM", "GOLD_TEAM"
+     */
+    function setPoolTeamReq(string calldata pool, uint value) external onlyOwner {
+        bytes32 p = keccak256(bytes(pool));
+        if (p == keccak256("BRONZE_TEAM"))      { BRONZE_MIN_TEAM = value; }
+        else if (p == keccak256("SILVER_TEAM")) { SILVER_MIN_TEAM = value; }
+        else if (p == keccak256("GOLD_TEAM"))   { GOLD_MIN_TEAM   = value; }
+        else revert("Unknown param");
+        emit PoolParamsUpdated(pool, value);
+    }
+
+    /**
+     * @notice Update earnings cap multipliers.
+     *         param: "BRONZE_CAP", "SILVER_CAP", "GOLD_CAP"
+     */
+    function setCapMultiplier(string calldata pool, uint value) external onlyOwner {
+        require(value > 0, "Cap must be > 0");
+        bytes32 p = keccak256(bytes(pool));
+        if (p == keccak256("BRONZE_CAP"))      { BRONZE_CAP_MULT = value; }
+        else if (p == keccak256("SILVER_CAP")) { SILVER_CAP_MULT = value; }
+        else if (p == keccak256("GOLD_CAP"))   { GOLD_CAP_MULT   = value; }
+        else revert("Unknown param");
+        // M-08 Fix: enforce tier ordering invariant after any threshold change
+        require(BRONZE_CAP_MULT <= SILVER_CAP_MULT, "Cap ordering: Bronze must be <= Silver");
+        require(SILVER_CAP_MULT <= GOLD_CAP_MULT,   "Cap ordering: Silver must be <= Gold");
+        emit PoolParamsUpdated(pool, value);
+    }
+
+    /**
+     * @notice Schedule an emergency rescue (48h timelock).
+     *         Protects against impulsive misuse while allowing recovery of stuck funds.
+     */
+    function scheduleRescue() public onlyOwner {
+        rescueTimeLock = block.timestamp + RESCUE_DELAY;
+        emit RescueScheduled(rescueTimeLock);
+    }
+
+    function scheduleRescueBNB() external onlyOwner {
+        scheduleRescue();
+    }
+
+    function scheduleRescueNative() external onlyOwner {
+        scheduleRescue();
+    }
+
+    /**
+     * @notice Execute rescue after 48h timelock.
+     */
+    function rescueBNB(address to, uint amount) external onlyOwner {
+        _rescueNativeInternal(to, amount);
+    }
+
+    function rescueNative(address to, uint amount) external onlyOwner {
+        _rescueNativeInternal(to, amount);
+    }
+
+    function _rescueNativeInternal(address to, uint amount) private {
+        require(rescueTimeLock > 0 && block.timestamp >= rescueTimeLock, "Timelock not elapsed");
+        require(to != address(0), "Zero address");
+        // M-04 Fix: cap rescue amount to true surplus only — protect all accrued but
+        // unclaimed pool rewards. Sweepable = balance minus everything distributed
+        // minus everything still pending (totalReceived - totalDistributed = owed).
+        uint owed = totalReceived > totalDistributed ? totalReceived - totalDistributed : 0;
+        uint sweepable = address(this).balance > owed ? address(this).balance - owed : 0;
+        require(amount <= sweepable, "Amount exceeds sweepable surplus");
+        rescueTimeLock = 0;
+        (bool ok,) = payable(to).call{value: amount}("");
+        require(ok, "Rescue failed");
+        emit RescueExecuted(to, amount);
+    }
+
+    function transferOwnership(address _new) external onlyOwner {
+        require(_new != address(0), "Zero address");
+        owner = _new;
+        emit OwnershipTransferred(_new);
+    }
+
+    /* ─────────────────────────────────────────────
+       INTERNAL HELPERS
+    ───────────────────────────────────────────── */
+
+    function _qualifies(uint tier, uint directRefs, uint matrixTeam) private view returns (uint8) {
+        if (tier >= GOLD_MIN_TIER   && directRefs >= GOLD_MIN_DIRECT   && matrixTeam >= GOLD_MIN_TEAM)   return 3;
+        if (tier >= SILVER_MIN_TIER && directRefs >= SILVER_MIN_DIRECT && matrixTeam >= SILVER_MIN_TEAM) return 2;
+        if (tier >= BRONZE_MIN_TIER && directRefs >= BRONZE_MIN_DIRECT && matrixTeam >= BRONZE_MIN_TEAM) return 1;
+        return 0;
+    }
+
+    function _poolName(uint8 pool) private pure returns (string memory) {
+        if (pool == 3) return "Gold";
+        if (pool == 2) return "Silver";
+        if (pool == 1) return "Bronze";
+        return "None";
+    }
+
+    function _pendingFromPool(uint nodeId, uint8 pool) private view returns (uint) {
+        if (pool == 1) return (bronzeAccPerNode - bronzeDebt[nodeId]) / 1e18;
+        if (pool == 2) return (silverAccPerNode - silverDebt[nodeId]) / 1e18;
+        if (pool == 3) return (goldAccPerNode   - goldDebt[nodeId])   / 1e18;
+        return 0;
+    }
+
+    function _updateDebt(uint nodeId, uint8 pool) private {
+        if (pool == 1) bronzeDebt[nodeId] = bronzeAccPerNode;
+        if (pool == 2) silverDebt[nodeId] = silverAccPerNode;
+        if (pool == 3) goldDebt[nodeId]   = goldAccPerNode;
+    }
+
+    function _enterPool(uint nodeId, uint8 pool) private {
+        // H-01 Fix: set debt BEFORE injecting residual so that the joining node
+        // earns the residual (debt captures the pre-injection accumulator value).
+        // Previous code injected residual first, then set debt = post-injection
+        // accumulator, making the residual permanently unclaim-able.
+        _updateDebt(nodeId, pool);
+
+        if (pool == 1) {
+            bronzeNodes++;
+            if (bronzeNodes == 1 && residualBronze > 0) {
+                bronzeAccPerNode += residualBronze * 1e18;
+                residualBronze = 0;
+            }
+        }
+        if (pool == 2) {
+            silverNodes++;
+            if (silverNodes == 1 && residualSilver > 0) {
+                silverAccPerNode += residualSilver * 1e18;
+                residualSilver = 0;
+            }
+        }
+        if (pool == 3) {
+            goldNodes++;
+            if (goldNodes == 1 && residualGold > 0) {
+                goldAccPerNode += residualGold * 1e18;
+                residualGold = 0;
+            }
+        }
+    }
+
+    function _exitPool(uint nodeId, uint8 pool) private {
+        _updateDebt(nodeId, pool);
+        if (pool == 1 && bronzeNodes > 0) bronzeNodes--;
+        if (pool == 2 && silverNodes > 0) silverNodes--;
+        if (pool == 3 && goldNodes   > 0) goldNodes--;
+    }
+}

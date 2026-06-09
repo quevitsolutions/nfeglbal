@@ -24,7 +24,7 @@ const FACTS = [
   { label: 'Founded',       value: '2024' },
   { label: 'Blockchain',    value: 'BNB Smart Chain' },
   { label: 'Contract',      value: 'Audited & Verified' },
-  { label: 'Token',         value: '$AIP' },
+  { label: 'Token',         value: '$NFEGLOBAL' },
   { label: 'Income Streams', value: '4 On-chain' },
   { label: 'Matrix Depth',   value: '18 Levels' },
   { label: 'Active Nodes',   value: '12,400+' },
@@ -32,10 +32,10 @@ const FACTS = [
 ]
 
 const SOCIAL = [
-  { name: 'Telegram Channel', handle: '@aipcore',     href: 'https://t.me/aipcore',        icon: '✈️' },
-  { name: 'Telegram Group',   handle: '@aipcorechat', href: 'https://t.me/aipcorechat',    icon: '💬' },
-  { name: 'Twitter / X',      handle: '@aipcore',     href: 'https://twitter.com/aipcore', icon: '𝕏' },
-  { name: 'Website',          handle: 'aipcore.online', href: 'https://aipcore.online',    icon: '🌐' },
+  { name: 'Telegram Channel', handle: '@nfeglobal',     href: 'https://t.me/nfeglobal',        icon: '✈️' },
+  { name: 'Telegram Group',   handle: '@nfeglobalchat', href: 'https://t.me/nfeglobalchat',    icon: '💬' },
+  { name: 'Twitter / X',      handle: '@nfeglobal',     href: 'https://twitter.com/nfeglobal', icon: '𝕏' },
+  { name: 'Website',          handle: 'nfeglobal.online', href: 'https://nfeglobal.online',    icon: '🌐' },
 ]
 
 export default function PressPage() {
@@ -166,9 +166,9 @@ export default function PressPage() {
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {[
-                  { label: 'Media & Press', value: 'press@aipcore.online' },
-                  { label: 'Partnerships', value: 'partners@aipcore.online' },
-                  { label: 'Support', value: 'support@aipcore.online' },
+                  { label: 'Media & Press', value: 'press@nfeglobal.online' },
+                  { label: 'Partnerships', value: 'partners@nfeglobal.online' },
+                  { label: 'Support', value: 'support@nfeglobal.online' },
                 ].map((c, i) => (
                   <div key={i} style={{ padding: '12px 18px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
                     <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', letterSpacing: 1, marginBottom: 4 }}>{c.label}</div>

@@ -6,6 +6,6 @@ dist
 .DS_Store
 *.local
 .gemini
-aipcore_db_data
+nfeglobal_db_data
 tests/
 server/node_modules

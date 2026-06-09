@@ -1,15 +1,16 @@
 export const CONTRACTS = {
-  AIPCORE:    "0xB6CbD70147835D4eA93B4a768D8e101B6E9A420f",
-  AIPVIEW:    "0x8d4FBcb77EAA5260F4C5f41713c6968A197E2BDb",
-  REWARDPOOL: "0x319429aD1A00cbCD6aed1fFA1106eEC056316465"
+  NFEGLOBAL:     "0x9daA28D40082E4173b4b07AE76A92Eda0Ff3A522",
+  NFEGLOBALVIEW: "0x1883cEd2948f7213424ac9D1fd3E50d4aee9E29A",
+  REWARDPOOL:    "0xA0DE5adE595a43838d1a883D441ea5f0829d66b1",
+  GOVERNANCE:    "0xA6F9eC34b45B732DCDcf849f321466e61a749C83",
 };
 
 export const BSC_CHAIN_ID = 56;
 
 export const RPC_NODES = [
-  import.meta.env.VITE_BSC_MAINNET_RPC || "https://bsc-dataseed.binance.org",
-  "https://binance.llamarpc.com",
-  "https://bsc-dataseed1.defibit.io",
-  "https://1rpc.io/bnb",
-  "https://rpc.ankr.com/bsc"
+  "https://bsc-dataseed.binance.org/",
+  "https://bsc-dataseed1.binance.org/",
+  "https://bsc-dataseed2.binance.org/",
+  "https://bsc-dataseed3.binance.org/",
+  "https://bsc-dataseed4.binance.org/",
 ];

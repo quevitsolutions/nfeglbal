@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   AIPCORE DESIGN SYSTEM — FULLY RESPONSIVE
+   NFEGLOBAL DESIGN SYSTEM — FULLY RESPONSIVE
    Mobile ≤ 640px | Tablet 641–1024px | Desktop ≥ 1025px
 ═══════════════════════════════════════════ */
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
@@ -333,7 +333,7 @@ body {
 .modal-sub   { font-size: 13px; color: #FFB74D; text-align: center; margin-bottom: 24px; }
 
 /* Streak Grid */
-.streak-grid-aipcore {
+.streak-grid-nfeglobal {
   display: grid; grid-template-columns: repeat(4, 1fr);
   gap: 10px; width: 100%; margin-bottom: 32px;
 }

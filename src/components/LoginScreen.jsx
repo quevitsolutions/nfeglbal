@@ -161,7 +161,7 @@ export default function LoginScreen({ onConnect }) {
           <div style={{ textAlign: 'left' }}>
             <div style={{
               fontSize: 16, fontWeight: 900, color: '#fff', letterSpacing: '-0.01em'
-            }}>AIPCORE HUB</div>
+            }}>NFEGLOBAL HUB</div>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
               background: 'rgba(255,255,255,0.03)',
@@ -182,7 +182,7 @@ export default function LoginScreen({ onConnect }) {
           fontWeight: 900, lineHeight: 1.1,
           marginBottom: 10, letterSpacing: '-0.02em',
         }}>
-          <span style={{ color: '#ffffff' }}>MINE </span>
+          <span style={{ color: '#ffffff' }}>BUILD </span>
           <span style={{ color: '#00D2FF' }}>TODAY.</span><br />
           <span style={{ color: '#ffffff' }}>SHAPE </span>
           <span style={{ color: '#00D2FF' }}>TOMORROW.</span>
@@ -198,6 +198,8 @@ export default function LoginScreen({ onConnect }) {
         <ConnectButton.Custom>
           {({ openConnectModal, mounted }) => {
             const handleConnect = () => {
+              // Clear explicit-disconnect flag so reconnect is allowed
+              try { localStorage.removeItem('nfeglobal_disconnected'); } catch(e) {}
               if (hasInjectedProvider) connect({ connector: injected() });
               else openConnectModal();
             };

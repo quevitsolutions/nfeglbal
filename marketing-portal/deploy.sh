@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ════════════════════════════════════════════════════════
-#  AIP CORE — MARKETING PORTAL — Deploy Script
+#  NFEGlobal CORE — MARKETING PORTAL — Deploy Script
 #  Standalone deployment — zero impact on main core app
 #
 #  Usage:
@@ -17,12 +17,12 @@ YLW='\033[1;33m'
 CYN='\033[0;36m'
 NC='\033[0m'
 
-DOMAIN="${MARKETING_DOMAIN:-promo.aipcore.online}"
+DOMAIN="${MARKETING_DOMAIN:-promo.nfeglobal.online}"
 COMPOSE_FILE="docker-compose.yml"
 
 echo -e "${CYN}"
 echo "  ╔══════════════════════════════════════╗"
-echo "  ║  AIP CORE — Marketing Portal Deploy  ║"
+echo "  ║  NFEGlobal CORE — Marketing Portal Deploy  ║"
 echo "  ╚══════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -50,7 +50,7 @@ if [[ "$1" == "--ssl" ]]; then
       --standalone \
       --non-interactive \
       --agree-tos \
-      --email admin@aipcore.online \
+      --email admin@nfeglobal.online \
       -d "${DOMAIN}" \
       -d "www.${DOMAIN}"
   echo -e "${GRN}  ✓ SSL issued${NC}"

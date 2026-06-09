@@ -9,7 +9,7 @@ services:
         - VITE_PROJECT_ID=${VITE_PROJECT_ID}
         - VITE_BSC_MAINNET_RPC=${VITE_BSC_MAINNET_RPC}
         - VITE_ADMIN_WALLET=${VITE_ADMIN_WALLET}
-    container_name: aipcore-frontend
+    container_name: nfeglobal-frontend
     ports:
       - "80:80"
       - "443:443"
@@ -34,17 +34,17 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: aipcore-api
+    container_name: nfeglobal-api
     environment:
       - PORT=3001
       - DB_HOST=db
       - DB_USER=postgres
-      - DB_PASSWORD=aipcore_pass
-      - DB_NAME=aipcore_game
+      - DB_PASSWORD=nfeglobal_pass
+      - DB_NAME=nfeglobal_game
       - VITE_ADMIN_WALLET=${VITE_ADMIN_WALLET}
       - VITE_RPC_URL=${VITE_RPC_URL}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - APP_URL=https://aipcore.online
+      - APP_URL=https://nfeglobal.online
       - GROQ_API_KEY=${GROQ_API_KEY}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
@@ -59,18 +59,18 @@ services:
   # PostgreSQL Database
   db:
     image: postgres:16-alpine
-    container_name: aipcore-db
+    container_name: nfeglobal-db
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=aipcore_pass
-      - POSTGRES_DB=aipcore_game
+      - POSTGRES_PASSWORD=nfeglobal_pass
+      - POSTGRES_DB=nfeglobal_game
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
     volumes:
-      - aipcore_db_data:/var/lib/postgresql/data
+      - nfeglobal_db_data:/var/lib/postgresql/data
       - ./server/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: always
 
@@ -84,12 +84,12 @@ services:
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 volumes:
-  aipcore_db_data:
+  nfeglobal_db_data:
   certbot-etc:
   certbot-var:
 
 networks:
   default:
   marketing_net:
-    name: aipcore-marketing-net
+    name: nfeglobal-marketing-net
     external: true

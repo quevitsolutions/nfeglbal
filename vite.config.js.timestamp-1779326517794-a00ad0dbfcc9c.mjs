@@ -1,7 +1,7 @@
 // vite.config.js
-import { defineConfig } from "file:///E:/AIPCORE%20HUB/node_modules/vite/dist/node/index.js";
-import react from "file:///E:/AIPCORE%20HUB/node_modules/@vitejs/plugin-react/dist/index.js";
-import { nodePolyfills } from "file:///E:/AIPCORE%20HUB/node_modules/vite-plugin-node-polyfills/dist/index.js";
+import { defineConfig } from "file:///E:/NFEGLOBAL%20HUB/node_modules/vite/dist/node/index.js";
+import react from "file:///E:/NFEGLOBAL%20HUB/node_modules/@vitejs/plugin-react/dist/index.js";
+import { nodePolyfills } from "file:///E:/NFEGLOBAL%20HUB/node_modules/vite-plugin-node-polyfills/dist/index.js";
 var vite_config_default = defineConfig({
   plugins: [
     react(),

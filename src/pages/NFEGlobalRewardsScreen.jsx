@@ -13,9 +13,9 @@ const NFT_BADGES = [
 
 const REWARD_HISTORY = [
   { type: 'BNB Reward', amount: '0.024 BNB', date: 'Today', icon: '💰', color: '#FFD700' },
-  { type: 'Webinar Reward', amount: '500 $AIP', date: 'Yesterday', icon: '🎙️', color: '#4FC3F7' },
+  { type: 'Webinar Reward', amount: '0.005 BNB', date: 'Yesterday', icon: '🎙️', color: '#4FC3F7' },
   { type: 'Referral Commission', amount: '0.008 BNB', date: '2 days ago', icon: '🔗', color: '#A3FF12' },
-  { type: 'Daily Streak', amount: '200 $AIP', date: '3 days ago', icon: '🔥', color: '#FF6B6B' },
+  { type: 'Daily Streak', amount: '0.002 BNB', date: '3 days ago', icon: '🔥', color: '#FF6B6B' },
   { type: 'NFT Badge Drop', amount: 'Attendance NFT', date: '1 week ago', icon: '🏅', color: '#CE93D8' },
 ];
 
@@ -29,14 +29,14 @@ const LEADERBOARD = [
 
 const RARITY_COLOR = { Common: '#4FC3F7', Rare: '#A3FF12', Epic: '#CE93D8', Legendary: '#FFD700' };
 
-export default function AIPRewardsScreen({ onBack }) {
+export default function NFEGlobalRewardsScreen({ onBack }) {
   const { hasNode, nodeTier, localReward, poolClaimable } = useGameStore();
   const [tab, setTab] = useState('overview');
   const [claimingBnb, setClaimingBnb] = useState(false);
   const [claimedAmount, setClaimedAmount] = useState(null);
 
   const [bnbReward] = useState(0.024);
-  const [aipReward] = useState(localReward || 0);
+  const [nfeglobalReward] = useState(localReward || 0);
 
   const handleClaimBnb = async () => {
     if (!hasNode) return toast.error('🔒 Activate your node to claim BNB rewards', { duration: 4000 });
@@ -53,7 +53,7 @@ export default function AIPRewardsScreen({ onBack }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
         <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', fontSize: 18, width: 36, height: 36, borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 900 }}>🏆 AIP Rewards Arena</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 900 }}>🏆 NFEGlobal Rewards Arena</h1>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 1 }}>BNB Rewards · NFT Badges · Referral Income</div>
         </div>
       </div>
@@ -76,17 +76,17 @@ export default function AIPRewardsScreen({ onBack }) {
           </button>
         </div>
 
-        {/* AIP Card */}
+        {/* Matrix Level Card */}
         <div style={{
           borderRadius: 18, padding: 16,
           background: 'linear-gradient(135deg, rgba(27,67,50,0.6), rgba(13,17,23,0.95))',
           border: '1px solid rgba(163,255,18,0.3)',
         }}>
-          <div style={{ fontSize: 22, marginBottom: 6 }}>⛏️</div>
-          <div style={{ fontSize: 20, fontWeight: 900, color: '#A3FF12' }}>{(aipReward || 0).toLocaleString()}</div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 12 }}>$AIP Balance</div>
+          <div style={{ fontSize: 22, marginBottom: 6 }}>🕸️</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#A3FF12' }}>TIER {nodeTier || 1}</div>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 12 }}>Active Matrix Level</div>
           <div style={{ width: '100%', padding: '9px', borderRadius: 10, background: 'rgba(163,255,18,0.1)', textAlign: 'center', fontSize: 11, fontWeight: 800, color: '#A3FF12' }}>
-            Mining Now ⚡
+            100% On-Chain 🔗
           </div>
         </div>
       </div>
@@ -121,10 +121,10 @@ export default function AIPRewardsScreen({ onBack }) {
           <div style={{ background: 'rgba(22,27,34,0.9)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: 16, marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 900, color: '#fff', marginBottom: 12 }}>💎 Active Reward Streams</div>
             {[
-              { name: 'Webinar Attendance', rate: '+500 $AIP/session', active: true, icon: '🎙️' },
-              { name: 'Community Referrals', rate: '+10% commission', active: hasNode, icon: '🔗' },
-              { name: 'DAO Voting Rewards', rate: '+100 $AIP/vote', active: hasNode, icon: '🗳️' },
-              { name: 'Mining Rate', rate: `+${nodeTier > 0 ? Math.round(100 * Math.pow(1.2, nodeTier - 1)) : 10} $AIP/hr`, active: true, icon: '⛏️' },
+              { name: 'Direct Referrals', rate: '10% instant BNB payout', active: hasNode, icon: '🔗' },
+              { name: 'Layer Yield Commissions', rate: '1.5% BNB downline per layer (10 layers)', active: hasNode, icon: '⚙️' },
+              { name: 'DAO Voting Power', rate: '1 vote per Node ID', active: hasNode, icon: '🗳️' },
+              { name: 'Matrix Cascade Yield', rate: '70% BNB binary payload', active: hasNode, icon: '🕸️' },
               { name: 'NFT Holder Bonus', rate: '+5% passive', active: false, icon: '🏅' },
               { name: 'Pool Staking', rate: 'Variable BNB APR', active: hasNode, icon: '🌊' },
             ].map((stream) => (

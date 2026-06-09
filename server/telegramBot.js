@@ -1,5 +1,5 @@
 /**
- * AIPCore Telegram Bot
+ * NFEGlobal Telegram Bot
  * Handles user notifications, marketing broadcasts, and referral deep links.
  * Uses polling (no webhook needed — simpler Docker setup).
  */
@@ -8,11 +8,11 @@ import { query } from './db.js';
 import { ethers } from 'ethers';
 
 // Hardcoded for backend Docker context isolation
-const AIPCORE_ADDRESS   = '0xB6CbD70147835D4eA93B4a768D8e101B6E9A420f';
-const REWARDPOOL_ADDRESS = '0x319429aD1A00cbCD6aed1fFA1106eEC056316465';
-const BSC_RPC = (process.env.VITE_RPC_URL || 'https://bsc-dataseed.binance.org').trim();
+const NFEGLOBAL_ADDRESS   = '0xda0d24aAd1685F59614c1a347826fA1100aBd9F6';
+const REWARDPOOL_ADDRESS = '0x582a725c49B10024bd50C73c1063270fCC6fD4A9';
+const BSC_RPC = (process.env.VITE_RPC_URL || 'https://bsc-testnet.bnbchain.org').trim();
 
-const AIPCORE_ABI = [
+const NFEGLOBAL_ABI = [
   'function nodeId(address user) view returns (uint256)',
   'function getNodeStats(uint256 _userId) view returns (uint256 tier, uint256 directCount, uint256 matrixCount, uint256 totalRewards, uint256 totalContribution, uint256 daysActive)'
 ];
@@ -21,8 +21,8 @@ const REWARDPOOL_ABI = [
 ];
 
 const BOT_TOKEN    = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
-const BOT_USERNAME = 'aipcore_bot';
-const APP_URL      = (process.env.APP_URL || 'https://aipcore.online').trim();
+const BOT_USERNAME = 'nfeglobal_bot';
+const APP_URL      = (process.env.APP_URL || 'https://nfeglobal.online').trim();
 
 let bot = null;
 
@@ -54,7 +54,7 @@ export function initTelegramBot() {
   const getDashboardKeyboard = () => ({
     keyboard: [
       [{ text: '📊 My Status' }, { text: '👥 My Team' }],
-      [{ text: '🔗 Share Referral' }, { text: 'ℹ️ About AIPCore' }]
+      [{ text: '🔗 Share Referral' }, { text: 'ℹ️ About NFEGlobal' }]
     ],
     resize_keyboard: true,
     is_persistent: true
@@ -76,7 +76,7 @@ export function initTelegramBot() {
           [telegramId, actualWallet]
         );
         await bot.sendMessage(chatId,
-          `✅ *Wallet Connected!*\n\nHey ${firstName}! Your wallet \`${actualWallet.slice(0,6)}...${actualWallet.slice(-4)}\` is now linked to this Telegram account.\n\n🔔 You will receive:\n• Node activation alerts\n• Reward notifications\n• New team member alerts\n• Exclusive promotions\n\nUse the buttons below to explore AIPCore 👇`,
+          `✅ *Wallet Connected!*\n\nHey ${firstName}! Your wallet \`${actualWallet.slice(0,6)}...${actualWallet.slice(-4)}\` is now linked to this Telegram account.\n\n🔔 You will receive:\n• Node activation alerts\n• Reward notifications\n• New team member alerts\n• Exclusive promotions\n\nUse the buttons below to explore NFEGlobal 👇`,
           {
             parse_mode: 'Markdown',
             reply_markup: {
@@ -95,13 +95,13 @@ export function initTelegramBot() {
     } else if (walletArg && walletArg.startsWith('0x')) {
       // Referral deep link
       await bot.sendMessage(chatId,
-        `👋 *Welcome to AIPCore Hub!*\n\nYou've been invited by \`${walletArg.slice(0,6)}...${walletArg.slice(-4)}\` to join the ultimate BNB earnings network.\n\n⚡ Build a global team for free and activate your node to earn 24/7 passive matrix income.\n\nClick the button below to connect your wallet and lock your position in their team 👇`,
+        `👋 *Welcome to NFEGlobal Hub!*\n\nYou've been invited by \`${walletArg.slice(0,6)}...${walletArg.slice(-4)}\` to join the ultimate BNB earnings network.\n\n⚡ Build a global team for free and activate your node to earn 24/7 passive matrix income.\n\nClick the button below to connect your wallet and lock your position in their team 👇`,
         { parse_mode: 'Markdown', reply_markup: getDashboardKeyboard() }
       );
     } else {
       // Generic welcome — no deep link
       await bot.sendMessage(chatId,
-        `👋 *Welcome to AIPCore Hub!*\n\n⚡ The decentralized BNB earnings network where free users build global teams and activate their income stream.\n\nTo connect your wallet and get notifications, visit the app and click *"🔔 Connect Telegram"* on your profile page.`,
+        `👋 *Welcome to NFEGlobal Hub!*\n\n⚡ The decentralized BNB earnings network where free users build global teams and activate their income stream.\n\nTo connect your wallet and get notifications, visit the app and click *"🔔 Connect Telegram"* on your profile page.`,
         { parse_mode: 'Markdown', reply_markup: getDashboardKeyboard() }
       );
     }
@@ -155,7 +155,7 @@ export function initTelegramBot() {
       const nodeTier    = Number(u.node_tier) || 0;
       const nodeId      = Number(u.node_id)   || 0;
       const walletShort = `${u.wallet_address.slice(0,6)}...${u.wallet_address.slice(-4)}`;
-      const aip         = parseFloat(u.local_reward || 0).toFixed(0);
+      const nfeglobal         = parseFloat(u.local_reward || 0).toFixed(0);
       const directs     = Number(u.directs) || 0;
       const tierLabel   = nodeTier > 0 ? `✅ Tier ${nodeTier} Node` : '⏳ Free User (Not Activated)';
       const nodeLabel   = nodeTier > 0 ? (nodeId > 0 ? `#${nodeId}` : 'Activated') : 'Not Activated';
@@ -195,7 +195,7 @@ export function initTelegramBot() {
           if (currentPoolId > 0) {
             poolText = `🏆 Pool: Active in ${poolName}`;
           } else if (isQualified) {
-            poolText = `🏆 Pool: QUALIFIED ✅ — Visit aipcore.online to register!`;
+            poolText = `🏆 Pool: QUALIFIED ✅ — Visit nfeglobal.online to register!`;
           }
         } catch (poolErr) {
           console.warn('Pool check failed (non-critical):', poolErr.message);
@@ -207,11 +207,11 @@ export function initTelegramBot() {
         : '🎉 You are earning BNB from your network!';
 
       await bot.sendMessage(chatId,
-        `📊 *Your AIPCore Status*\n\n` +
+        `📊 *Your NFEGlobal Status*\n\n` +
         `👛 Wallet: \`${walletShort}\`\n` +
         `⬡ Node: ${nodeLabel}\n` +
         `🏆 Status: ${tierLabel}\n` +
-        `💎 $AIP Balance: ${Number(aip).toLocaleString()}\n` +
+        `💎 $NFEGLOBAL Balance: ${Number(nfeglobal).toLocaleString()}\n` +
         `👥 Direct Refs: ${directs}\n` +
         `🌳 Team (18 lvls): ${teamTotal} total | ✅ ${teamActivated} active | ⏳ ${teamFree} free\n` +
         `${poolText}\n\n${footer}`,
@@ -305,7 +305,7 @@ export function initTelegramBot() {
   // ── /info / About ──────────────────────────────────────────────────────────
   const handleInfo = async (msg) => {
     bot.sendMessage(msg.chat.id,
-      `ℹ️ *About AIPCore Hub*\n\nAIPCore is a decentralized BNB-earning network running on BNB Smart Chain.\n\n🔹 *Free Users* can join and build a team for free (30-day trial)\n🔹 *Node Holders* earn real BNB from their 18-level deep network\n🔹 The more users in your team, the more you earn\n\n🚀 Activate your node and start earning today!`,
+      `ℹ️ *About NFEGlobal Hub*\n\nNFEGlobal is a decentralized BNB-earning network running on BNB Smart Chain.\n\n🔹 *Free Users* can join and build a team for free (30-day trial)\n🔹 *Node Holders* earn real BNB from their 18-level deep network\n🔹 The more users in your team, the more you earn\n\n🚀 Activate your node and start earning today!`,
       { parse_mode: 'Markdown', reply_markup: getDashboardKeyboard() }
     );
   };
@@ -317,7 +317,7 @@ export function initTelegramBot() {
       case '📊 My Status':    return handleStatus(msg);
       case '👥 My Team':      return handleTeam(msg);
       case '🔗 Share Referral': return handleRefer(msg);
-      case 'ℹ️ About AIPCore': return handleInfo(msg);
+      case 'ℹ️ About NFEGlobal': return handleInfo(msg);
     }
   });
 
@@ -434,8 +434,8 @@ export async function checkExpiringTrials() {
       // 1. Notify the free user themselves (if they have Telegram linked)
       if (row.telegram_id) {
         const userMsg = daysLeft === 3
-          ? `⚠️ *Free Trial Expiring in 3 Days!*\n\nHey! Your AIPCore free trial ends in *3 days*.\n\n🔒 After expiry, your spot in the network will be lost and you'll need to start over.\n\n✅ *Activate your node now* to secure your position and start earning real BNB from your team!\n\n👇 [Open AIPCore](${APP_URL})`
-          : `🚨 *LAST DAY — Trial Expires Tomorrow!*\n\nThis is your final reminder — your AIPCore free trial expires *tomorrow*.\n\n⚡ Don't lose your network position! Activate your node today to:\n• Earn real BNB 24/7\n• Keep your team's referral earnings\n• Access the 18-tier matrix\n\n👇 [Activate Now](${APP_URL})`;
+          ? `⚠️ *Free Trial Expiring in 3 Days!*\n\nHey! Your NFEGlobal free trial ends in *3 days*.\n\n🔒 After expiry, your spot in the network will be lost and you'll need to start over.\n\n✅ *Activate your node now* to secure your position and start earning real BNB from your team!\n\n👇 [Open NFEGlobal](${APP_URL})`
+          : `🚨 *LAST DAY — Trial Expires Tomorrow!*\n\nThis is your final reminder — your NFEGlobal free trial expires *tomorrow*.\n\n⚡ Don't lose your network position! Activate your node today to:\n• Earn real BNB 24/7\n• Keep your team's referral earnings\n• Access the 18-tier matrix\n\n👇 [Activate Now](${APP_URL})`;
         await sendNotification(row.telegram_id, userMsg);
         notified++;
       }

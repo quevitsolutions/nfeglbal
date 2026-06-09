@@ -97,7 +97,7 @@ function TaskManagementAdmin() {
 function EventManagementAdmin() {
   const { walletAddress } = useGameStore();
   const [loading, setLoading] = useState(false);
-  const [newEvent, setNewEvent] = useState({ title: '', description: '', scheduleTime: '', maxSeats: 100, priceAip: 0, telegramLink: '' });
+  const [newEvent, setNewEvent] = useState({ title: '', description: '', scheduleTime: '', maxSeats: 100, priceNfeglobal: 0, telegramLink: '' });
 
   const handleCreate = async () => {
     if (!newEvent.title || !newEvent.telegramLink) return toast.error('Title & Telegram Link required');
@@ -105,7 +105,7 @@ function EventManagementAdmin() {
     try {
       await api.createAdminEvent(walletAddress, newEvent);
       toast.success('VIP Seminar Event Created!');
-      setNewEvent({ title: '', description: '', scheduleTime: '', maxSeats: 100, priceAip: 0, telegramLink: '' });
+      setNewEvent({ title: '', description: '', scheduleTime: '', maxSeats: 100, priceNfeglobal: 0, telegramLink: '' });
     } catch { toast.error('Failed to create event'); }
     setLoading(false);
   };
@@ -122,7 +122,7 @@ function EventManagementAdmin() {
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <input style={inputStyle} type="number" placeholder="Max Seats Limit" value={newEvent.maxSeats} onChange={e => setNewEvent({ ...newEvent, maxSeats: e.target.value })} />
-            <input style={inputStyle} type="number" placeholder="Cost in $AIP (0 = Free)" value={newEvent.priceAip} onChange={e => setNewEvent({ ...newEvent, priceAip: e.target.value })} />
+            <input style={inputStyle} type="number" placeholder="Cost in $NFEGLOBAL (0 = Free)" value={newEvent.priceNfeglobal} onChange={e => setNewEvent({ ...newEvent, priceNfeglobal: e.target.value })} />
           </div>
           
           <input style={inputStyle} placeholder="Private Telegram Invite Link" value={newEvent.telegramLink} onChange={e => setNewEvent({ ...newEvent, telegramLink: e.target.value })} />
@@ -302,7 +302,7 @@ function TelegramAdminPanel({ adminWallet }) {
           <textarea
             value={message}
             onChange={e => setMessage(e.target.value)}
-            placeholder="🚀 *AIPCore Update!*&#10;&#10;New milestone unlocked! Activate your node to start earning BNB rewards today!&#10;&#10;👉 Visit the app now:"
+            placeholder="🚀 *NFEGlobal Update!*&#10;&#10;New milestone unlocked! Activate your node to start earning BNB rewards today!&#10;&#10;👉 Visit the app now:"
             rows={6}
             style={{ ...inputStyle, width: '100%', resize: 'vertical', lineHeight: 1.5 }}
           />
@@ -384,7 +384,7 @@ function SystemAdminPanel({ adminWallet }) {
 
   const handleUpgrade = async () => {
     setUpgrading(true);
-    setLogs(['⏳ Starting upgrade from aipcorehub...']);
+    setLogs(['⏳ Starting upgrade from nfeglobalhub...']);
     try {
       const res = await api.triggerSystemUpgrade(adminWallet, { forceReset });
       setLogs(res.logs || []);
@@ -438,7 +438,7 @@ function SystemAdminPanel({ adminWallet }) {
               <div>
                 <div style={{ fontSize: 10, fontWeight: 800, color: badgeColor }}
                 >{status.behindCount > 0 ? `🔔 ${status.behindCount} UPDATE(S) AVAILABLE` : '✅ UP TO DATE'}</div>
-                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>Source: aipcorehub (pull-only)</div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>Source: nfeglobalhub (pull-only)</div>
               </div>
               <button onClick={loadStatus} style={{
                 background: 'rgba(255,255,255,0.07)', color: '#fff', border: 'none',
@@ -476,7 +476,7 @@ function SystemAdminPanel({ adminWallet }) {
             color: '#fff'
           }}
         >
-          {upgrading ? '⏳ UPGRADING...' : '⬆ PULL & UPGRADE FROM AIPCOREHUB'}
+          {upgrading ? '⏳ UPGRADING...' : '⬆ PULL & UPGRADE FROM NFEGLOBALHUB'}
         </motion.button>
       </div>
 
@@ -497,6 +497,159 @@ function SystemAdminPanel({ adminWallet }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Targeted Users Panel ──────────────────────────────────────────────────────
+function TargetedUsersPanel({ adminWallet }) {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [newWallet, setNewWallet] = useState('');
+
+  useEffect(() => { loadUsers(); }, [adminWallet]);
+
+  const loadUsers = async () => {
+    setLoading(true);
+    try {
+      const data = await api.fetchTargetedUsers(adminWallet);
+      setUsers(Array.isArray(data) ? data : []);
+    } catch { toast.error('Failed to load targeted users'); }
+    setLoading(false);
+  };
+
+  const handleAdd = async () => {
+    if (!newWallet || newWallet.length < 10) return toast.error('Enter a valid wallet address');
+    setSaving(true);
+    try {
+      await api.setTargetedUser(adminWallet, newWallet.trim(), true);
+      toast.success('✅ Wallet marked as targeted');
+      setNewWallet('');
+      await loadUsers();
+    } catch (e) { toast.error(e.message); }
+    setSaving(false);
+  };
+
+  const handleRemove = async (wallet) => {
+    setSaving(true);
+    try {
+      await api.setTargetedUser(adminWallet, wallet, false);
+      toast.success('Removed from targeted list');
+      await loadUsers();
+    } catch (e) { toast.error(e.message); }
+    setSaving(false);
+  };
+
+  const cardStyle = {
+    background: 'var(--bg-card)', padding: 24, borderRadius: 24,
+    border: '1px solid rgba(255,215,0,0.18)'
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Explainer */}
+      <div style={cardStyle}>
+        <h3 style={{ fontSize: 13, fontWeight: 900, color: '#FFD700', marginBottom: 12, letterSpacing: 1 }}>🎯 TARGETED USER AUTO-UNLOCK</h3>
+        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, margin: 0 }}>
+          Wallets marked as <strong style={{ color: '#FFD700' }}>Targeted</strong> will be automatically
+          registered or tier-upgraded whenever a downline triggers a reward toward them — <em>provided
+          their wallet has sufficient BNB balance</em>. If their wallet is unfunded, the reward is missed
+          and locked in treasury as normal.
+        </p>
+        <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {[
+            { icon: '💰', text: 'Fund wallet → auto-qualifies' },
+            { icon: '🔒', text: 'Unfunded → reward stays in treasury' },
+            { icon: '⬆', text: 'Same-or-upper tier enforced on-chain' },
+          ].map(({ icon, text }) => (
+            <span key={text} style={{
+              background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.2)',
+              borderRadius: 10, padding: '5px 11px', fontSize: 10, fontWeight: 700, color: '#FFD700'
+            }}>{icon} {text}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Add New */}
+      <div style={cardStyle}>
+        <h3 style={{ fontSize: 12, fontWeight: 900, color: '#A3FF12', marginBottom: 14, letterSpacing: 1 }}>➕ ADD TARGETED WALLET</h3>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <input
+            id="targeted-wallet-input"
+            value={newWallet}
+            onChange={e => setNewWallet(e.target.value)}
+            placeholder="0x... wallet address"
+            style={{ ...inputStyle, flex: 1, width: '100%' }}
+          />
+          <motion.button
+            whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+            onClick={handleAdd} disabled={saving}
+            style={{
+              background: saving ? 'rgba(163,255,18,0.3)' : 'linear-gradient(135deg,#A3FF12,#6AFF00)',
+              color: '#000', border: 'none', borderRadius: 12, padding: '0 20px',
+              fontWeight: 900, fontSize: 12, cursor: saving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap'
+            }}
+          >
+            {saving ? '...' : '🎯 ADD'}
+          </motion.button>
+        </div>
+      </div>
+
+      {/* Current Targeted Users */}
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 12, fontWeight: 900, color: '#FFD700', letterSpacing: 1, margin: 0 }}>
+            🎯 TARGETED WALLETS ({users.length})
+          </h3>
+          <button onClick={loadUsers} style={{
+            background: 'rgba(255,255,255,0.07)', color: '#fff', border: 'none',
+            padding: '6px 12px', borderRadius: 8, fontSize: 10, fontWeight: 900, cursor: 'pointer'
+          }}>🔄 REFRESH</button>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', color: '#FFD700', fontSize: 13, padding: 20 }}>Loading...</div>
+        ) : users.length === 0 ? (
+          <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 11, padding: 20 }}>
+            No targeted wallets yet. Add one above.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {users.map(u => (
+              <div key={u.wallet_address} style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                background: 'rgba(255,215,0,0.05)', borderRadius: 14,
+                border: '1px solid rgba(255,215,0,0.15)', padding: '12px 16px'
+              }}>
+                {/* Status dot */}
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                  background: u.node_id ? '#A3FF12' : '#FFD700',
+                  boxShadow: u.node_id ? '0 0 8px #A3FF12' : '0 0 8px #FFD700'
+                }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 900, fontFamily: 'monospace', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {u.wallet_address}
+                  </div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>
+                    {u.node_id ? `Node #${u.node_id} · Tier ${u.node_tier || 0}` : '⚠ Not yet registered on-chain'}
+                  </div>
+                </div>
+                <motion.button
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => handleRemove(u.wallet_address)}
+                  disabled={saving}
+                  style={{
+                    background: 'rgba(255,82,82,0.15)', color: '#FF5252', border: '1px solid rgba(255,82,82,0.3)',
+                    borderRadius: 8, padding: '5px 10px', fontSize: 10, fontWeight: 900, cursor: 'pointer'
+                  }}
+                >✕ REMOVE</motion.button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -555,7 +708,7 @@ export default function AdminScreen() {
   const freeCoins = parseFloat(s.coins_free_users || 0);
   const otherCoins = totalCoins - nodeCoins - freeCoins;
 
-  const TABS = ['overview', 'snapshot', 'tasks', 'events', 'users', 'logs', 'telegram', 'system'];
+  const TABS = ['overview', 'snapshot', 'tasks', 'events', 'users', 'logs', 'telegram', 'system', 'targeted'];
 
   return (
     <div className="page-content" style={{ padding: '0 20px 60px' }}>
@@ -637,7 +790,7 @@ export default function AdminScreen() {
             ].map(item => (
               <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 12, fontWeight: 800 }}>
                 <span style={{ color: item.color }}>{item.label}</span>
-                <span>{formatNumber(Math.floor(item.value))} $AIP</span>
+                <span>{formatNumber(Math.floor(item.value))} $NFEGLOBAL</span>
               </div>
             ))}
           </div>
@@ -803,6 +956,10 @@ export default function AdminScreen() {
       {activeAdminTab === 'system' && (
         <SystemAdminPanel adminWallet={walletAddress} />
       )}
+      {activeAdminTab === 'targeted' && (
+        <TargetedUsersPanel adminWallet={walletAddress} />
+      )}
+
     </div>
   );
 }

@@ -7,17 +7,17 @@ export const formatNumber = (n) => {
 export const shortAddr = (addr) =>
   addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "";
 
-export const formatBNB = (wei) => {
+export const formatBNB = (wei, symbol = "BNB") => {
   try {
-    return parseFloat(wei).toFixed(4) + " BNB";
+    return parseFloat(wei).toFixed(4) + " " + symbol;
   } catch {
-    return "0 BNB";
+    return "0 " + symbol;
   }
 };
 
 export const getRefLink = (userId) =>
-  `https://t.me/AIPCoreBot?start=ref_${userId}`;
+  `https://t.me/NFEGlobalBot?start=ref_${userId}`;
 
 export const getWebAppRefLink = (userId) =>
-  `https://t.me/AIPCoreBot/app?startapp=ref_${userId}`;
+  `https://t.me/NFEGlobalBot/app?startapp=ref_${userId}`;
 

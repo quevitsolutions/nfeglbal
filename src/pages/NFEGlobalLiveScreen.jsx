@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 const SESSIONS = [
   {
     id: 1, status: 'live', title: 'AI + Passive BNB Income Masterclass',
-    host: 'AIP AI Host', hostIcon: '🤖', viewers: 1240, duration: '1h 24m',
+    host: 'NFEGlobal AI Host', hostIcon: '🤖', viewers: 1240, duration: '1h 24m',
     tags: ['BNB Rewards', 'AI Strategy', 'Passive Income'],
     reward: 500, nft: 'Attendance NFT',
   },
@@ -18,13 +18,13 @@ const SESSIONS = [
   },
   {
     id: 3, status: 'upcoming', title: 'NFT Badge System & Tier Rewards',
-    host: 'AIP Academy', hostIcon: '🎓', viewers: 0, duration: '~45m',
+    host: 'NFEGlobal Academy', hostIcon: '🎓', viewers: 0, duration: '~45m',
     tags: ['NFTs', 'Tier Rewards', 'Academy'], scheduled: 'Fri 6PM UTC',
     reward: 200, nft: 'Creator NFT',
   },
   {
     id: 4, status: 'replay', title: 'Web3 Referral Economy Blueprint',
-    host: 'AIP AI Host', hostIcon: '🤖', viewers: 4820, duration: '58m',
+    host: 'NFEGlobal AI Host', hostIcon: '🤖', viewers: 4820, duration: '58m',
     tags: ['Referral', 'Web3', 'Income'],
     reward: 0, nft: null,
   },
@@ -53,7 +53,7 @@ const CHAT_MSGS = [
   { user: '0x1d2...', msg: 'Just earned my Attendance NFT 🏅', time: '5s' },
 ];
 
-export default function AIPLiveScreen({ onBack, onEnterHall }) {
+export default function NFEGlobalLiveScreen({ onBack, onEnterHall }) {
   const { hasNode, nodeTier } = useGameStore();
   const [activeSession, setActiveSession] = useState(1);
   const [tab, setTab] = useState('live');
@@ -74,7 +74,7 @@ export default function AIPLiveScreen({ onBack, onEnterHall }) {
   const handleJoin = () => {
     if (!hasNode) return toast.error('🔒 Activate your node to join live sessions', { duration: 4000 });
     setJoined(true);
-    toast.success('🎙️ Joined live session! You\'ll earn 500 $AIP on completion.', { duration: 5000 });
+    toast.success('🎙️ Joined live session! You\'ll earn 500 $NFEGLOBAL on completion.', { duration: 5000 });
   };
 
   const handleEnterHall = () => {
@@ -105,7 +105,7 @@ export default function AIPLiveScreen({ onBack, onEnterHall }) {
         <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', fontSize: 18, width: 36, height: 36, borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <h1 style={{ fontSize: 18, fontWeight: 900 }}>🎙️ AIP Live</h1>
+            <h1 style={{ fontSize: 18, fontWeight: 900 }}>🎙️ NFEGlobal Live</h1>
             <span style={{ background: '#FF4444', color: '#fff', fontSize: 8, fontWeight: 900, padding: '2px 6px', borderRadius: 10 }}>● LIVE</span>
           </div>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 1 }}>AI-Hosted Webinar & Masterclass Sessions</div>
@@ -152,7 +152,7 @@ export default function AIPLiveScreen({ onBack, onEnterHall }) {
               {s.tags.map(tag => (
                 <span key={tag} style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 8 }}>{tag}</span>
               ))}
-              {s.reward > 0 && <span style={{ background: 'rgba(163,255,18,0.1)', color: '#A3FF12', fontSize: 9, fontWeight: 900, padding: '3px 8px', borderRadius: 8 }}>+{s.reward} $AIP</span>}
+              {s.reward > 0 && <span style={{ background: 'rgba(163,255,18,0.1)', color: '#A3FF12', fontSize: 9, fontWeight: 900, padding: '3px 8px', borderRadius: 8 }}>+{s.reward} $NFEGLOBAL</span>}
               {s.nft && <span style={{ background: 'rgba(255,215,0,0.1)', color: '#FFD700', fontSize: 9, fontWeight: 900, padding: '3px 8px', borderRadius: 8 }}>🏅 {s.nft}</span>}
             </div>
           </motion.div>
@@ -196,7 +196,7 @@ export default function AIPLiveScreen({ onBack, onEnterHall }) {
               ) : (
                 <div style={{ display:'flex', flexDirection:'column', gap:10, alignItems:'center' }}>
                   <div style={{ background: 'rgba(163,255,18,0.1)', border: '1px solid rgba(163,255,18,0.3)', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 800, color: '#A3FF12' }}>
-                    ✅ You are live! Earn {session.reward} $AIP on completion
+                    ✅ You are live! Earn {session.reward} $NFEGLOBAL on completion
                   </div>
                   <button onClick={handleEnterHall}
                     style={{ background:'linear-gradient(135deg,#A3FF12,#4FC3F7)', border:'none', color:'#000', padding:'11px 28px', borderRadius:12, fontSize:13, fontWeight:900, cursor:'pointer', boxShadow:'0 4px 20px rgba(163,255,18,0.35)' }}>
@@ -267,7 +267,7 @@ export default function AIPLiveScreen({ onBack, onEnterHall }) {
           <div style={{ fontSize: 16, fontWeight: 900, color: '#FFD700', marginBottom: 6 }}>{session.title}</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 16 }}>{session.scheduled}</div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
-            <span style={{ background: 'rgba(163,255,18,0.1)', color: '#A3FF12', fontSize: 11, fontWeight: 900, padding: '5px 12px', borderRadius: 10 }}>+{session.reward} $AIP</span>
+            <span style={{ background: 'rgba(163,255,18,0.1)', color: '#A3FF12', fontSize: 11, fontWeight: 900, padding: '5px 12px', borderRadius: 10 }}>+{session.reward} $NFEGLOBAL</span>
             {session.nft && <span style={{ background: 'rgba(255,215,0,0.1)', color: '#FFD700', fontSize: 11, fontWeight: 900, padding: '5px 12px', borderRadius: 10 }}>🏅 {session.nft}</span>}
           </div>
           <button onClick={() => toast.success('🔔 Reminder set! We\'ll notify you before it starts.', { duration: 3000 })}

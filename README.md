@@ -1,4 +1,4 @@
-# AIPCore Hub — Full Technical Documentation
+# NFEGlobal Hub — Full Technical Documentation
 
 > **Full-stack decentralized mining & referral protocol** running on BNB Smart Chain.
 > A mobile-first Web3 mini-app with a Telegram-native feel, on-chain income streaming, and a viral free-to-play growth engine.
@@ -23,7 +23,7 @@
 
 ## 1. Project Overview
 
-AIPCore Hub is a **decentralized node protocol** where every user becomes an earning node. The platform distributes BNB automatically via three smart contract income streams:
+NFEGlobal Hub is a **decentralized node protocol** where every user becomes an earning node. The platform distributes BNB automatically via three smart contract income streams:
 
 | Stream | Description |
 |---|---|
@@ -36,11 +36,19 @@ AIPCore Hub is a **decentralized node protocol** where every user becomes an ear
 
 | Contract | Address |
 |---|---|
-| **AIPCore** | `0xB6CbD70147835D4eA93B4a768D8e101B6E9A420f` |
-| **AIPViews** | `0x8d4FBcb77EAA5260F4C5f41713c6968A197E2BDb` |
-| **RewardPool** | `0x319429aD1A00cbCD6aed1fFA1106eEC056316465` |
+| **NFEGlobal** | `0xaECA2Bb1b42DeA8F937c51f41A512C59dDd46a2d` |
+| **nfeglobalViews** | `0xcd6eE0B87e12BaB1942EDB56f9E7272078229A04` |
+| **RewardPool** | `0x4A91Fe2ac61D93eF3909916aafDb3bc85e6697CD` |
 
-**Genesis Node ID:** `36999` (root of the entire referral and matrix tree)
+### Contract Addresses (BSC Testnet)
+
+| Contract | Address |
+|---|---|
+| **NFEGlobal** | `0x8078E36DCd2049526b799F779B8B48464fDcFEd7` |
+| **nfeglobalViews** | `0x7a02d73C612d86d3C804d4819E24b6C5c5855794` |
+| **RewardPool** | `0xf3693161d1DD31e84991F7367325Deae8CC47A76` |
+
+**Genesis Node ID:** `55555` (root of the entire referral and matrix tree)
 
 ---
 
@@ -48,12 +56,12 @@ AIPCore Hub is a **decentralized node protocol** where every user becomes an ear
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                    AIPCORE HUB STACK                     │
+│                    NFEGLOBAL HUB STACK                     │
 │                                                          │
 │  ┌─────────────────┐   ┌────────────────────────────┐   │
 │  │   React + Vite  │   │    BNB Smart Chain          │   │
-│  │   (Frontend)    │◄──┤  AIPCore.sol                │   │
-│  │   Port 80/443   │   │  AIPViews.sol               │   │
+│  │   (Frontend)    │◄──┤  NFEGlobal.sol                │   │
+│  │   Port 80/443   │   │  nfeglobalViews.sol               │   │
 │  │   nginx reverse │   │  RewardPool.sol             │   │
 │  │   proxy         │   │  BNBPriceOracle.sol         │   │
 │  └────────┬────────┘   └────────────────────────────┘   │
@@ -69,16 +77,16 @@ AIPCore Hub is a **decentralized node protocol** where every user becomes an ear
 ```
 
 **Docker Services:**
-- `aipcore-frontend` — Vite build served by Nginx (port 80/443 with SSL)
-- `aipcore-api` — Express.js REST API + blockchain poller (port 3001)
-- `aipcore-db` — PostgreSQL 16 with persistent volume
+- `nfeglobal-frontend` — Vite build served by Nginx (port 80/443 with SSL)
+- `nfeglobal-api` — Express.js REST API + blockchain poller (port 3001)
+- `nfeglobal-db` — PostgreSQL 16 with persistent volume
 - `certbot` — Auto Let's Encrypt SSL renewal
 
 ---
 
 ## 3. Smart Contracts
 
-### 3.1 AIPCore.sol — Core Protocol
+### 3.1 NFEGlobal.sol — Core Protocol
 
 The main contract. All BNB flows through this contract and is distributed automatically.
 
@@ -86,7 +94,7 @@ The main contract. All BNB flows through this contract and is distributed automa
 
 | Constant | Value | Description |
 |---|---|---|
-| `defaultRefer` | `36999` | Genesis node — root of tree |
+| `defaultRefer` | `55555` | Genesis node — root of tree |
 | `directPercent` | `10%` | Sponsor gets 10% of every payment |
 | `cyclicPercent` | `70%` | Matrix binary tree income |
 | `rewardPoolPercent` | `5%` | Global reward pool allocation |
@@ -189,9 +197,9 @@ struct RewardEvent {
 
 ---
 
-### 3.2 AIPViews.sol — Read-Only Helper Library
+### 3.2 nfeglobalViews.sol — Read-Only Helper Library
 
-Pure view functions used by AIPCore for complex read operations. Not called directly by users.
+Pure view functions used by NFEGlobal for complex read operations. Not called directly by users.
 
 Key functions:
 - `getIncome(rewardHistory, nodeId, length)` — Paginated income history
@@ -308,7 +316,7 @@ src/
 
 ### State Management (`gameStore.js`)
 
-Powered by **Zustand** with `persist` middleware (localStorage key: `aipcore-game-state`).
+Powered by **Zustand** with `persist` middleware (localStorage key: `nfeglobal-game-state`).
 
 #### Persisted State (survives refresh)
 
@@ -368,7 +376,7 @@ Singleton class wrapping Ethers v6 calls. All methods are safe (`.catch(() => nu
 #### BNB Price Fetch Waterfall
 
 ```
-1. AIPCore.bnbPrice() on-chain oracle  (8 decimals, e.g. 60000000000 = $600)
+1. NFEGlobal.bnbPrice() on-chain oracle  (8 decimals, e.g. 60000000000 = $600)
               ↓ (fails)
 2. Binance API — BNBUSDT ticker
               ↓ (fails)
@@ -493,8 +501,8 @@ VITE_ADMIN_WALLET=0xYourAdminWalletAddress
 PORT=3001
 DB_HOST=db
 DB_USER=postgres
-DB_PASSWORD=aipcore_pass
-DB_NAME=aipcore_game
+DB_PASSWORD=nfeglobal_pass
+DB_NAME=nfeglobal_game
 ```
 
 ---
@@ -515,8 +523,8 @@ DB_NAME=aipcore_game
 ssh root@your-server-ip
 
 # 2. Clone the repository
-git clone https://github.com/quevitsolutions/aipcorehub ~/aipcore
-cd ~/aipcore
+git clone https://github.com/quevitsolutions/nfeglobalhub ~/nfeglobal
+cd ~/nfeglobal
 
 # 3. Copy and fill environment variables
 cp .env.example .env
@@ -539,7 +547,7 @@ docker compose logs api
 ### Updating (Every Code Push)
 
 ```bash
-cd ~/aipcore
+cd ~/nfeglobal
 git pull origin main
 docker compose up -d --build
 ```
@@ -554,7 +562,7 @@ docker compose logs -f api
 docker compose logs -f app
 
 # Check database
-docker compose exec db psql -U postgres -d aipcore_game
+docker compose exec db psql -U postgres -d nfeglobal_game
 
 # Restart specific service
 docker compose restart api
@@ -688,9 +696,9 @@ Same distribution as `createNode()` — per tier unlocked.
 ### Income History Reading
 
 ```
-Primary: AIPCore.getIncome(nodeId, 100)
+Primary: NFEGlobal.getIncome(nodeId, 100)
    → Reads directly from rewardHistory[nodeId] storage
-   → No block range scan, works for any node including #36999
+   → No block range scan, works for any node including #55555
    → Returns full RewardEvent[] including amount, tier, layer, isMissed
 
 Fallback: PostgreSQL income_history table
@@ -705,7 +713,7 @@ Fallback: PostgreSQL income_history table
 ### Free-to-Play Viral Growth
 - Users without a node join as **Free Operatives** (30-day trial window)
 - Earn 10 coins/hr free mining (vs 100–200/hr for active nodes)
-- Referred via URL: `https://app.aipcore.com/?ref=SPONSOR_WALLET`
+- Referred via URL: `https://app.nfeglobal.com/?ref=SPONSOR_WALLET`
 - Referrer stored in Postgres at account creation via `referrer_id`
 
 ### Task Page (Gamified Referral Milestones)
@@ -725,7 +733,7 @@ Fallback: PostgreSQL income_history table
 
 ### BNB Price Oracle Chain
 ```
-AIPCore.bnbPrice() (8 decimals)
+NFEGlobal.bnbPrice() (8 decimals)
 → / 1e8 = USD price
 → Cached 5 minutes in BlockchainService._bnbPrice
 → Shared to all UI via useBnbPrice() hook
@@ -740,9 +748,9 @@ AIPCore.bnbPrice() (8 decimals)
 |---|---|---|
 | Income history blank | `nodeId` race condition on load | Fixed: `fetchTeamHistory()` resolves `nodeId` from contract if store is null |
 | Refresh requires reconnect | `fetchTeamHistory()` not called after wallet connect | Fixed: `loadNodeData().then(() => fetchTeamHistory())` in lifecycle |
-| Income wrong USD | Using external API instead of oracle | Fixed: `_getBnbUsdPrice()` reads `AIPCore.bnbPrice()` first |
+| Income wrong USD | Using external API instead of oracle | Fixed: `_getBnbUsdPrice()` reads `NFEGlobal.bnbPrice()` first |
 | Global sync missing old events | `queryFilter` block range exceeded RPC limit | Fixed: `getIncome()` reads contract storage directly, no block scan |
 
 ---
 
-*Documentation generated: April 12, 2026 — AIPCore Hub v1.0*
+*Documentation generated: April 12, 2026 — NFEGlobal Hub v1.0*

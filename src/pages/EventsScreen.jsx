@@ -5,22 +5,22 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import MetaverseScreen from './MetaverseScreen.jsx';
-import AIPLiveScreen from './AIPLiveScreen.jsx';
-import AIPAcademyScreen from './AIPAcademyScreen.jsx';
-import AIPDAOScreen from './AIPDAOScreen.jsx';
-import AIPRewardsScreen from './AIPRewardsScreen.jsx';
-import AIPCommunityScreen from './AIPCommunityScreen.jsx';
-import AIPAIHostScreen from './AIPAIHostScreen.jsx';
+import NFEGlobalLiveScreen from './NFEGlobalLiveScreen.jsx';
+import NFEGlobalAcademyScreen from './NFEGlobalAcademyScreen.jsx';
+import NFEGlobalDAOScreen from './NFEGlobalDAOScreen.jsx';
+import NFEGlobalRewardsScreen from './NFEGlobalRewardsScreen.jsx';
+import NFEGlobalCommunityScreen from './NFEGlobalCommunityScreen.jsx';
+import NFEGlobalAIHostScreen from './NFEGlobalAIHostScreen.jsx';
 import VirtualHallScreen from './VirtualHallScreen.jsx';
 import VirtualLobbyScreen from './VirtualLobbyScreen.jsx';
 
 const MODULE_COMPONENTS = {
-  live: AIPLiveScreen,
-  academy: AIPAcademyScreen,
-  dao: AIPDAOScreen,
-  rewards: AIPRewardsScreen,
-  community: AIPCommunityScreen,
-  'ai-host': AIPAIHostScreen,
+  live: NFEGlobalLiveScreen,
+  academy: NFEGlobalAcademyScreen,
+  dao: NFEGlobalDAOScreen,
+  rewards: NFEGlobalRewardsScreen,
+  community: NFEGlobalCommunityScreen,
+  'ai-host': NFEGlobalAIHostScreen,
 };
 
 export default function EventsScreen() {

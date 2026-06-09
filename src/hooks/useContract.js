@@ -6,7 +6,7 @@ import { useGameStore } from "../store/gameStore.js";
 import toast from "react-hot-toast";
 
 /**
- * AIPCore Contract Hook (Clean Wrapper)
+ * NFEGlobal Contract Hook (Clean Wrapper)
  */
 export const useContract = () => {
   const setNodeData = useGameStore(s => s.setNodeData);
@@ -74,7 +74,11 @@ export const useContract = () => {
 
   return useMemo(() => ({
     loadNodeData, fetchBnbBalance, 
-    connectWallet: () => openConnectModal?.(),
+    connectWallet: () => {
+      // Clear explicit-disconnect flag so auto-reconnect is allowed again
+      try { localStorage.removeItem('nfeglobal_disconnected'); } catch(e) {}
+      openConnectModal?.();
+    },
     disconnectWallet: () => disconnect(),
     createNode: async (sponsorId = 1) => {
       const tid = toast.loading("Activating Node...");
@@ -86,15 +90,7 @@ export const useContract = () => {
 
         const walletAddress = useGameStore.getState().walletAddress;
         if (walletAddress && nid > 0) {
-          // Force-repair tree links (sponsor counts etc)
-          fetch(`${import.meta.env.VITE_API_URL || ''}/api/network/force-repair`, {
-            method: 'POST'
-          }).catch(() => {});
-
-          // DB already has correct nodeId+tier — refresh store immediately (no delay)
-          useGameStore.setState({ lastBackendSync: null });
           Promise.all([
-            useGameStore.getState().fetchUserData(),
             loadNodeData(walletAddress),
             fetchBnbBalance(walletAddress),
           ]).catch(() => {});
@@ -117,6 +113,35 @@ export const useContract = () => {
           if (errMsg.toLowerCase().includes('insufficient funds')) errMsg = 'Insufficient BNB balance for transaction & gas.';
           else if (errMsg.includes('user rejected')) errMsg = 'Transaction rejected by user.';
           else errMsg = errMsg.slice(0, 80);
+          toast.error(errMsg, { id: tid });
+        }
+        setProcessing(false);
+        return false;
+      }
+    },
+    createNodeWithSponsorAddress: async (sponsorAddress, sponsorOfSponsor = 1) => {
+      const tid = toast.loading("Activating Node (Auto-Sponsor)...");
+      setProcessing(true, "Activating Node...");
+      try {
+        const nid = await blockchain.createNodeWithSponsorAddress(sponsorAddress, sponsorOfSponsor);
+        const walletAddress = useGameStore.getState().walletAddress;
+        if (walletAddress && nid > 0) {
+          Promise.all([
+            loadNodeData(walletAddress),
+            fetchBnbBalance(walletAddress),
+          ]).catch(() => {});
+        }
+        toast.success("🚀 Node Activated! Welcome to the Protocol.", { id: tid, duration: 5000 });
+        setProcessing(false);
+        return nid;
+      } catch (e) {
+        if (e?.message?.includes('insufficient funds') || e?.code === -32000) {
+          toast.error('⚠️ Not enough BNB — Fund your wallet to activate.', { id: tid, duration: 8000 });
+        } else if (e?.code === 4001 || e?.message?.includes('rejected')) {
+          toast.error('Transaction cancelled.', { id: tid });
+        } else {
+          let errMsg = e?.shortMessage || e?.message || 'Activation failed.';
+          errMsg = errMsg.slice(0, 80);
           toast.error(errMsg, { id: tid });
         }
         setProcessing(false);
@@ -184,10 +209,7 @@ export const useContract = () => {
 
         const walletAddress = useGameStore.getState().walletAddress;
         if (walletAddress) {
-          // DB already updated — reset sync timestamp so fetchUserData re-reads fresh
-          useGameStore.setState({ lastBackendSync: null });
           Promise.all([
-            useGameStore.getState().fetchUserData(),
             loadNodeData(walletAddress),
             fetchBnbBalance(walletAddress),
           ]).catch(() => {});
@@ -211,12 +233,44 @@ export const useContract = () => {
     fetchTeamCounts: (nid) => blockchain.getReferralCounts(nid),
     fetchMatrixCounts: (nid) => blockchain.getMatrixLevelCounts(nid),
     fetchTeamLevelMembers: (nid, layer) => blockchain.getMatrixMembers(nid, layer),
-    fetchDirectMembers: (nid) => blockchain.getDirectReferrals(nid)
+    fetchDirectMembers: (nid) => blockchain.getDirectReferrals(nid),
+    addressToNodeId: (wallet) => blockchain.addressToNodeId(wallet),
+    getPendingUpgradeRewards: (nid) => blockchain.getPendingUpgradeRewards(nid),
+    selfUpgrade: async () => {
+      const walletAddress = useGameStore.getState().walletAddress;
+      if (!walletAddress) return toast.error('Wallet not connected') && false;
+      const tid = toast.loading(`Upgrading Node...`);
+      setProcessing(true, `Upgrading Node...`);
+      try {
+        const { confirmedTier } = await blockchain.selfUpgrade();
+        
+        Promise.all([
+          loadNodeData(walletAddress),
+          fetchBnbBalance(walletAddress),
+        ]).catch(() => {});
+        
+        toast.success(`🚀 Promoted to Tier ${confirmedTier}`, { id: tid, duration: 5000 });
+        setProcessing(false);
+        return confirmedTier;
+      } catch (e) {
+        if (e?.message?.includes('insufficient funds') || e?.code === -32000) {
+          toast.error('⚠️ Not enough BNB for this upgrade.', { id: tid, duration: 8000 });
+        } else if (e?.code === 4001 || e?.message?.includes('rejected')) {
+          toast.error('Transaction cancelled.', { id: tid });
+        } else {
+          toast.error(e?.shortMessage || e?.message?.slice(0, 80) || 'Upgrade failed', { id: tid });
+        }
+        setProcessing(false);
+        return false;
+      }
+    },
   }), [setNodeData, updateChainData, setBnbBalance, openConnectModal, disconnect]);
+
 };
 
 export const useWalletLifecycle = () => {
   const { address, isConnected, status } = useAccount();
+  const { disconnect } = useDisconnect();
   const { setWallet, disconnectWallet, fetchUserData, fetchAdminStatus, fetchUserConversions, fetchTeamHistory } = useGameStore();
   const { loadNodeData, fetchBnbBalance } = useContract();
 
@@ -227,21 +281,29 @@ export const useWalletLifecycle = () => {
     // Block only 'connecting' (unconfirmed first-connect attempt).
     if (!isConnected || !address || status === 'connecting') return;
 
+    // DISCONNECT FIX: If the user explicitly disconnected, block wagmi's auto-reconnect.
+    // wagmi re-emits 'connected' on mount when it restores a saved connector.
+    // We intercept that here and force-disconnect again.
+    const wasExplicitlyDisconnected = (() => {
+      try { return localStorage.getItem('nfeglobal_disconnected') === '1'; } catch(e) { return false; }
+    })();
+    if (wasExplicitlyDisconnected) {
+      disconnect(); // re-disconnect wagmi so it clears its own saved state
+      return;
+    }
+
+    // Clear the flag on a genuine user-initiated connect
+    try { localStorage.removeItem('nfeglobal_disconnected'); } catch(e) {}
+
     // Set wallet first (synchronous)
     setWallet(address);
 
-    // Parallel: fire all DB fetches immediately — no delay
+    // Parallel: load node data and balance immediately from on-chain RPC
     Promise.all([
-      fetchUserData(),
-      fetchAdminStatus(),
-      fetchUserConversions(),
+      loadNodeData(address),
       fetchBnbBalance(address),
+      fetchAdminStatus(),
     ]).catch(() => {});
-
-    // Background: blockchain RPC (slower, non-critical for initial render)
-    loadNodeData(address).then((nId) => {
-      if (nId > 0) setTimeout(() => fetchTeamHistory(), 1000);
-    }).catch(() => {});
 
   }, [isConnected, address, status]);
 

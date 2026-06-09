@@ -106,7 +106,7 @@ export const useGameStore = create(
       },
 
       // UI
-      activeTab: "earn",
+      activeTab: "dash",
       showUpgradePopup: false,
 
       // Referral
@@ -135,7 +135,7 @@ export const useGameStore = create(
           bnbBalance: "0.00",
           ...RESET_STATE
         });
-        localStorage.removeItem("aipcore-game-state");
+        localStorage.removeItem("nfeglobal-game-state");
       },
 
       setProcessing: (isProcessing, processingLabel = "") =>
@@ -146,24 +146,24 @@ export const useGameStore = create(
         const currentTier = get().nodeTier || 0;
         const tier = rawTier > 0 ? rawTier : currentTier > 0 ? currentTier : 1;
 
-        // TIER SCALING: Tier 1 = 100 AIP/hr, each tier +20% (1.2^(tier-1))
-        // Free users: 10 AIP/hr base, no exponential scaling
+        // TIER SCALING: Tier 1 = 100 NFE/hr, each tier +20% (1.2^(tier-1))
+        // Free users: 10 NFE/hr base, no exponential scaling
         const isActive = data.nodeId && Number(data.nodeId) > 0;
         const baseRate = isActive ? 100 : BASE_MINING_RATE;
         const newMiningRate = Math.round(baseRate * Math.pow(1.2, Math.max(0, tier - 1)));
-
-        const newMaxEnergy = 500 + (tier - 1) * 200;
+        
+        const newMaxEnergy  = 500 + (tier - 1) * 200;
 
         set({
-          hasNode: isActive,
-          nodeId: isActive ? Number(data.nodeId) : null,
-          nodeTier: isActive ? tier : 0,
+          hasNode:    isActive,
+          nodeId:     isActive ? Number(data.nodeId) : null,
+          nodeTier:   isActive ? tier : 0,
           nodeActive: data.active,
           miningRate: newMiningRate,
-          maxEnergy: newMaxEnergy,
-          energy: Math.min(newMaxEnergy, get().energy),
-          isLocked: !isActive,
-          demoTaps: 0,
+          maxEnergy:  newMaxEnergy,
+          energy:     Math.min(newMaxEnergy, get().energy),
+          isLocked:   !isActive,
+          demoTaps:   0,
         });
       },
 
@@ -202,8 +202,6 @@ export const useGameStore = create(
         // Elite Sync: Node owners recharge 3x faster (3 per tick vs 1)
         const amount = state.hasNode ? 3 : 1;
         set((s) => ({ energy: Math.min(s.maxEnergy, s.energy + amount) }));
-
-        // Anti-flicker: authoritative balance remains on server
       },
 
       claimMined: async () => {
@@ -217,11 +215,9 @@ export const useGameStore = create(
           const res = await api.claimMining(walletAddress);
           if (res?.success && res?.user) {
             set({
-              // BUG FIX: parseFloat — pg driver returns NUMERIC as string
               localReward: parseFloat(res.user.local_reward || 0),
               lastClaimTime: new Date(res.user.last_claim_time).getTime(),
               lastSyncTime: Date.now(),
-              // RACE CONDITION FIX: Block the 30s fetchUserData sync for 30 more seconds.
               lastBackendSync: Date.now(),
               pendingMined: 0, // Confirmed: keep at 0
             });
@@ -231,16 +227,9 @@ export const useGameStore = create(
           set({ pendingMined: previousPending });
           return false;
         } catch (err) {
-          // 409 = race guard triggered (concurrent claim). This is not a real error —
-          // the first request already succeeded. Restore pending display silently.
-          if (err.message?.includes('409') || err.message?.toLowerCase().includes('already in progress')) {
-            set({ pendingMined: previousPending });
-            console.info('Claim: concurrent request detected, ignoring duplicate.');
-            return false;
-          }
           // Network/server error — restore pending so user doesn't lose their display
           set({ pendingMined: previousPending });
-          console.warn('Claim API failed:', err.message);
+          console.warn("Claim API failed:", err.message);
           return false;
         }
       },
@@ -252,24 +241,14 @@ export const useGameStore = create(
       setReferrerId: (id) => set({ referrerId: id }),
 
       claimStreak: async (day) => {
-        // FIX: claimStreak previously showed toast with a DIFFERENT reward table than the server.
-        // Server: [100,200,300,400,500,600,700,1000,2000,5000] (10-day cycle)
-        // Old client: [100,250,450,700,1000,1800,2500] — completely different schedule.
-        // Now we call the API first and use res.reward (server-authoritative amount) for the toast.
-        // The fallback table now matches the server exactly.
-        const SERVER_DAILY_REWARDS = [100, 200, 300, 400, 500, 600, 700, 1000, 2000, 5000];
-        const fallbackReward = SERVER_DAILY_REWARDS[Math.min((day - 1) % 10, 9)];
+        const { hasNode } = get();
+        const baseRewards = [100, 250, 450, 700, 1000, 1800, 2500];
+        const multiplier = hasNode ? 10 : 1;
+        const reward = baseRewards[Math.min(day - 1, 6)] * multiplier;
         try {
-          const res = await get().claimDailyReward();
-          // Return the server-confirmed reward so callers can show the correct amount in toast
-          const confirmedReward = res?.reward ?? fallbackReward;
-          set({ showDailyPopup: false });
-          return confirmedReward;
+          await get().claimDailyReward();
         } catch {
           // Fallback: optimistic local update (still better than silent failure)
-          const { hasNode } = get();
-          const multiplier = hasNode ? 10 : 1;
-          const reward = fallbackReward * multiplier;
           set((s) => ({
             localReward: s.localReward + reward,
             streak: day,
@@ -277,8 +256,9 @@ export const useGameStore = create(
             lastBackendSync: Date.now(),
             showDailyPopup: false,
           }));
-          return reward;
         }
+        set({ showDailyPopup: false });
+        return reward;
       },
 
       updateChainData: (data) =>
@@ -290,139 +270,75 @@ export const useGameStore = create(
           poolClaimable: data.poolClaimable ?? s.poolClaimable,
           poolQual: {
             ...s.poolQual,
-            poolName: data.poolName ?? s.poolQual.poolName,
-            totalDeposited: data.totalDeposited ?? s.poolQual.totalDeposited,
-            isPoolQualified: data.isPoolQualified ?? s.poolQual.isPoolQualified,
-            totalPoolEarned: data.totalPoolEarned ?? s.poolQual.totalPoolEarned,
+            poolName:         data.poolName         ?? s.poolQual.poolName,
+            totalDeposited:   data.totalDeposited   ?? s.poolQual.totalDeposited,
+            isPoolQualified:  data.isPoolQualified  ?? s.poolQual.isPoolQualified,
+            totalPoolEarned:  data.totalPoolEarned  ?? s.poolQual.totalPoolEarned,
             totalPoolClaimed: data.totalPoolClaimed ?? s.poolQual.totalPoolClaimed,
-            remainingCap: data.remainingCap ?? s.poolQual.remainingCap,
-            lifetimeCap: data.lifetimeCap ?? s.poolQual.lifetimeCap,
-            missingDirects: data.missingDirects ?? s.poolQual.missingDirects,
-            missingTier: data.missingTier ?? s.poolQual.missingTier,
-            missingTeam: data.missingTeam ?? s.poolQual.missingTeam,
+            remainingCap:     data.remainingCap     ?? s.poolQual.remainingCap,
+            lifetimeCap:      data.lifetimeCap      ?? s.poolQual.lifetimeCap,
+            missingDirects:   data.missingDirects   ?? s.poolQual.missingDirects,
+            missingTier:      data.missingTier      ?? s.poolQual.missingTier,
+            missingTeam:      data.missingTeam      ?? s.poolQual.missingTeam,
           },
         })),
 
       syncWithBackend: async () => {
-        const state = get();
-        if (!state.walletAddress) return;
-        try {
-          await api.syncState({
-            walletAddress: state.walletAddress,
-            taps: state.taps,
-            energy: state.energy,
-          });
-        } catch (err) {
-          console.warn("API Sync Failed:", err.message);
-        }
+        // No-op for 100% on-chain operation
       },
 
-      // addLocalReward: optimistic local update for quick tasks (social follows, etc.)
-      // Sets lastBackendSync to block the 30s sync from reverting for 30 seconds.
-      // NOTE: This does NOT persist to DB — use claimTaskAction for DB-backed task rewards.
       addLocalReward: (amount) => {
-        set((s) => ({
-          localReward: s.localReward + Number(amount || 0),
-          lastBackendSync: Date.now(), // block 30s sync overwrite
-        }));
+        // No-op
       },
 
       fetchUserData: async (forcedReferrer = null) => {
-        const { walletAddress, referrerId, lastBackendSync } = get();
-        if (!walletAddress) return;
-
-        // BUG FIX: Use a SEPARATE flag so referral fetches aren't blocked by user fetch
-        if (get().isFetchingUser) return;
-
-        // Read ref from Zustand first, then fall back to localStorage 'aipcore_ref' cookie.
-        // This fixes the race condition: Wagmi reconnects (firing fetchUserData) BEFORE
-        // App.jsx useEffect reads the ?ref= URL param and calls setReferrerId().
-        // localStorage survives MetaMask redirect + page reload, guaranteeing correct attribution.
-        const lsRef = (() => { try { return localStorage.getItem('aipcore_ref'); } catch(e) { return null; } })();
-        const finalReferrer = forcedReferrer || referrerId || lsRef;
-
-
-        // Skip if synced in the last 30 seconds
-        const now = Date.now();
-        if (get().initialLoaded && lastBackendSync && (now - lastBackendSync < 30000)) return;
+        const { walletAddress, isFetchingUser } = get();
+        if (!walletAddress || isFetchingUser) return;
 
         set({ isFetchingUser: true, isSyncing: !get().initialLoaded });
 
         try {
-          const data = await api.fetchUser(walletAddress, finalReferrer);
-          if (!data) return;
-
-          const currentTier = get().nodeTier || 0;
-          const backendTier = Number(data.node_tier || 0);
-          const creationTime = data.created_at ? new Date(data.created_at).getTime() : now;
-          const isFreeActive = backendTier === 0 && (now - creationTime < 30 * 24 * 60 * 60 * 1000);
-
-          const currentNodeId = get().nodeId;
-          const currentHasNode = get().hasNode;
-
-          // BUG FIX: safe JSON parse for claimed_milestones
-          let claimedMilestones = [];
-          try { claimedMilestones = JSON.parse(data.claimed_milestones || '[]'); }
-          catch (e) { claimedMilestones = []; }
-          if (!Array.isArray(claimedMilestones)) claimedMilestones = [];
-
-          // Compute miningRate — prefer the server's authoritative value when provided,
-          // fall back to client-side calculation for backwards compatibility.
-          const serverMiningRate = data.mining_rate ? Number(data.mining_rate) : null;
-          const hasActivatedNode = backendTier > 0 || !!(data.node_id && data.node_id > 0);
-          const effectiveTier = backendTier > 0 ? backendTier : 1;
-          const clientMiningRate = hasActivatedNode
-            ? Math.round(100 * Math.pow(1.2, effectiveTier - 1)) * (data.is_premium ? 2 : 1)
-            : BASE_MINING_RATE; // 10 AIP/hr for free users
-          const newMiningRate = serverMiningRate ?? clientMiningRate;
-
-          set({
-            taps: data.taps || 0,
-            // BUG FIX: parseFloat for NUMERIC(36,18) — Number() loses precision on large values
-            localReward: parseFloat(data.local_reward || 0),
-            energy: data.energy || 0,
-            // STABILITY FIX: Never let 30s fetch downgrade node identity if DB is out of sync
-            hasNode: backendTier > 0 || !!(data.node_id && data.node_id > 0) || currentHasNode,
-            // DB counts are incomplete; preserve on-chain counts if user has a node
-            directRefs: (backendTier > 0 || currentHasNode) ? get().directRefs : parseInt(data.direct_refs || 0),
-            teamSize: (backendTier > 0 || currentHasNode) ? get().teamSize : parseInt(data.team_size || 0),
-            activatedRefs: parseInt(data.activated_refs || 0),
-            nodeId: data.node_id || currentNodeId,
-            nodeTier: backendTier > currentTier ? backendTier : currentTier,
-            isPremium: data.is_premium || false,
-            pendingMined: parseFloat(data.pending_mined || 0),
-            miningRate: newMiningRate,  // FIX: Always sync miningRate from server tier
-            // BUG FIX: Guard null last_claim_time — new Date(null) = epoch 1970
-            lastClaimTime: data.last_claim_time ? new Date(data.last_claim_time).getTime() : now,
-            createdAt: data.created_at || null,
-            isFreeActive,
-            sponsorWallet: data.sponsor_wallet || get().sponsorWallet,
-            sponsorNodeId: data.sponsor_node_id || get().sponsorNodeId || 36999,
-            isNewUser: !!data.is_new,
-            streak: parseInt(data.daily_streak || 0),
-            // BUG FIX: Guard null last_daily_claim
-            lastClaimDate: data.last_daily_claim ? new Date(data.last_daily_claim).getTime() : null,
-            claimedMilestones,
-            lastBackendSync: Date.now(),
-            lastSyncTime: Date.now(),
-            initialLoaded: true,
-          });
-
-
-          // PERF FIX: Removed fetchReferralData() from here — it was firing every 30s
-          // causing double API calls. Referral list is now fetched on-demand (tab switch).
-
-          // Belt-and-suspenders: guarantee DB referral link for new users
-          if (data.is_new && finalReferrer) {
-            api.trackReferral(walletAddress, finalReferrer).then(result => {
-              if (result?.linked) {
-                console.log(`✅ Referral confirmed: ${walletAddress} → ${result.sponsor_wallet}`);
-                // Clear ref cookie — prevents this device's ref from leaking to a different user
-                try { localStorage.removeItem('aipcore_ref'); } catch(e) {}
-                set({ referrerId: null });
-              }
-            }).catch(() => { });
-
+          const { blockchain } = await import("../services/blockchain.js");
+          const data = await blockchain.getFullDashboardData(walletAddress);
+          
+          if (data && data.hasNode) {
+            set({
+              hasNode: true,
+              nodeId: data.nodeId,
+              nodeTier: data.tier,
+              nodeActive: data.nodeActive,
+              directRefs: data.directRefs,
+              teamSize: data.teamSize,
+              totalEarned: data.totalEarned,
+              pendingReward: data.pendingReward,
+              poolClaimable: data.poolClaimable,
+              poolQual: {
+                poolName: data.poolName,
+                totalDeposited: data.totalDeposited,
+                isPoolQualified: data.isPoolQualified,
+                totalPoolEarned: data.totalPoolEarned,
+                totalPoolClaimed: data.totalPoolClaimed,
+                remainingCap: data.remainingCap,
+                lifetimeCap: data.lifetimeCap,
+                missingDirects: data.missingDirects,
+                missingTier: data.missingTier,
+                missingTeam: data.missingTeam,
+                totalEarned: data.totalEarned
+              },
+              initialLoaded: true,
+              lastBackendSync: Date.now(),
+              lastSyncTime: Date.now(),
+            });
+          } else {
+            set({
+              hasNode: false,
+              nodeId: null,
+              nodeTier: 0,
+              nodeActive: false,
+              initialLoaded: true,
+              lastBackendSync: Date.now(),
+              lastSyncTime: Date.now(),
+            });
           }
         } catch (err) {
           console.warn('fetchUserData failed:', err.message);
@@ -432,141 +348,64 @@ export const useGameStore = create(
       },
 
       fetchLeaderboardData: async () => {
-        try {
-          const data = await api.fetchLeaderboard();
-          set({ leaderboard: data });
-        } catch (err) {
-          console.warn("Leaderboard Fetch Failed:", err.message);
-        }
+        // No-op - leaderboard is empty on-chain
+        set({ leaderboard: [] });
       },
 
       fetchReferralData: async () => {
-        const { walletAddress } = get();
-        if (!walletAddress) return;
+        const { walletAddress, nodeId } = get();
+        if (!walletAddress || !nodeId) return;
         set({ loadingReferrals: true });
         try {
-          const data = await api.fetchReferralList(walletAddress);
+          const { blockchain } = await import("../services/blockchain.js");
+          const data = await blockchain.getDirectReferrals(nodeId);
           set({ referralList: Array.isArray(data) ? data : [] });
         } catch (err) {
           console.warn("Referral List Fetch Failed:", err.message);
+          set({ referralList: [] });
         } finally {
           set({ loadingReferrals: false });
         }
       },
 
       fetchTasksData: async () => {
-        const { walletAddress } = get();
-        if (!walletAddress) return;
-        try {
-          const fetchedTasks = await api.fetchTasks(walletAddress);
-          set({ tasks: fetchedTasks });
-        } catch (err) {
-          console.warn("Tasks Fetch Failed:", err.message);
-        }
+        // Tasks are disabled
+        set({ tasks: [] });
       },
 
       claimTaskAction: async (taskId) => {
-        const { walletAddress, tasks } = get();
-        if (!walletAddress) throw new Error("Not connected");
-        const res = await api.claimTask(walletAddress, taskId);
-        if (res?.success) {
-          set({
-            localReward: parseFloat(res.new_balance || 0),
-            lastBackendSync: Date.now(), // FIX: block 30s sync overwrite
-            tasks: tasks.map((t) =>
-              t.id === taskId ? { ...t, is_completed: true } : t,
-            ),
-          });
-          return res;
-        }
+        // Tasks are disabled
+        return { success: false };
       },
 
       fetchEventsAction: async () => {
-        const { walletAddress } = get();
-        if (!walletAddress) return;
-        try {
-          const fetchedEvents = await api.fetchEvents(walletAddress);
-          set({ events: fetchedEvents });
-        } catch (err) {
-          console.warn("Events Fetch Failed:", err.message);
-        }
+        // Events are disabled
+        set({ events: [] });
       },
 
       bookEventAction: async (eventId) => {
-        const { walletAddress, events } = get();
-        if (!walletAddress) throw new Error("Not connected");
-        const res = await api.bookEvent(walletAddress, eventId);
-        if (res?.success) {
-          set({
-            localReward: get().localReward - parseFloat(res.paid || 0),
-            lastBackendSync: Date.now(), // FIX: block 30s sync overwrite
-            events: events.map((e) =>
-              e.id === eventId
-                ? { ...e, is_booked: true, booked_seats: Number(e.booked_seats) + 1, telegram_link: res.telegram_link }
-                : e
-            ),
-          });
-          return res;
-        }
+        // Events are disabled
+        return { success: false };
       },
 
       claimMilestoneAction: async (threshold) => {
-        const { walletAddress, claimedMilestones } = get();
-        if (!walletAddress) throw new Error("Not connected");
-        const res = await api.claimMilestone(walletAddress, threshold);
-        if (res?.success) {
-          set({
-            // FIX: use authoritative balance from server (res.new_balance) not client-side add
-            localReward: parseFloat(res.new_balance || (get().localReward + Number(res.reward))),
-            lastBackendSync: Date.now(), // FIX: block 30s sync overwrite
-            claimedMilestones: res.claimed_milestones || [...claimedMilestones, threshold],
-          });
-          return res;
-        }
+        // Milestones are disabled
+        return { success: false };
       },
 
       claimFreeMilestoneAction: async (threshold) => {
-        const { walletAddress, claimedMilestones } = get();
-        if (!walletAddress) throw new Error("Not connected");
-        const res = await api.claimFreeMilestone(walletAddress, threshold);
-        if (res?.success) {
-          set({
-            localReward: parseFloat(res.new_balance || (get().localReward + Number(res.reward))),
-            lastBackendSync: Date.now(), // FIX: block 30s sync overwrite
-            claimedMilestones: res.claimed_milestones || [...claimedMilestones, `free_${threshold}`],
-          });
-          return res;
-        }
+        // Milestones are disabled
+        return { success: false };
       },
 
       claimSignupBonusAction: async () => {
-        const { walletAddress, claimedMilestones } = get();
-        if (!walletAddress) throw new Error("Not connected");
-        const res = await api.claimSignupBonus(walletAddress);
-        if (res?.success) {
-          set({
-            localReward: parseFloat(res.new_balance || (get().localReward + Number(res.reward))),
-            lastBackendSync: Date.now(), // FIX: block 30s sync overwrite
-            claimedMilestones: res.claimed_milestones || [...claimedMilestones, 'signup_bonus'],
-          });
-          return res;
-        }
+        // Signup bonus is disabled
+        return { success: false };
       },
 
       claimDailyReward: async () => {
-        const { walletAddress } = get();
-        if (!walletAddress) throw new Error("Wallet not connected");
-        const res = await api.claimDailyReward(walletAddress);
-        if (res?.success) {
-          set({
-            localReward: parseFloat(res.local_reward || 0),
-            lastBackendSync: Date.now(), // FIX: block 30s sync overwrite
-            streak: Number(res.daily_streak || 0),
-            lastClaimDate: res.last_daily_claim ? new Date(res.last_daily_claim).getTime() : Date.now(),
-          });
-          return res;
-        }
-        throw new Error('Daily reward claim failed');
+        // Daily rewards are disabled
+        return { success: false };
       },
 
       // Admin Actions
@@ -574,24 +413,13 @@ export const useGameStore = create(
         const { walletAddress } = get();
         if (!walletAddress) return;
         try {
-          // Priority 1: Environment Variable
-          const envAdmin = import.meta.env.VITE_ADMIN_WALLET || "";
-          let isAdmin = walletAddress.toLowerCase() === envAdmin.toLowerCase();
-
-          // Priority 2: Blockchain Owner (Backup in case of build/env issues)
-          if (!isAdmin) {
-            const { blockchain } = await import("../services/blockchain.js");
-            const owner = await blockchain.getOwner();
-            if (owner && walletAddress.toLowerCase() === owner.toLowerCase()) {
-              isAdmin = true;
-            }
-          }
+          const { blockchain } = await import("../services/blockchain.js");
+          const owner = await blockchain.getOwner();
+          const isAdmin = owner && walletAddress.toLowerCase() === owner.toLowerCase();
 
           set({ isAdmin });
           if (isAdmin) {
             get().fetchAdminOverview();
-            get().loadSnapshots();
-            get().fetchAdminAdjustments();
           }
           get().fetchGlobalProtocolStats();
         } catch (e) {
@@ -600,67 +428,44 @@ export const useGameStore = create(
       },
 
       fetchAdminOverview: async () => {
-        const { walletAddress, isAdmin } = get();
-        if (!isAdmin) return;
-        try {
-          const stats = await api.fetchAdminOverview(walletAddress);
-          set({ adminStats: stats });
-        } catch (e) {
-          console.warn(e);
-        }
+        // Admin overview no-op
+        set({ adminStats: null });
       },
 
       fetchAdminAdjustments: async () => {
-        const { walletAddress, isAdmin } = get();
-        if (!isAdmin) return;
-        try {
-          const logs = await api.fetchAdminAdjustmentHistory(walletAddress);
-          set({ adjustmentLogs: Array.isArray(logs) ? logs : [] });
-        } catch (e) {
-          console.warn(e);
-        }
+        set({ adjustmentLogs: [] });
       },
 
       fetchGlobalProtocolStats: async () => {
         try {
-          const stats = await api.fetchGlobalStats();
-          if (stats) set({ globalStats: stats });
+          const { blockchain } = await import("../services/blockchain.js");
+          const price = await blockchain._getNativeUsdPrice();
+          const rawStats = await blockchain.core.getConfig().catch(() => null);
+          
+          if (rawStats) {
+            set({
+              globalStats: {
+                total_users: Number(rawStats[1] || 0),
+                total_volume_bnb: 0, // contract doesn't track cumulative bnbVolume, handled on frontend via view calls
+                active_nodes: Number(rawStats[1] || 0)
+              }
+            });
+          }
         } catch (e) {
           console.warn("Global Stats Fetch Failed:", e.message);
         }
       },
 
       takeSnapshot: async (name) => {
-        const { walletAddress, isAdmin } = get();
-        if (!isAdmin) return;
-        try {
-          await api.createSnapshot(walletAddress, name);
-          get().loadSnapshots();
-        } catch (e) {
-          console.warn(e);
-        }
+        // Snapshots disabled
       },
 
       loadSnapshots: async () => {
-        const { walletAddress, isAdmin } = get();
-        if (!isAdmin) return;
-        try {
-          const list = await api.fetchSnapshots(walletAddress);
-          set({ snapshotHistory: Array.isArray(list) ? list : [] });
-        } catch (e) {
-          console.warn(e);
-        }
+        set({ snapshotHistory: [] });
       },
 
       fetchUserConversions: async () => {
-        const { walletAddress } = get();
-        if (!walletAddress) return;
-        try {
-          const list = await api.fetchUserConversions(walletAddress);
-          set({ conversionHistory: list });
-        } catch (e) {
-          console.warn("Conversion History Fetch Failed:", e.message);
-        }
+        set({ conversionHistory: [] });
       },
 
       fetchTeamHistory: async () => {
@@ -669,45 +474,32 @@ export const useGameStore = create(
         set({ isHistoryLoading: true });
         try {
           let list = null;
-
-          // Resolve nodeId — use store value OR look up from contract if not yet loaded
           let { nodeId } = get();
+          
           if (!nodeId || nodeId === 0) {
-            try {
-              const { blockchain } = await import('../services/blockchain.js');
-              const data = await blockchain.getFullDashboardData(walletAddress);
-              if (data?.hasNode && data.nodeId > 0) {
-                nodeId = data.nodeId;
-              }
-            } catch (_) { /* can't resolve nodeId, will use API fallback */ }
+            const { blockchain } = await import('../services/blockchain.js');
+            const data = await blockchain.getFullDashboardData(walletAddress);
+            if (data?.hasNode && data.nodeId > 0) {
+              nodeId = data.nodeId;
+            }
           }
 
-          // Primary: fetch directly from contract storage (no block scan limits, always complete)
           if (nodeId && nodeId > 0) {
             const { blockchain } = await import('../services/blockchain.js');
             list = await blockchain.fetchTeamHistoryOnChain(nodeId, 100);
           }
 
-          // Fallback: postgres (covers pool claims & any event the contract `getIncome` misses)
-          if (!list || list.length === 0) {
-            list = await api.fetchIncomeHistory(walletAddress);
-          }
-
           set({ teamHistory: Array.isArray(list) ? list : [] });
         } catch (e) {
           console.warn("Team History Fetch Failed:", e.message);
+          set({ teamHistory: [] });
         } finally {
           set({ isHistoryLoading: false });
         }
       },
 
       fetchGlobalHistory: async () => {
-        try {
-          const list = await api.fetchGlobalHistory();
-          set({ globalHistory: Array.isArray(list) ? list : [] });
-        } catch (e) {
-          console.warn("Global History Fetch Failed:", e.message);
-        }
+        set({ globalHistory: [] });
       },
 
       reset: () =>
@@ -722,7 +514,7 @@ export const useGameStore = create(
         }),
     }),
     {
-      name: "aipcore-game-state",
+      name: "nfeglobal-game-state",
       version: 2,
       partialize: (s) => ({
         walletAddress: s.walletAddress,
@@ -731,15 +523,8 @@ export const useGameStore = create(
         nodeId: s.nodeId,
         nodeTier: s.nodeTier,
         nodeActive: s.nodeActive,
-        taps: s.taps,
-        demoTaps: s.demoTaps,
-        localReward: s.localReward,
-        miningRate: s.miningRate,
-        maxEnergy: s.maxEnergy,
-        streak: s.streak,
-        lastClaimDate: s.lastClaimDate,
         referrerId: s.referrerId,
-        sponsorWallet: s.sponsorWallet,   // persist so banner shows correctly after refresh
+        sponsorWallet: s.sponsorWallet,
       }),
     },
   ),

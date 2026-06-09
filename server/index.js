@@ -4,6 +4,10 @@ import dotenv from 'dotenv';
 import { ethers } from 'ethers';
 import axios from 'axios';
 import Groq from 'groq-sdk';
+import { execSync, exec as execCb } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+import fs from 'fs';
 import { query } from './db.js';
 import { initTelegramBot, sendNotification, broadcastToUsers, verifyTelegramMembership, checkExpiringTrials } from './telegramBot.js';
 
@@ -37,20 +41,20 @@ const claimLocks = new Set();
 const nodeSyncCooldown = new Map(); // wallet.toLowerCase() -> lastSyncTimestamp
 
 
-// AIPCore & RewardPool Contract Constants
-const AIPCORE_ADDRESS = '0xB6CbD70147835D4eA93B4a768D8e101B6E9A420f';
-const REWARDPOOL_ADDRESS = '0x319429aD1A00cbCD6aed1fFA1106eEC056316465';
+// NFEGlobal & RewardPool Contract Constants
+const NFEGLOBAL_ADDRESS = '0x9daA28D40082E4173b4b07AE76A92Eda0Ff3A522';
+const REWARDPOOL_ADDRESS = '0xA0DE5adE595a43838d1a883D441ea5f0829d66b1';
 const BSC_RPC = process.env.VITE_RPC_URL || 'https://bsc-dataseed.binance.org/';
-const DEPLOY_BLOCK = 43232822; // Block around contract deployment for optimization
+const DEPLOY_BLOCK = 0; // Block around contract deployment for optimization
 
-const AIPCORE_ABI = [
+const NFEGLOBAL_ABI = [
   "event RewardDistributed(address indexed wallet, uint256 indexed nodeId, uint256 fromId, uint256 layer, uint256 amount, uint256 time, bool isMissed, uint256 rewardType, uint256 tier)",
   "event NodeCreated(address indexed node, uint256 indexed userId, uint256 indexed referrerId, uint256 uplineId)",
   "event TierUnlocked(address indexed node, uint256 indexed userId, uint256 packageId)",
   "function getTeamSize(uint256 _userId, uint256 _depth) view returns (uint256)",
   "function getNodeStats(uint256 _userId) view returns (uint256 tier, uint256 directCount, uint256 matrixCount, uint256 totalRewards, uint256 totalContribution, uint256 daysActive)",
   "function nodes(uint256 _nodeId) view returns (uint64 nodeId, address wallet, uint64 sponsor, uint64 matrixParent, uint40 joinedAt, uint8 tier, uint256 totalContribution, uint256 totalEarned, uint32 directNodes)",
-  "function addressToNodeId(address _wallet) view returns (uint256)"
+  "function nodeId(address user) view returns (uint256)"
 ];
 
 const REWARDPOOL_ABI = [
@@ -63,9 +67,11 @@ const MULTICALL_ABI = [
 const MULTICALL_ADDRESS = "0xcA11bde05977b3631167028862bE2a173976CA11";
 
 const provider = new ethers.JsonRpcProvider(BSC_RPC);
-const aipcoreContract = new ethers.Contract(AIPCORE_ADDRESS, AIPCORE_ABI, provider);
+const nfeglobalContract = new ethers.Contract(NFEGLOBAL_ADDRESS, NFEGLOBAL_ABI, provider);
 const rewardPoolContract = new ethers.Contract(REWARDPOOL_ADDRESS, REWARDPOOL_ABI, provider);
 const multicallContract = new ethers.Contract(MULTICALL_ADDRESS, MULTICALL_ABI, provider);
+
+// ── Treasury auto-upgrades are fully handled on-chain by the smart contracts! No keeper bot required. ──
 
 // State for BNB Price Cache
 let bnbPrice = 600; // Default fallback
@@ -114,7 +120,9 @@ const ensureSchema = async () => {
     await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by_memo TEXT`);
     // Ensure activated_refs exists (used for milestone tracking)
     await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS activated_refs INTEGER DEFAULT 0`);
-    
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_targeted BOOLEAN DEFAULT FALSE`);
+
+
     // 🔥 CRITICAL FIX: Ensure created_at has a default and backfill NULLs (Fixes "Claim Failed" bug)
     await query(`ALTER TABLE users ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP`);
     await query(`UPDATE users SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL`);
@@ -305,11 +313,11 @@ const syncUserHistory = async (wallet) => {
 
     console.log(`Syncing income history for ${wallet} from block ${startBlock} to ${latestBlock}...`);
 
-    // 1. Fetch AIPCore RewardDistributed Events
-    const filterAIP = aipcoreContract.filters.RewardDistributed(wallet);
-    const logsAIP = await aipcoreContract.queryFilter(filterAIP, startBlock, latestBlock);
+    // 1. Fetch NFEGlobal RewardDistributed Events
+    const filterNFEGlobal = nfeglobalContract.filters.RewardDistributed(wallet);
+    const logsNFEGlobal = await nfeglobalContract.queryFilter(filterNFEGlobal, startBlock, latestBlock);
 
-    for (const log of logsAIP) {
+    for (const log of logsNFEGlobal) {
       const { fromId, amount, time, rewardType, tier, layer, isMissed } = log.args;
       const bnbAmount = ethers.formatEther(amount);
       const usdAmount = parseFloat(bnbAmount) * currentPrice;
@@ -337,7 +345,7 @@ const syncUserHistory = async (wallet) => {
         `INSERT INTO income_history (wallet_address, source_contract, event_type, from_node_id, amount_bnb, amount_usd, tier, layer, is_missed, tx_hash, timestamp)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          ON CONFLICT (tx_hash) DO NOTHING`,
-        [wallet, AIPCORE_ADDRESS, eventName, Number(fromId), bnbAmount, usdAmount, tierVal, Number(layer), !!isMissed, txHash, timestamp]
+        [wallet, NFEGLOBAL_ADDRESS, eventName, Number(fromId), bnbAmount, usdAmount, tierVal, Number(layer), !!isMissed, txHash, timestamp]
       );
     }
 
@@ -363,8 +371,8 @@ const syncUserHistory = async (wallet) => {
     }
 
     // 3. Fetch NodeCreated Events to build tree
-    const filterNodes = aipcoreContract.filters.NodeCreated();
-    const logsNodes = await aipcoreContract.queryFilter(filterNodes, startBlock, latestBlock);
+    const filterNodes = nfeglobalContract.filters.NodeCreated();
+    const logsNodes = await nfeglobalContract.queryFilter(filterNodes, startBlock, latestBlock);
     for (const log of logsNodes) {
       const { node, userId, referrerId } = log.args;
       const joinedAt = new Date((await provider.getBlock(log.blockNumber)).timestamp * 1000);
@@ -393,7 +401,7 @@ const syncUserHistory = async (wallet) => {
 
         if (isNewActivation) {
           if (tgId) {
-             sendNotification(tgId, `🎉 *Congratulations!*\n\nYour AIPCore Node *#${nodeIdNum}* has been successfully activated! 🚀\n\nYou are now eligible to earn real BNB rewards from your network.`);
+             sendNotification(tgId, `🎉 *Congratulations!*\n\nYour NFEGlobal Node *#${nodeIdNum}* has been successfully activated! 🚀\n\nYou are now eligible to earn real BNB rewards from your network.`);
           }
           if (referrerIdNum > 0) {
              const sp = await query(`SELECT telegram_id FROM users WHERE node_id = $1 LIMIT 1`, [referrerIdNum]);
@@ -413,7 +421,7 @@ const syncUserHistory = async (wallet) => {
           let currentNodeId = referrerIdNum;
           for (let hop = 0; hop < 5 && currentNodeId > 0; hop++) {
             try {
-              const nodeInfo = await aipcoreContract.nodes(currentNodeId);
+              const nodeInfo = await nfeglobalContract.nodes(currentNodeId);
               const parentNodeId = Number(nodeInfo.sponsor);
               if (parentNodeId === 0 || parentNodeId === currentNodeId) break;
               await syncNodeStateFromRPC(parentNodeId);
@@ -432,8 +440,8 @@ const syncUserHistory = async (wallet) => {
     await repairTreeLinks(true);
 
     // 5. Fetch TierUnlocked Events
-    const filterTiers = aipcoreContract.filters.TierUnlocked();
-    const logsTiers = await aipcoreContract.queryFilter(filterTiers, startBlock, latestBlock);
+    const filterTiers = nfeglobalContract.filters.TierUnlocked();
+    const logsTiers = await nfeglobalContract.queryFilter(filterTiers, startBlock, latestBlock);
     for (const log of logsTiers) {
       const { userId, tierId } = log.args;
       const tid = Number(userId);
@@ -470,12 +478,12 @@ const syncGlobalHistory = async () => {
     
     // limit max blocks to 500 to avoid rpc rate limiting
     const fromBlock = Math.max(lastSyncBlock, currentBlock - 500);
-    const filterAIP = aipcoreContract.filters.RewardDistributed();
-    const logsAIP = await aipcoreContract.queryFilter(filterAIP, fromBlock, currentBlock);
+    const filterNFEGlobal = nfeglobalContract.filters.RewardDistributed();
+    const logsNFEGlobal = await nfeglobalContract.queryFilter(filterNFEGlobal, fromBlock, currentBlock);
     
-    if (logsAIP.length > 0) {
+    if (logsNFEGlobal.length > 0) {
       const currentPrice = await getBnbPrice();
-      for (const log of logsAIP) {
+      for (const log of logsNFEGlobal) {
         const { wallet, fromId, amount, time, rewardType, tier, layer, isMissed } = log.args;
         const bnbAmount = ethers.formatEther(amount);
         const usdAmount = parseFloat(bnbAmount) * currentPrice;
@@ -493,7 +501,7 @@ const syncGlobalHistory = async () => {
           `INSERT INTO income_history (wallet_address, source_contract, event_type, from_node_id, amount_bnb, amount_usd, tier, layer, is_missed, tx_hash, timestamp)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
            ON CONFLICT (tx_hash) DO NOTHING RETURNING id`,
-          [wallet, AIPCORE_ADDRESS, eventName, Number(fromId), bnbAmount, usdAmount, tierVal, Number(layer), !!isMissed, txHash, timestamp]
+          [wallet, NFEGLOBAL_ADDRESS, eventName, Number(fromId), bnbAmount, usdAmount, tierVal, Number(layer), !!isMissed, txHash, timestamp]
         );
 
         if (res.rowCount > 0 && !!isMissed) {
@@ -566,8 +574,8 @@ app.post('/api/node/confirm', async (req, res) => {
     if (row.telegram_id) {
       const isNew = ntier === 1;
       const msg = isNew
-        ? `🎉 *Node Activated!*\n\nYour AIPCore Node *#${nid}* is now live on BSC! You're earning *100 $AIP/hr* and are eligible for real BNB rewards.`
-        : `🚀 *Node Upgraded!*\n\nYour Node *#${nid}* has been upgraded to *Tier ${ntier}*! Mining rate: *${Math.round(100 * Math.pow(1.2, ntier - 1))} $AIP/hr*.`;
+        ? `🎉 *Node Activated!*\n\nYour NFEGlobal Node *#${nid}* is now live on BSC! You're earning *100 $NFEGLOBAL/hr* and are eligible for real BNB rewards.`
+        : `🚀 *Node Upgraded!*\n\nYour Node *#${nid}* has been upgraded to *Tier ${ntier}*! Mining rate: *${Math.round(100 * Math.pow(1.2, ntier - 1))} $NFEGLOBAL/hr*.`;
       sendNotification(row.telegram_id, msg).catch(() => {});
     }
 
@@ -656,7 +664,7 @@ app.get('/api/user/:walletAddress', async (req, res) => {
         }
       }
 
-          // Create new user record (sponsor locked at creation, memo stored for recovery)
+      // Create new user record (sponsor locked at creation, memo stored for recovery)
       const newUser = await query(
         `INSERT INTO users 
           (wallet_address, referrer_id, referred_by_memo, local_reward, claimed_milestones, created_at, last_claim_time)
@@ -665,9 +673,27 @@ app.get('/api/user/:walletAddress', async (req, res) => {
         [walletAddress, refId, req.query.ref || null]
       );
 
-      // REFERRAL FIX: Await the ancestor lookup so we return the real sponsor node ID,
-      // not the genesis fallback (36999). This is what gets passed to createNode on-chain.
-      const ancestorNodeId = refId ? await findFirstActiveAncestor(refId) : 36999;
+      let sponsorIsTargeted = false;
+      let sponsorOfSponsorNodeId = 36999;
+      let sponsorNodeId = 36999;
+
+      if (refId) {
+        const sponsorCheck = await query(
+          `SELECT node_id, is_targeted FROM users WHERE id = $1`,
+          [refId]
+        );
+        if (sponsorCheck.rows.length > 0) {
+          if (sponsorCheck.rows[0].node_id) {
+            sponsorNodeId = sponsorCheck.rows[0].node_id;
+          } else if (sponsorCheck.rows[0].is_targeted) {
+            sponsorIsTargeted = true;
+            sponsorNodeId = 0;
+            sponsorOfSponsorNodeId = await findFirstActiveAncestor(refId);
+          } else {
+            sponsorNodeId = await findFirstActiveAncestor(refId);
+          }
+        }
+      }
 
       return res.json({ 
         ...newUser.rows[0], 
@@ -677,7 +703,9 @@ app.get('/api/user/:walletAddress', async (req, res) => {
         is_new: true, 
         pending_mined: 0,
         sponsor_wallet: sponsorWallet,
-        sponsor_node_id: ancestorNodeId  // Properly resolved — never blindly 36999
+        sponsor_node_id: sponsorNodeId,
+        sponsor_is_targeted: sponsorIsTargeted,
+        sponsor_of_sponsor_node_id: sponsorOfSponsorNodeId
       });
     }
     
@@ -713,7 +741,7 @@ app.get('/api/user/:walletAddress', async (req, res) => {
     // per wallet via nodeSyncCooldown map. This ensures tier upgrades (e.g., Tier 1 → Tier 2)
     // are reflected in the DB within one 30s poll cycle even if the user never calls backfill.
     // Previously only fired when node_id was missing — that meant existing node holders with
-    // stale tier data were NEVER re-synced, causing mining rate to stay at 10 AIP/hr forever.
+    // stale tier data were NEVER re-synced, causing mining rate to stay at 10 NFEGlobal/hr forever.
     const syncCooldownKey = walletAddress.toLowerCase();
     const lastNodeSync = nodeSyncCooldown.get(syncCooldownKey) || 0;
     if (Date.now() - lastNodeSync > 5 * 60 * 1000) { // 5-minute cooldown
@@ -724,19 +752,25 @@ app.get('/api/user/:walletAddress', async (req, res) => {
     // PERF FIX: Run sponsor lookup and pending mining calc IN PARALLEL
     const [sponsorRow] = await Promise.all([
       user.referrer_id
-        ? query('SELECT wallet_address, node_id FROM users WHERE id = $1', [user.referrer_id])
+        ? query('SELECT wallet_address, node_id, is_targeted FROM users WHERE id = $1', [user.referrer_id])
         : Promise.resolve({ rows: [] }),
     ]);
 
     // Resolve sponsor wallet and node ID (rollup to first active ancestor if sponsor is free)
     let sponsorWallet = null;
     let sponsorNodeId = 36999; // Default to Genesis
+    let sponsorIsTargeted = false;
+    let sponsorOfSponsorNodeId = 36999;
 
     if (sponsorRow.rows.length > 0) {
       sponsorWallet = sponsorRow.rows[0].wallet_address;
       if (sponsorRow.rows[0].node_id) {
         // Sponsor has a node — use it directly
         sponsorNodeId = sponsorRow.rows[0].node_id;
+      } else if (sponsorRow.rows[0].is_targeted) {
+        sponsorIsTargeted = true;
+        sponsorNodeId = 0;
+        sponsorOfSponsorNodeId = await findFirstActiveAncestor(user.referrer_id);
       } else {
         // Sponsor is a free user — walk up the referral tree to find first active ancestor
         // REFERRAL FIX: Await this lookup so we return the real node, not 36999
@@ -757,7 +791,7 @@ app.get('/api/user/:walletAddress', async (req, res) => {
     const isFreeMember = (user.node_tier === 0 || !user.node_tier) && isFreePeriod;
 
     if (user.node_tier >= 1) {
-      // Tier scaling: Tier 1 = 100 AIP/hr, +20% per tier (1.2^(tier-1))
+      // Tier scaling: Tier 1 = 100 NFEGlobal/hr, +20% per tier (1.2^(tier-1))
       const baseRate   = Math.round(100 * Math.pow(1.2, user.node_tier - 1));
       const multiplier = user.is_premium ? 2.0 : 1.0;
       pending_mined    = cappedHours * baseRate * multiplier;
@@ -781,7 +815,9 @@ app.get('/api/user/:walletAddress', async (req, res) => {
       pending_mined:  parseFloat(pending_mined.toFixed(4)),
       mining_rate:    computedMiningRate,   // FIX: authoritative rate from server tier
       sponsor_wallet: sponsorWallet,
-      sponsor_node_id: sponsorNodeId
+      sponsor_node_id: sponsorNodeId,
+      sponsor_is_targeted: sponsorIsTargeted,
+      sponsor_of_sponsor_node_id: sponsorOfSponsorNodeId
     });
   } catch (err) {
     console.error(err);
@@ -827,7 +863,7 @@ app.post('/api/mining/claim', async (req, res) => {
 
     let reward = 0;
     if (user.node_tier >= 1) {
-      // Tier scaling: Tier 1 = 100 AIP/hr, +20% per tier (1.2^(tier-1))
+      // Tier scaling: Tier 1 = 100 NFEGlobal/hr, +20% per tier (1.2^(tier-1))
       const baseRate = Math.round(100 * Math.pow(1.2, user.node_tier - 1));
       const multiplier = user.is_premium ? 2.0 : 1.0;
       reward = cappedHours * baseRate * multiplier;
@@ -866,7 +902,7 @@ app.post('/api/mining/claim', async (req, res) => {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      console.log(`✅ Mined: ${walletAddress} claimed ${reward.toFixed(4)} $AIP`);
+      console.log(`✅ Mined: ${walletAddress} claimed ${reward.toFixed(4)} $NFEGLOBAL`);
       res.json({ success: true, reward, user: update.rows[0] });
     } finally {
       claimLocks.delete(lockKey); // Always release the lock
@@ -1010,12 +1046,12 @@ app.post('/api/internal/chain-sync', async (req, res) => {
   if (!walletAddress) return res.status(400).json({ error: 'Wallet required' });
   try {
     // 1. Query chain for nodeId
-    const onChainIdRaw = await aipcoreContract.addressToNodeId(walletAddress).catch(() => 0n);
+    const onChainIdRaw = await nfeglobalContract.nodeId(walletAddress).catch(() => 0n);
     const onChainNodeId = Number(onChainIdRaw);
 
     let onChainTier = 0;
     if (onChainNodeId > 0) {
-      const stats = await aipcoreContract.getNodeStats(onChainNodeId).catch(() => null);
+      const stats = await nfeglobalContract.getNodeStats(onChainNodeId).catch(() => null);
       if (stats) onChainTier = Number(stats[0]);
     }
 
@@ -1181,13 +1217,13 @@ app.post('/api/events/book', async (req, res) => {
       return res.status(400).json({ error: 'Event is fully booked!' });
     }
 
-    const price = parseFloat(event.price_aip || 0);
+    const price = parseFloat(event.price_nfeglobal || 0);
     if (price > 0 && parseFloat(user.local_reward) < price) {
-      return res.status(400).json({ error: `You need ${price} $AIP to book this event.` });
+      return res.status(400).json({ error: `You need ${price} $NFEGLOBAL to book this event.` });
     }
 
     await query('BEGIN');
-    await query('INSERT INTO event_bookings (event_id, wallet_address, paid_aip) VALUES ($1, $2, $3)', [eventId, walletAddress, price]);
+    await query('INSERT INTO event_bookings (event_id, wallet_address, paid_nfeglobal) VALUES ($1, $2, $3)', [eventId, walletAddress, price]);
     
     // Deduct price if applicable
     if (price > 0) {
@@ -1217,13 +1253,13 @@ const checkAdmin = (req, res, next) => {
 
 // POST Admin Create Event
 app.post('/api/admin/events', checkAdmin, async (req, res) => {
-  const { title, description, maxSeats, priceAip, telegramLink, scheduleTime } = req.body;
+  const { title, description, maxSeats, priceNfeglobal, telegramLink, scheduleTime } = req.body;
   if (!title) return res.status(400).json({ error: 'Title is required' });
 
   try {
     const insertRes = await query(
-      'INSERT INTO events (title, description, max_seats, price_aip, telegram_link, schedule_time) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-      [title, description || '', parseInt(maxSeats) || 100, parseFloat(priceAip) || 0, telegramLink || '', scheduleTime || '']
+      'INSERT INTO events (title, description, max_seats, price_nfeglobal, telegram_link, schedule_time) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+      [title, description || '', parseInt(maxSeats) || 100, parseFloat(priceNfeglobal) || 0, telegramLink || '', scheduleTime || '']
     );
     res.json({ success: true, id: insertRes.rows[0].id });
   } catch (err) {
@@ -1391,7 +1427,7 @@ app.post('/api/user/claim-signup', async (req, res) => {
       return res.status(500).json({ error: 'Bonus update failed — no rows affected' });
     }
 
-    console.log(`🎁 Signup Bonus: ${walletAddress} claimed 100 $AIP`);
+    console.log(`🎁 Signup Bonus: ${walletAddress} claimed 100 $NFEGLOBAL`);
     res.json({
       success: true,
       reward,
@@ -1460,9 +1496,9 @@ app.post('/api/admin/init-tasks-db', checkAdmin, async (req, res) => {
     if (parseInt(count.rows[0].count) === 0) {
       await query(`
         INSERT INTO tasks (name, reward, icon, url, type) VALUES
-        ('Join AIPCore Telegram', 200000, '✈️', 'https://t.me/AIPCoreOfficial', 'social'),
-        ('Join AIPCore Chat', 150000, '💬', 'https://t.me/AIPCoreChat', 'social'),
-        ('Follow on X/Twitter', 100000, '𝕏', 'https://x.com/AIPCore', 'social'),
+        ('Join NFEGlobal Telegram', 200000, '✈️', 'https://t.me/NFEGlobalOfficial', 'social'),
+        ('Join NFEGlobal Chat', 150000, '💬', 'https://t.me/NFEGlobalChat', 'social'),
+        ('Follow on X/Twitter', 100000, '𝕏', 'https://x.com/NFEGlobal', 'social'),
         ('Activate Node', 1000000, '⬡', null, 'node')
       `);
     }
@@ -1652,7 +1688,7 @@ app.post('/api/admin/backfill-nodes', checkAdmin, async (req, res) => {
     // Process in batches
     for (const u of users.rows) {
       try {
-        const nodeId = await aipcoreContract.addressToNodeId(u.wallet_address);
+        const nodeId = await nfeglobalContract.nodeId(u.wallet_address);
         if (Number(nodeId) > 0) {
           console.log(`📡 Backfill: Found Node ${nodeId} for ${u.wallet_address}`);
           await syncNodeStateFromRPC(Number(nodeId), u.wallet_address);
@@ -1956,7 +1992,7 @@ app.post('/api/network/force-repair', async (req, res) => {
 async function syncNodeStateFromRPC(nodeId, walletAddress = null) {
   if (!nodeId || nodeId === 0) return;
   try {
-    const nodeInfo = await aipcoreContract.nodes(nodeId);
+    const nodeInfo = await nfeglobalContract.nodes(nodeId);
 
     // DUAL-KEY UPDATE: Finds the row by node_id OR wallet_address (whichever exists).
     // Also writes node_id onto the row so future lookups use node_id.
@@ -2067,7 +2103,7 @@ async function repairTreeLinks(bypassThrottle = false) {
   }
 }
 
-// GET User Precision Income History (AIPCore + RewardPool indexed)
+// GET User Precision Income History (NFEGlobal + RewardPool indexed)
 app.get('/api/user/income-history/:walletAddress', async (req, res) => {
   const { walletAddress } = req.params;
   try {
@@ -2241,7 +2277,7 @@ app.get('/api/referrals/sponsor-node/:walletAddress', async (req, res) => {
   const { walletAddress } = req.params;
   try {
     const userRes = await query(
-      `SELECT u.referrer_id, u.referred_by_memo, s.node_id as sponsor_node_id, s.wallet_address as sponsor_wallet
+      `SELECT u.referrer_id, u.referred_by_memo, s.node_id as sponsor_node_id, s.wallet_address as sponsor_wallet, s.is_targeted as sponsor_is_targeted
        FROM users u
        LEFT JOIN users s ON s.id = u.referrer_id
        WHERE LOWER(u.wallet_address) = LOWER($1)
@@ -2256,6 +2292,17 @@ app.get('/api/referrals/sponsor-node/:walletAddress', async (req, res) => {
     // If referrer has an active node — use it directly
     if (row.sponsor_node_id) {
       return res.json({ sponsor_node_id: row.sponsor_node_id, sponsor_wallet: row.sponsor_wallet });
+    }
+
+    // Check if sponsor is a targeted user
+    if (row.sponsor_is_targeted) {
+      const ancestorNodeId = await findFirstActiveAncestor(row.referrer_id);
+      return res.json({
+        sponsor_node_id: 0,
+        sponsor_wallet: row.sponsor_wallet,
+        sponsor_is_targeted: true,
+        sponsor_of_sponsor_node_id: ancestorNodeId
+      });
     }
 
     // If referrer is free — walk up to first active ancestor
@@ -2428,7 +2475,7 @@ app.post('/api/daily/claim', async (req, res) => {
 
     const claimedDayNumber = currentStreak + 1; // 1-10 (the day that was just claimed)
 
-    console.log(`🔥 Daily: ${walletAddress} claimed Day ${claimedDayNumber} reward (${rewardAmount} $AIP). Streak: ${nextStreak}/10`);
+    console.log(`🔥 Daily: ${walletAddress} claimed Day ${claimedDayNumber} reward (${rewardAmount} $NFEGLOBAL). Streak: ${nextStreak}/10`);
 
     res.json({
       success:          true,
@@ -2499,7 +2546,7 @@ async function ensureNodeSync(wallet) {
     const wasFreeBefore = prevState.rows.length > 0 && !prevState.rows[0].node_id;
     const referrerId    = prevState.rows.length > 0 ? prevState.rows[0].referrer_id : null;
 
-    const nodeId = await aipcoreContract.addressToNodeId(wallet);
+    const nodeId = await nfeglobalContract.nodeId(wallet);
     if (Number(nodeId) > 0) {
       console.log(`📡 Auto-Sync: Found on-chain node ${nodeId} for ${wallet}. Updating DB...`);
       // DUAL-KEY: Pass wallet so syncNodeStateFromRPC can find+update by wallet_address too
@@ -2599,28 +2646,30 @@ app.get('/api/telegram/status/:walletAddress', async (req, res) => {
 });
 
 // ── AI Marketing Agent Endpoint ──────────────────────────────────────────────────
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
 app.post('/api/ai/generate', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+  if (!groq) return res.status(503).json({ error: 'AI Agent is currently unavailable (missing GROQ_API_KEY)' });
 
   try {
-    const systemInstruction = `You are Bella, the official AI Marketing Agent for AIP Core.
+    const systemInstruction = `You are Bella, the official AI Marketing Agent for NFEGlobal Core.
 Your goal is to help users write highly engaging, emoji-heavy marketing content for social media (Twitter, Telegram, WhatsApp, etc.).
 You can interact and respond in ANY language the user speaks. You must reply in the exact language the user used to ask their question.
 
-About AIP Core:
+About NFEGlobal Core:
 - It is a 100% decentralized Web3 Mining Node protocol on the Binance Smart Chain (BNB).
-- Verified AIPCore Smart Contract: 0xB6CbD70147835D4eA93B4a768D8e101B6E9A420f
-- Verified RewardPool Smart Contract: 0x319429aD1A00cbCD6aed1fFA1106eEC056316465
-- Users activate a "Mining Node" to earn AIP tokens and BNB simultaneously.
+- Verified NFEGlobal Smart Contract: 0x9daA28D40082E4173b4b07AE76A92Eda0Ff3A522
+- Verified RewardPool Smart Contract: 0xA0DE5adE595a43838d1a883D441ea5f0829d66b1
+- Governance Contract: 0xA6F9eC34b45B732DCDcf849f321466e61a749C83
+- Users activate a "Mining Node" to earn NFEGlobal tokens and BNB simultaneously.
 - 4 Income Streams:
   1) 10% Direct Referral Income (instant, unlimited width, lifetime)
   2) 70% Binary Matrix Income (18 levels deep, auto-spillover)
-  3) ~15% Level Income (earn from nodes in your tree 18 levels down)
-  4) 5% Global Pool Income (daily revenue share for top builders)
-- 18 Upgrade Tiers (from Tier 1 "Genesis" at 0.05 BNB up to Tier 18 "Sovereign"). Higher tiers unlock faster mining and deeper matrix earnings.
+  3) 15% Layer Yield Income (earn from nodes in your tree 10 layers down)
+  4) 5% Global Pool Income (daily revenue share for qualified builders)
+- 18 Upgrade Tiers (from Tier 1 "Genesis" at $5 equivalent up to Tier 18 "Sovereign"). Higher tiers unlock faster mining and deeper matrix earnings.
 
 MARKETING STRATEGY FOCUS: Strongly emphasize bringing in "free users" to build a massive community first. Your promotional copy should encourage people to join the community for free, learn the system, and grow the network before aggressively pitching paid node upgrades.
 
@@ -2644,7 +2693,7 @@ Keep responses relatively concise (under 250 words unless specifically asked for
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`AIPCore Backend running on port ${PORT}`);
+  console.log(`NFEGlobal Backend running on port ${PORT}`);
   syncGlobalHistory(); // Initial fetch
   initTelegramBot();   // Start Telegram bot
   startChainEventListeners(); // Real-time on-chain event indexer
@@ -2660,14 +2709,14 @@ function startChainEventListeners() {
 
   // ── NodeCreated ────────────────────────────────────────────────────────────
   // Fires when a new user registers a node on-chain.
-  aipcoreContract.on('NodeCreated', async (nodeAddr, userId, referrerId, uplineId, event) => {
+  nfeglobalContract.on('NodeCreated', async (nodeAddr, userId, referrerId, uplineId, event) => {
     const nId = Number(userId);
     const sponsorId = Number(referrerId);
     const matrixParentId = Number(uplineId);
     console.log(`[Chain] NodeCreated: nodeId=${nId} wallet=${nodeAddr} sponsor=${sponsorId}`);
     try {
       // Fetch full node info from chain
-      const node = await aipcoreContract.nodes(nId);
+      const node = await nfeglobalContract.nodes(nId);
       const wallet = node.wallet?.toLowerCase() || nodeAddr.toLowerCase();
       const tier   = Number(node.tier);
       const joinedAt = Number(node.joinedAt);
@@ -2709,6 +2758,7 @@ function startChainEventListeners() {
             `🎉 *New Direct Referral!*\nNode #${nId} joined under your sponsorship.\nTier: T${tier} | Wallet: \`${wallet.slice(0,10)}…\``);
         }
       } catch { /* non-critical */ }
+
     } catch (err) {
       console.error('[Chain] NodeCreated handler error:', err.message);
     }
@@ -2716,12 +2766,12 @@ function startChainEventListeners() {
 
   // ── TierUnlocked ───────────────────────────────────────────────────────────
   // Fires when an existing node upgrades to a higher tier.
-  aipcoreContract.on('TierUnlocked', async (nodeAddr, userId, packageId, event) => {
+  nfeglobalContract.on('TierUnlocked', async (nodeAddr, userId, packageId, event) => {
     const nId  = Number(userId);
     const tier = Number(packageId);
     console.log(`[Chain] TierUnlocked: nodeId=${nId} newTier=${tier}`);
     try {
-      const node   = await aipcoreContract.nodes(nId);
+      const node   = await nfeglobalContract.nodes(nId);
       const wallet = node.wallet?.toLowerCase() || nodeAddr.toLowerCase();
       const actualTier = Number(node.tier); // Use chain value as authoritative
 
@@ -2741,6 +2791,7 @@ function startChainEventListeners() {
             `🚀 *Tier Upgraded!*\nYour node #${nId} is now Tier ${actualTier}!`);
         }
       } catch { /* non-critical */ }
+
     } catch (err) {
       console.error('[Chain] TierUnlocked handler error:', err.message);
     }
@@ -2748,7 +2799,7 @@ function startChainEventListeners() {
 
   // ── RewardDistributed ──────────────────────────────────────────────────────
   // Fires for every referral reward pushed on-chain.
-  aipcoreContract.on('RewardDistributed',
+  nfeglobalContract.on('RewardDistributed',
     async (walletAddr, nodeId, fromId, layer, amount, time, isMissed, rewardType, tier, event) => {
       const wallet = walletAddr.toLowerCase();
       const nId    = Number(nodeId);
@@ -2823,10 +2874,6 @@ app.get('/api/events/stream', (req, res) => {
 });
 
 // ── AUTO-UPGRADE SYSTEM ENDPOINTS ─────────────────────────────────────────────
-import { execSync, exec as execCb } from 'child_process';
-import { promisify } from 'util';
-import path from 'path';
-import fs from 'fs';
 const execAsync = promisify(execCb);
 
 // Dynamically locate the .git root (walk up from server/ to project root)
@@ -2841,7 +2888,7 @@ function findGitRoot(startDir) {
   return startDir; // fallback
 }
 const GIT_ROOT = findGitRoot(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')));
-const UPSTREAM = 'https://github.com/quevitsolutions/aipcorehub';
+const UPSTREAM = 'https://github.com/quevitsolutions/nfeglobalhub';
 
 // GET /api/admin/system/status — returns branch, commit hash, and message
 app.get('/api/admin/system/status', checkAdmin, async (req, res) => {
@@ -2867,7 +2914,7 @@ app.get('/api/admin/system/status', checkAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/system/upgrade — pull from aipcorehub, optionally force-reset, npm install, restart
+// POST /api/admin/system/upgrade — pull from nfeglobalhub, optionally force-reset, npm install, restart
 app.post('/api/admin/system/upgrade', checkAdmin, async (req, res) => {
   const { forceReset = false } = req.body || {};
   const logs = [];
@@ -2885,7 +2932,7 @@ app.post('/api/admin/system/upgrade', checkAdmin, async (req, res) => {
 
   try {
     // 1. Fetch latest from upstream (never push)
-    await run(`git fetch ${UPSTREAM} main`, 'Fetching from aipcorehub...');
+    await run(`git fetch ${UPSTREAM} main`, 'Fetching from nfeglobalhub...');
 
     // 2. Apply changes — force-reset discards local edits; standard merge keeps them
     if (forceReset) {
@@ -2907,3 +2954,45 @@ app.post('/api/admin/system/upgrade', checkAdmin, async (req, res) => {
     res.status(500).json({ success: false, logs, error: err.message });
   }
 });
+
+// GET /api/admin/targeted-users — returns all targeted users
+app.get('/api/admin/targeted-users', checkAdmin, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, wallet_address, node_id, node_tier, is_targeted, created_at FROM users WHERE is_targeted = TRUE ORDER BY id DESC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[Admin Targeted Users]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/targeted-users — sets targeted status
+app.post('/api/admin/targeted-users', checkAdmin, async (req, res) => {
+  const { walletAddress, status } = req.body;
+  if (!walletAddress) return res.status(400).json({ error: 'Wallet required' });
+  try {
+    const lowerWallet = walletAddress.toLowerCase();
+    // Try to update existing user
+    const updateResult = await query(
+      `UPDATE users SET is_targeted = $1 WHERE LOWER(wallet_address) = $2 RETURNING *`,
+      [!!status, lowerWallet]
+    );
+    if (updateResult.rows.length === 0 && status) {
+      // Create a new user record if they are being targeted and don't exist
+      const insertResult = await query(
+        `INSERT INTO users (wallet_address, is_targeted, local_reward, claimed_milestones)
+         VALUES ($1, TRUE, 0, '[]') RETURNING *`,
+        [lowerWallet]
+      );
+      return res.json(insertResult.rows[0]);
+    }
+    res.json(updateResult.rows[0] || { wallet_address: lowerWallet, is_targeted: !!status });
+  } catch (err) {
+    console.error('[Admin Set Targeted User]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+

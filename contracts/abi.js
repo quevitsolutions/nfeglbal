@@ -1,27 +1,28 @@
-export const AIPCORE_ABI = [
-  "function owner() view returns (address)",
+export const NFEGLOBAL_ABI = [
   "function createNode(uint256 _sponsor) external payable",
+  "function createNodeWithSponsorAddress(address _sponsorAddress, uint256 _sponsorOfSponsor) external payable",
   "function unlockTier(uint256 _nodeId, uint256 _toTier) external payable",
   "function withdraw() external",
   "function pendingReward(address user) view returns (uint256)",
   "function nodeId(address user) view returns (uint256)",
+  "function getPendingUpgradeRewards(uint256 nodeId) view returns (uint256)",
+  "function missedRewardsByTier(uint256 nodeId, uint256 tier) view returns (uint256)",
   "function nodes(uint256 nodeId) view returns (address wallet, uint88 nodeId_, uint256 sponsor, uint256 matrixParent, uint40 joinedAt, uint256 tier, uint256 directNodes, uint256 totalMatrixNodes, uint256 totalContribution)",
-  "function isNodeActive(uint256 userId) view returns (bool)",
-  "function isNodeRegistered(address node) view returns (bool)",
   "function getTierCost(uint256 _index) view returns (uint256)",
   "function getTierCosts() view returns (uint256[18])",
-  "function bnbPrice() view returns (uint256)",
+  "function nativePrice() view returns (uint256)",
   "function getTeamSize(uint256 _userId, uint256 _depth) view returns (uint256)",
   "function getNetworkNodes(uint256 _nodeId, uint256 _layer, uint256 _num) view returns (tuple(address wallet, uint64 nodeId, uint64 sponsor, uint64 matrixParent, uint40 joinedAt, uint8 tier, uint32 directNodes, uint32 totalMatrixNodes, uint256 totalContribution, uint32[18] sponsorTierRanks, uint64[18] matrixRewardReceiver)[])",
   "function getMatrixUsers(uint256 nodeId, uint256 layer, uint256 startIndex, uint256 num) view returns (tuple(address wallet, uint64 nodeId, uint64 sponsor, uint64 matrixParent, uint40 joinedAt, uint8 tier, uint32 directNodes, uint32 totalMatrixNodes, uint256 totalContribution, uint32[18] sponsorTierRanks, uint64[18] matrixRewardReceiver)[])",
   "function getNodeStats(uint256 _userId) view returns (uint256 tier, uint256 directCount, uint256 matrixCount, uint256 totalRewards, uint256 totalContribution, uint256 daysActive)",
   "function getIncome(uint256 _nodeId, uint256 _length) view returns (tuple(uint256 id, uint256 layer, uint256 amount, uint256 time, bool isMissed, uint256 rewardType, uint256 tier)[])",
   "function getIncomeBreakdown(uint256 _nodeId) view returns (uint256 total, uint256 referral, uint256 tier, uint256 binary, uint256 direct, uint256 lost, uint256 poolIncome)",
+  "function owner() view returns (address)",
   "event NodeCreated(address indexed node, uint256 indexed userId, uint256 indexed referrerId, uint256 uplineId)",
   "event TierUnlocked(address indexed node, uint256 indexed userId, uint256 packageId)",
 ];
 
-export const AIPVIEW_ABI = [
+export const NFEGLOBAL_VIEWS_ABI = [
   "function getNodeStats(uint256 nodeId) view returns (uint256 totalEarned, uint256 teamSize, uint256 directRefs, uint256 level)",
   "function getIncomeBreakdown(uint256 nodeId) view returns (uint256 direct, uint256 matrix, uint256 pool, uint256 pending)",
 ];
@@ -35,3 +36,16 @@ export const REWARDPOOL_ABI = [
   "function nodePool(uint256 nodeId) view returns (uint8)",
   "event RewardClaimed(uint256 nodeId, address wallet, uint256 amount)",
 ];
+
+export const GOVERNANCE_ABI = [
+  "function proposalCount() view returns (uint256)",
+  "function proposals(uint256) view returns (uint256 id, uint256 proposerNodeId, address target, uint256 amount, string purpose, uint256 createdAt, uint256 votesFor, uint256 votesAgainst, uint256 timelockStartsAt, bool executed, uint256 coreProposalId)",
+  "function hasVoted(uint256 proposalId, uint256 nodeId) view returns (bool)",
+  "function propose(address target, uint256 amount, string purpose) external returns (uint256)",
+  "function vote(uint256 proposalId, bool support) external",
+  "function queue(uint256 proposalId) external",
+  "function execute(uint256 proposalId) external",
+  "function getProposalStatus(uint256 proposalId) view returns (uint8)",
+];
+
+

@@ -7,18 +7,18 @@ import {
 import { useGameStore } from '../store/gameStore.js';
 import { useContract } from '../hooks/useContract.js';
 import { formatNumber, formatBNB, shortAddr } from '../utils/format.js';
-import { useBnbPrice } from '../hooks/useBnbPrice.js';
+import { useNativePrice } from '../hooks/useNativePrice.js';
 import { CONTRACTS } from '../config/constants.js';
 
 // ── Inline Income Calculator (Mini) ──────────────────────────────────────────
 const LVL_USD_COST_D = [5,5,10,20,40,80,160,320,640,1280,2560,5120,10240,20480,40960,81920,163840,327680];
 const TC_D = ['#A3FF12','#B4FF3A','#FFD700','#FFC107','#FF9800','#FF7043','#FF5252','#E91E63','#AB47BC','#7E57C2','#5C6BC0','#42A5F5','#26C6DA','#26A69A','#66BB6A','#8BC34A','#CDDC39','#FF6B35'];
-const TIER_AIP_D = [100,200,200,300,300,300,500,500,500,800,800,800,1200,1200,1200,2000,2000,2500];
+const TIER_NFEGlobal_D = [100,200,200,300,300,300,500,500,500,800,800,800,1200,1200,1200,2000,2000,2500];
 function fmtD(n){ if(n>=1e9)return(n/1e9).toFixed(2)+'B'; if(n>=1e6)return(n/1e6).toFixed(2)+'M'; if(n>=1e3)return(n/1e3).toFixed(1)+'K'; return n.toFixed?n.toFixed(2):n; }
 
 function IncomeCalcMini({ nodeTier }) {
   const [open, setOpen]     = useState(false);
-  const [bnbPrice, setBnbPrice] = useState(600);
+  const [nativePrice, setNativePrice] = useState(600);
   const [myTier, setMyTier] = useState(Math.max(1, Number(nodeTier)||1));
   const acc = '#FFB74D';
 
@@ -34,7 +34,7 @@ function IncomeCalcMini({ nodeTier }) {
   const unlocked  = levels.filter(l => !l.locked);
   const totPeople = unlocked.reduce((s,l) => s + l.people, 0);
   const totUsd    = unlocked.reduce((s,l) => s + l.totalEarn, 0);
-  const totBnb    = bnbPrice > 0 ? totUsd / bnbPrice : 0;
+  const totBnb    = nativePrice > 0 ? totUsd / nativePrice : 0;
 
   return (
     <div style={{ marginBottom: 24 }}>
@@ -51,8 +51,8 @@ function IncomeCalcMini({ nodeTier }) {
           {/* Controls */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
             <div style={{ background:'rgba(255,255,255,0.04)', borderRadius:10, padding:'10px 12px', border:'1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize:8, fontWeight:900, color:'#888', letterSpacing:1, marginBottom:4 }}>BNB PRICE $</div>
-              <input type="number" value={bnbPrice} onChange={e => setBnbPrice(Number(e.target.value)||0)} min={0}
+              <div style={{ fontSize:8, fontWeight:900, color:'#888', letterSpacing:1, marginBottom:4 }}>NATIVE PRICE $</div>
+              <input type="number" value={nativePrice} onChange={e => setNativePrice(Number(e.target.value)||0)} min={0}
                 style={{ width:'100%', background:'transparent', border:'none', outline:'none', color:'#fff', fontWeight:900, fontSize:14, fontFamily:'monospace' }} />
             </div>
             <div style={{ background:'rgba(255,255,255,0.04)', borderRadius:10, padding:'10px 12px', border:`1px solid ${TC_D[myTier-1]}40` }}>
@@ -116,18 +116,18 @@ export default function DashboardScreen() {
   const {
     walletAddress, hasNode, nodeId, nodeActive, nodeTier,
     totalEarned, pendingReward, teamSize, directRefs,
-    poolClaimable, poolQual, localReward, streak, isConnected,
+    poolClaimable, poolQual, isConnected,
     conversionHistory, isFreeActive, globalStats,
-    taps, energy, maxEnergy, handleTap
+    bnbBalance, sponsorNodeId
   } = useGameStore();
   
   const { loadNodeData, connectWallet, claimPool, claimRewards, fetchTeamCounts, registerPool } = useContract();
-  const bnbPrice = useBnbPrice();
+  const nativePrice = useNativePrice();
   
   const [levelCounts, setLevelCounts] = useState([]);
   const [selectedIncome, setSelectedIncome] = useState(null);
 
-  const usd = (bnb) => bnbPrice > 0 ? <span style={{ fontSize: 11, fontWeight: 700, color: '#4FC3F7', display: 'block', marginTop: 2 }}>≈ ${(parseFloat(bnb || 0) * bnbPrice).toFixed(2)}</span> : null;
+  const usd = (bnb) => nativePrice > 0 ? <span style={{ fontSize: 11, fontWeight: 700, color: '#4FC3F7', display: 'block', marginTop: 2 }}>≈ ${(parseFloat(bnb || 0) * nativePrice).toFixed(2)}</span> : null;
 
   const INCOME_TYPES = [
     {
@@ -141,10 +141,10 @@ export default function DashboardScreen() {
     {
       id: 'layer',
       name: 'LAYER YIELD',
-      share: '14.95%',
+      share: '15.0%',
       color: '#4FC3F7',
       icon: <Layers size={18} />,
-      desc: 'Deep penetration rewards across 17 layers. 1.5% for L1-5, 1.0% for L6-10, and 0.35% for L11-17. Requires 2 direct referrals to unlock deep depth.'
+      desc: 'Deep penetration rewards across 10 layers. Flat 1.5% commission per layer. Requires 2 direct referrals to unlock deep depth (Layers 6-10).'
     },
     {
       id: 'matrix',
@@ -157,7 +157,7 @@ export default function DashboardScreen() {
     {
       id: 'pool',
       name: 'GLOBAL POOL',
-      share: '5.05%',
+      share: '5.0%',
       color: '#FFD700',
       icon: <Crown size={18} />,
       desc: 'Lifetime royalty sharing from 5% of all global platform volume. Passive yield generated by every single transaction in the ecosystem.'
@@ -236,44 +236,33 @@ export default function DashboardScreen() {
         </motion.div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 32 }}>
-          {[
-            { label: 'SELF LEVEL',  val: `TIER ${nodeTier}`, sub: formatBNB(poolQual.totalDeposited), color: '#FFB74D', glowKey: null },
-            { label: 'AIP COINS',   val: formatNumber(localReward), sub: 'Mining Asset',  color: '#FFD700', glowKey: null },
-            !hasNode ? { 
-              label: 'FREE SPARKS', val: (taps || 0).toLocaleString(), sub: `ENERGY ${energy}/${maxEnergy}`, color: '#A3FF12',
-              glowKey: energy > 0 ? 'tap' : null,
-              action: energy > 0 ? 'TAP TO COLLECT' : 'RECHARGING...',
-            } : { 
-              label: 'UNCLAIMED', val: formatBNB(pendingReward), sub: 'Node Balance', color: 'var(--neon-lime)',
-              glowKey: parseFloat(pendingReward) > 0 ? 'lime' : null,
-              action: parseFloat(pendingReward) > 0 ? 'TAP TO CLAIM' : null,
-            },
-            { 
-              label: 'POOL ROI',   val: formatBNB(poolClaimable), sub: 'Global Payout', color: '#4FC3F7',
-              glowKey: parseFloat(poolClaimable) > 0 ? 'blue' : null,
-              action: parseFloat(poolClaimable) > 0 ? 'TAP TO CLAIM' : null,
-            }
-          ].map((item, i) => (
+          {(hasNode ? [
+            { label: 'SELF LEVEL', val: `TIER ${nodeTier}`, sub: `Spent: ${formatBNB(poolQual.totalDeposited)}`, color: '#FFB74D', glowKey: null },
+            { label: 'UNCLAIMED', val: formatBNB(pendingReward), sub: 'Node Balance', color: 'var(--neon-lime)', glowKey: parseFloat(pendingReward) > 0 ? 'lime' : null, action: parseFloat(pendingReward) > 0 ? 'TAP TO CLAIM' : null },
+            { label: 'POOL ROI', val: formatBNB(poolClaimable), sub: 'Global Payout', color: '#4FC3F7', glowKey: parseFloat(poolClaimable) > 0 ? 'blue' : null, action: parseFloat(poolClaimable) > 0 ? 'TAP TO CLAIM' : null },
+            { label: 'ACTIVE SPONSOR', val: sponsorNodeId ? `#${sponsorNodeId}` : 'GENESIS', sub: 'Matrix Parent', color: '#9B51FF', glowKey: null }
+          ] : [
+            { label: 'SELF LEVEL', val: 'INACTIVE', sub: 'No Node Activated', color: '#FF5252', glowKey: null },
+            { label: 'WALLET BAL', val: `${parseFloat(bnbBalance).toFixed(4)} BNB`, sub: 'Ready to Activate', color: 'var(--neon-lime)', glowKey: null },
+            { label: 'POOL ROI', val: '0.00 BNB', sub: 'Ineligible', color: '#444', glowKey: null },
+            { label: 'SPONSOR', val: sponsorNodeId ? `#${sponsorNodeId}` : 'GENESIS', sub: 'Matrix Parent', color: '#9B51FF', glowKey: null }
+          ]).map((item, i) => (
             <motion.div 
               key={i}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.05 }}
               onClick={(e) => {
-                if (item.glowKey === 'tap') {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  handleTap();
-                }
                 if (item.glowKey === 'lime' && nodeId)  claimRewards();
                 if (item.glowKey === 'blue' && nodeId) claimPool(nodeId);
               }}
               className="partner-card" 
               style={{ 
                 flexDirection: 'column', alignItems: 'flex-start', margin: 0, padding: 16,
-                border: item.glowKey === 'lime' || item.glowKey === 'tap' ? '1px solid rgba(163,255,18,0.5)' 
+                border: item.glowKey === 'lime' ? '1px solid rgba(163,255,18,0.5)' 
                       : item.glowKey === 'blue' ? '1px solid rgba(79,195,247,0.5)' 
                       : '1px solid rgba(255,255,255,0.05)',
-                boxShadow: item.glowKey === 'lime' || item.glowKey === 'tap' ? '0 0 12px rgba(163,255,18,0.15)' 
+                boxShadow: item.glowKey === 'lime' ? '0 0 12px rgba(163,255,18,0.15)' 
                          : item.glowKey === 'blue' ? '0 0 12px rgba(79,195,247,0.15)' 
                          : 'none',
                 cursor: item.glowKey ? 'pointer' : 'default',
@@ -284,14 +273,6 @@ export default function DashboardScreen() {
               <span style={{ fontSize: '18px', fontWeight: 900, color: '#fff', marginTop: 4 }}>{item.val}</span>
               {item.action ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                  {item.glowKey === 'tap' && (
-                    <div style={{
-                      width: 14, height: 14, background: 'var(--neon-lime)',
-                      borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 9, color: '#000', fontWeight: 900,
-                      boxShadow: '0 0 8px rgba(163,255,18,0.5)'
-                    }}>A</div>
-                  )}
                   <span style={{ fontSize: '9px', color: item.color, fontWeight: 900, letterSpacing: 1, animation: 'pulse 1.5s infinite' }}>{item.action} →</span>
                 </div>
               ) : (
@@ -438,7 +419,7 @@ export default function DashboardScreen() {
               <div style={{ fontSize: 18, marginBottom: 4 }}>{s.icon}</div>
               <div style={{ fontSize: 13, fontWeight: 900, color: s.color }}>{s.val}</div>
               <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', fontWeight: 800, letterSpacing: 0.5, marginTop: 2 }}>{s.label}</div>
-              {bnbPrice > 0 && <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', marginTop: 1 }}>≈ ${(parseFloat(s.val) * bnbPrice).toFixed(2)}</div>}
+              {nativePrice > 0 && <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', marginTop: 1 }}>≈ ${(parseFloat(s.val) * nativePrice).toFixed(2)}</div>}
             </div>
           ))}
         </div>
@@ -456,12 +437,12 @@ export default function DashboardScreen() {
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', fontWeight: 800, letterSpacing: 0.5 }}>POOL CAP</span>
                   <span style={{ fontSize: 14, fontWeight: 900, color: '#FFD700' }}>{formatBNB(cap)}</span>
-                  {bnbPrice > 0 && <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)' }}>≈ ${(cap * bnbPrice).toFixed(2)}</span>}
+                  {nativePrice > 0 && <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)' }}>≈ ${(cap * nativePrice).toFixed(2)}</span>}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                   <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', fontWeight: 800, letterSpacing: 0.5 }}>REMAINING</span>
                   <span style={{ fontSize: 14, fontWeight: 900, color: capColor }}>{formatBNB(rem)}</span>
-                  {bnbPrice > 0 && <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)' }}>≈ ${(rem * bnbPrice).toFixed(2)}</span>}
+                  {nativePrice > 0 && <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)' }}>≈ ${(rem * nativePrice).toFixed(2)}</span>}
                 </div>
               </div>
               {/* Progress bar — used vs cap */}
@@ -568,7 +549,7 @@ export default function DashboardScreen() {
               {parseFloat(globalStats?.total_volume_bnb || 0).toFixed(2)}
             </div>
             <div style={{ fontSize: '9px', fontWeight: 800, color: '#FFFFFF', marginTop: 2 }}>TOTAL VOL (BNB)</div>
-            {bnbPrice > 0 && <div style={{ fontSize: '9px', fontWeight: 700, color: '#4FC3F7', marginTop: 1 }}>≈ ${(parseFloat(globalStats?.total_volume_bnb || 0) * bnbPrice).toFixed(0)}</div>}
+            {nativePrice > 0 && <div style={{ fontSize: '9px', fontWeight: 700, color: '#4FC3F7', marginTop: 1 }}>≈ ${(parseFloat(globalStats?.total_volume_bnb || 0) * nativePrice).toFixed(0)}</div>}
           </div>
           <div>
             <div style={{ fontSize: '20px', fontWeight: 900 }}>{globalStats?.active_nodes || 0}</div>
@@ -581,34 +562,7 @@ export default function DashboardScreen() {
         </div>
       </div>
 
-      {/* Token Conversion History */}
-      <h3 style={{ fontSize: '13px', fontWeight: 800, color: '#A3FF12', marginBottom: 12, marginTop: 8 }}>HISTORY: TOKEN CONVERSION</h3>
-      <div className="partner-card" style={{ flexDirection: 'column', padding: 20, marginBottom: 32 }}>
-        {conversionHistory.length > 0 ? (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {conversionHistory.map((item, idx) => (
-              <div key={idx} style={{ 
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-                paddingBottom: 12, borderBottom: idx !== conversionHistory.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' 
-              }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 800 }}>{item.name}</span>
-                  <span style={{ fontSize: '10px', color: '#4FC3F7' }}>{new Date(item.created_at).toLocaleDateString()}</span>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 900, color: 'var(--neon-lime)' }}>{formatNumber(item.mined_amount)} 🪙</div>
-                  <div style={{ fontSize: '10px', color: '#FFB74D', fontWeight: 800 }}>CONVERTED</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ padding: '20px 0', textAlign: 'center', color: '#FF5252', width: '100%' }}>
-            <div style={{ fontSize: '24px', marginBottom: 8 }}>📜</div>
-            <div style={{ fontSize: '11px', fontWeight: 800 }}>NO CONVERSIONS RECORDED YET</div>
-          </div>
-        )}
-      </div>
+
 
       {/* Income Calculator */}
       <IncomeCalcMini nodeTier={nodeTier} />
@@ -631,8 +585,8 @@ export default function DashboardScreen() {
       </h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, paddingBottom: 60 }}>
         {[
-          { name: 'CORE', addr: CONTRACTS.AIPCORE },
-          { name: 'VIEW', addr: CONTRACTS.AIPVIEW },
+          { name: 'CORE', addr: CONTRACTS.NFEGLOBAL },
+          { name: 'VIEW', addr: CONTRACTS.NFEGLOBALVIEW },
           { name: 'POOL', addr: CONTRACTS.REWARDPOOL },
         ].map(c => (
           <a 

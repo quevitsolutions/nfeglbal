@@ -3,15 +3,15 @@ import { motion } from 'framer-motion'
 import { Bot, Send, Sparkles, Copy, MessageSquare, Twitter, MessageCircle } from 'lucide-react'
 
 const PROMPT_TEMPLATES = [
-  { icon: Twitter, label: 'Write Twitter Thread', prompt: 'Write a highly engaging 5-part Twitter thread about AIP Core\'s new 18-tier matrix and how to earn passive BNB. Use emojis and a strong hook.' },
-  { icon: MessageSquare, label: 'Telegram Promo', prompt: 'Draft a short, high-energy Telegram announcement for my group about joining my AIP Core node downline.' },
-  { icon: MessageCircle, label: 'WhatsApp Pitch', prompt: 'Write a casual, friendly WhatsApp message to pitch the AIP Core mining node to a friend.' },
+  { icon: Twitter, label: 'Write Twitter Thread', prompt: 'Write a highly engaging 5-part Twitter thread about NFEGlobal Core\'s new 18-tier matrix and how to earn passive BNB. Use emojis and a strong hook.' },
+  { icon: MessageSquare, label: 'Telegram Promo', prompt: 'Draft a short, high-energy Telegram announcement for my group about joining my NFEGlobal Core node downline.' },
+  { icon: MessageCircle, label: 'WhatsApp Pitch', prompt: 'Write a casual, friendly WhatsApp message to pitch the NFEGlobal Core mining node to a friend.' },
   { icon: Sparkles, label: 'Explain Binary Matrix', prompt: 'Explain the 70% binary matrix income simply in 3 bullet points so I can use it in my YouTube description.' }
 ]
 
 export default function AIAgentPage() {
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: "Hello! I'm Bella, your AIP Marketing AI. I can write tweets, Telegram posts, scripts, or explain the protocol to your prospects. What do you need to promote today?" }
+    { role: 'assistant', content: "Hello! I'm Bella, your NFEGlobal Marketing AI. I can write tweets, Telegram posts, scripts, or explain the protocol to your prospects. What do you need to promote today?" }
   ])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -30,7 +30,7 @@ export default function AIAgentPage() {
     setIsTyping(true)
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://aipcore.online/api'}/ai/generate`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://nfeglobal.online/api'}/ai/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: msgText })
@@ -62,7 +62,7 @@ export default function AIAgentPage() {
         
         <div style={{ textAlign: 'center', marginBottom: 30 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: 'rgba(206,147,216,0.1)', color: '#CE93D8', borderRadius: 20, fontSize: 13, fontWeight: 900, marginBottom: 16 }}>
-            <Bot size={16} /> AIP AI MARKETING AGENT
+            <Bot size={16} /> NFEGlobal AI MARKETING AGENT
           </div>
           <h1 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 900, letterSpacing: -0.5, marginBottom: 12 }}>
             Generate Marketing Copy

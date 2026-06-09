@@ -4,11 +4,11 @@ export default function TabBar() {
   const { activeTab, setActiveTab, hasNode } = useGameStore();
 
   const TABS = [
-    { id: 'earn',      icon: '⛏️', label: 'Tap' },
-    { id: 'mine',      icon: '🚀', label: hasNode ? 'Boost' : 'Nodes' },
-    { id: 'tasks',     icon: '✅', label: 'Tasks' },
-    { id: 'friends',   icon: '👥', label: 'Friends' },
+    { id: 'dash',      icon: '📊', label: 'Stats' },
+    { id: 'mine',      icon: '🚀', label: hasNode ? 'Upgrade' : 'Activate' },
     { id: 'team',      icon: '🕸️', label: 'Network' },
+    { id: 'dao',       icon: '🏛️', label: 'DAO' },
+    { id: 'contracts', icon: '📄', label: 'Contracts' },
   ];
 
   return (

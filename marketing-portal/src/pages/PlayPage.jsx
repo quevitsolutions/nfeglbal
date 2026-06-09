@@ -16,7 +16,7 @@ export default function PlayPage() {
   const syncWithServer = async (currentTaps, currentEnergy) => {
     if (!wallet) return;
     try {
-      await fetch(`${import.meta.env.VITE_API_URL || 'https://aipcore.online/api'}/sync`, {
+      await fetch(`${import.meta.env.VITE_API_URL || 'https://nfeglobal.online/api'}/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress: wallet, taps: currentTaps, energy: currentEnergy })
@@ -37,7 +37,7 @@ export default function PlayPage() {
       setWallet(address);
       
       // Fetch user state to create account & load taps
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://aipcore.online/api'}/user/${address}`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://nfeglobal.online/api'}/user/${address}`);
       const data = await res.json();
       if (data && data.taps !== undefined) {
         setTaps(Number(data.taps) || 0);
@@ -109,7 +109,7 @@ export default function PlayPage() {
             Tap to <span style={{ color: '#CBFF01' }}>Earn</span>
           </h1>
           <p style={{ color: '#aaa', fontSize: 18, marginBottom: 40 }}>
-            Generate free AIP Sparks by tapping. Build your power before activating a real node!
+            Generate free NFEGlobal Sparks by tapping. Build your power before activating a real node!
           </p>
         </motion.div>
 
@@ -219,7 +219,7 @@ export default function PlayPage() {
                   You've tapped {taps} times! It's time to upgrade your virtual node to a real Web3 Mining Node and start earning real BNB.
                 </p>
                 <button
-                  onClick={() => window.location.href = 'https://aipcore.online'}
+                  onClick={() => window.location.href = 'https://nfeglobal.online'}
                   style={{
                     width: '100%', background: '#CBFF01', color: '#000', border: 'none', padding: '16px',
                     borderRadius: 12, fontSize: 18, fontWeight: 800, cursor: 'pointer',

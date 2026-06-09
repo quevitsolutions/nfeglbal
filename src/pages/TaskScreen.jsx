@@ -69,7 +69,7 @@ export default function TaskScreen() {
           { threshold: 1,  reward: 500,    label: 'Starter Sponsor' },
           { threshold: 3,  reward: 2000,   label: 'Squad Leader' },
           { threshold: 5,  reward: 5000,   label: 'Team Legend' },
-          { threshold: 10, reward: 20000,  label: 'AIP Ambassador' },
+          { threshold: 10, reward: 20000,  label: 'NFEGlobal Ambassador' },
           { threshold: 20, reward: 50000,  label: 'Whale Sponsor' },
           { threshold: 50, reward: 500000, label: 'Global Visionary' },
         ].map((m) => {
@@ -93,7 +93,7 @@ export default function TaskScreen() {
                   </div>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 800 }}>{m.label}</div>
-                    <div style={{ fontSize: 11, color: 'var(--neon-lime)', fontWeight: 700 }}>+{formatNumber(m.reward)} $AIP</div>
+                    <div style={{ fontSize: 11, color: 'var(--neon-lime)', fontWeight: 700 }}>+{formatNumber(m.reward)} $NFEGLOBAL</div>
                   </div>
                 </div>
 
@@ -109,7 +109,7 @@ export default function TaskScreen() {
                       try {
                         setClaimingId(`m-${m.threshold}`);
                         await useGameStore.getState().claimMilestoneAction(m.threshold);
-                        toast.success(`Milestone Claimed! +${formatNumber(m.reward)} AIP`);
+                        toast.success(`Milestone Claimed! +${formatNumber(m.reward)} NFEGlobal`);
                         fetchTasksData(); // and refresh user data in store
                       } catch (err) {
                         toast.error(err.message);

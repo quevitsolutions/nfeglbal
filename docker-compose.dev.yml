@@ -4,15 +4,15 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: aipcore-api-dev
+    container_name: nfeglobal-api-dev
     ports:
       - "3001:3001"
     environment:
       - PORT=3001
       - DB_HOST=db
       - DB_USER=postgres
-      - DB_PASSWORD=aipcore_pass
-      - DB_NAME=aipcore_game
+      - DB_PASSWORD=nfeglobal_pass
+      - DB_NAME=nfeglobal_game
       - VITE_ADMIN_WALLET=${VITE_ADMIN_WALLET}
       - VITE_RPC_URL=${VITE_RPC_URL}
     healthcheck:
@@ -28,20 +28,20 @@ services:
   # PostgreSQL Database
   db:
     image: postgres:16-alpine
-    container_name: aipcore-db-dev
+    container_name: nfeglobal-db-dev
     ports:
       - "5432:5432"
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=aipcore_pass
-      - POSTGRES_DB=aipcore_game
+      - POSTGRES_PASSWORD=nfeglobal_pass
+      - POSTGRES_DB=nfeglobal_game
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
     volumes:
-      - aipcore_dev_db_data:/var/lib/postgresql/data
+      - nfeglobal_dev_db_data:/var/lib/postgresql/data
       - ./server/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: always
 
@@ -55,7 +55,7 @@ services:
         - VITE_PROJECT_ID=ad615b7c3d0dc4e3aee306104d15c745
         - VITE_BSC_MAINNET_RPC=https://bsc-dataseed.binance.org
         - VITE_ADMIN_WALLET=0x1f806c285e0A19a292b199E89AEA7B8c92d9B904
-    container_name: aipcore-app-dev
+    container_name: nfeglobal-app-dev
     ports:
       - "5173:80"
     depends_on:
@@ -64,4 +64,4 @@ services:
     restart: always
 
 volumes:
-  aipcore_dev_db_data:
+  nfeglobal_dev_db_data:

@@ -1,5 +1,5 @@
 # ════════════════════════════════════════════════════
-#  AIP CORE — MARKETING PORTAL — Dockerfile
+#  NFEGlobal CORE — MARKETING PORTAL — Dockerfile
 #  Standalone — zero coupling with main core app
 # ════════════════════════════════════════════════════
 

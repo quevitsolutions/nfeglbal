@@ -1,2 +1,2 @@
 @echo off
-"%ProgramFiles%\Git\bin\bash.exe" -c "ssh -i ~/.ssh/id_aipcore -o StrictHostKeyChecking=no root@86.107.77.240 'cd /root/aipcore && git pull origin main && docker compose build app && docker compose up -d 2>&1 | tail -5'"
+"%ProgramFiles%\Git\bin\bash.exe" -c "ssh -i ~/.ssh/id_nfeglobal -o StrictHostKeyChecking=no root@86.107.77.240 'cd /root/nfeglobal && git pull origin main && docker compose build app && docker compose up -d 2>&1 | tail -5'"
