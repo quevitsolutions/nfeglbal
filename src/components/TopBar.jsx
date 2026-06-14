@@ -7,7 +7,7 @@ import { bscTestnet } from 'wagmi/chains';
 import { BSC_CHAIN_ID } from '../config/constants.js';
 
 export default function TopBar() {
-  const { walletAddress, isConnected, nodeId, nodeTier, nodeActive, bnbBalance, setActiveTab, hasNode } = useGameStore();
+  const { walletAddress, isConnected, nodeId, nodeTier, nodeActive, bnbBalance, setActiveTab, hasNode, isFreeActive } = useGameStore();
   const { loadNodeData } = useContract();
   const nativePrice = useNativePrice();
   const bnbUsd = nativePrice > 0 ? `≈ $${(parseFloat(bnbBalance || 0) * nativePrice).toFixed(2)}` : null;
@@ -19,17 +19,21 @@ export default function TopBar() {
 
   // Calculate League Rank
   const getLeagueInfo = () => {
+    const displayId = nodeId && Number(nodeId) > 0 ? ` · #${nodeId}` : '';
     if (!hasNode) {
+      if (isFreeActive) {
+        return { name: `Free Op${displayId}`, class: 'league-bronze', icon: '🥉' };
+      }
       return { name: 'Bronze Op', class: 'league-bronze', icon: '🥉' };
     }
     const tier = Number(nodeTier || 1);
     if (tier <= 5) {
-      return { name: `Silver Op · T${tier}`, class: 'league-silver', icon: '🥈' };
+      return { name: `Silver Op · T${tier}${displayId}`, class: 'league-silver', icon: '🥈' };
     }
     if (tier <= 12) {
-      return { name: `Gold Op · T${tier}`, class: 'league-gold', icon: '🥇' };
+      return { name: `Gold Op · T${tier}${displayId}`, class: 'league-gold', icon: '🥇' };
     }
-    return { name: `Plat Op · T${tier}`, class: 'league-platinum', icon: '💎' };
+    return { name: `Plat Op · T${tier}${displayId}`, class: 'league-platinum', icon: '💎' };
   };
 
   const league = getLeagueInfo();

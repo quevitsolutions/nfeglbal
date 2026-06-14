@@ -206,7 +206,7 @@ function IncomeCalculator({ currentTier }) {
 }
 // ── Viral Share Card ──────────────────────────────────────────────────────────
 
-function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteLink, hasNode }) {
+function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteLink, hasNode, isFreeActive }) {
   const [copied, setCopied] = useState(false);
   const [dlLoading, setDlLoading] = useState(false);
   const nativeSymbol = useNativeTokenSymbol();
@@ -219,7 +219,7 @@ function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteL
   const downloadQRCard = async () => {
     setDlLoading(true);
     try {
-      const tierColor = tierColors[Math.max(0, (nodeTier || 1) - 1)];
+      const tierColor = isFreeActive ? '#4FC3F7' : tierColors[Math.max(0, (nodeTier || 1) - 1)];
       const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(inviteLink)}&bgcolor=080D14&color=${tierColor.replace('#','')}&qzone=2&format=png`;
 
       const qrImg = new Image();
@@ -247,36 +247,53 @@ function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteL
 
       // Node ID
       ctx.fillStyle = '#ffffff'; ctx.font = 'bold 30px sans-serif';
-      ctx.fillText(hasNode ? `NODE #${nodeId}` : 'FREE MEMBER', 22, 72);
+      ctx.fillText(hasNode ? `NODE #${nodeId}` : (isFreeActive && nodeId ? `FREE NODE #${nodeId}` : 'FREE MEMBER'), 22, 72);
 
       // Tier badge
       ctx.fillStyle = tierColor + '25';
       ctx.beginPath(); ctx.roundRect(W-80, 18, 58, 46, 10); ctx.fill();
       ctx.strokeStyle = tierColor + '80'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.roundRect(W-80, 18, 58, 46, 10); ctx.stroke();
-      ctx.fillStyle = tierColor; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(`T${nodeTier}`, W-51, 48);
-      ctx.font = 'bold 9px sans-serif'; ctx.fillText('TIER', W-51, 60);
+      ctx.fillStyle = tierColor; ctx.textAlign = 'center';
+      if (hasNode) {
+        ctx.font = 'bold 18px sans-serif';
+        ctx.fillText(`T${nodeTier}`, W-51, 38);
+        ctx.fillStyle = tierColor + 'b0'; ctx.font = 'bold 8px sans-serif';
+        ctx.fillText('TIER', W-51, 50);
+      } else {
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText('FREE', W-51, 38);
+        ctx.fillStyle = tierColor + 'b0'; ctx.font = 'bold 8px sans-serif';
+        ctx.fillText('TRIAL', W-51, 50);
+      }
       ctx.textAlign = 'left';
 
-      // Divider
+      // Horizontal Divider
       ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(22, 88); ctx.lineTo(W-22, 88); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(22, 90); ctx.lineTo(W-22, 90); ctx.stroke();
 
-      // Stats
-      const stats = [['TIER', `T${nodeTier || 1}`, tierColor], ['TEAM', `${teamSize} nodes`, '#4FC3F7'], ['DIRECTS', `${directRefs}`, '#FFD700']];
-      stats.forEach(([lbl, val, col], i) => {
-        const x = 22 + i * 120;
-        ctx.fillStyle = 'rgba(255,255,255,0.04)';
-        ctx.beginPath(); ctx.roundRect(x, 98, 110, 50, 8); ctx.fill();
-        ctx.fillStyle = col; ctx.font = 'bold 14px sans-serif';
-        ctx.fillText(val, x + 8, 120);
-        ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = 'bold 9px sans-serif';
-        ctx.fillText(lbl, x + 8, 138);
+      // Stats block
+      const stats = [
+        { label: 'ACTIVE LEVEL', val: hasNode ? `TIER ${nodeTier}` : (isFreeActive ? 'FREE TRIAL' : 'GUEST'), col: tierColor },
+        { label: 'DIRECT REFS', val: `${directRefs}`, col: '#FFD700' },
+        { label: 'TOTAL TEAM', val: `${teamSize}`, col: '#4FC3F7' }
+      ];
+      stats.forEach((s, idx) => {
+        const x = 22 + idx * 122;
+        ctx.fillStyle = 'rgba(255,255,255,0.02)';
+        ctx.beginPath(); ctx.roundRect(x, 105, 112, 62, 12); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(x, 105, 112, 62, 12); ctx.stroke();
+
+        ctx.fillStyle = s.col; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(s.val, x + 56, 134);
+        ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = 'bold 8px sans-serif';
+        ctx.fillText(s.label, x + 56, 152);
       });
+      ctx.textAlign = 'left';
 
-      // QR Code centered
-      const qrX = (W - 200) / 2, qrY = 168;
+      // QR Code container
+      const qrX = W/2 - 100, qrY = 195;
       ctx.fillStyle = '#080D14';
       ctx.beginPath(); ctx.roundRect(qrX - 10, qrY - 10, 220, 220, 14); ctx.fill();
       ctx.strokeStyle = tierColor + '40'; ctx.lineWidth = 1;
@@ -285,23 +302,23 @@ function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteL
 
       // Scan label
       ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
-      ctx.fillText('SCAN TO JOIN MY MATRIX', W/2, 408);
+      ctx.fillText('SCAN TO JOIN MY MATRIX', W/2, 435);
 
       // URL
       ctx.fillStyle = tierColor; ctx.font = 'bold 10px monospace';
-      ctx.fillText(inviteLink, W/2, 430);
+      ctx.fillText(inviteLink, W/2, 455);
 
       // Footer divider
       ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(22, 450); ctx.lineTo(W-22, 450); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(22, 475); ctx.lineTo(W-22, 475); ctx.stroke();
 
       // BSC badge
       ctx.fillStyle = 'rgba(163,255,18,0.6)'; ctx.font = 'bold 9px monospace';
-      ctx.fillText(`● ${chainName} SMART CONTRACT · AUDITABLE ON-CHAIN`, W/2, 472);
+      ctx.fillText(`● ${chainName} SMART CONTRACT · AUDITABLE ON-CHAIN`, W/2, 497);
 
       // Powered by
       ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.font = '9px monospace';
-      ctx.fillText('nfeglobal.online', W/2, 494);
+      ctx.fillText('nfeglobal.online', W/2, 519);
       ctx.textAlign = 'left';
 
       // Download
@@ -316,12 +333,12 @@ function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteL
     setDlLoading(false);
   };
 
-  const tierColor = tierColors[Math.max(0, (nodeTier || 1) - 1)];
+  const tierColor = isFreeActive ? '#4FC3F7' : tierColors[Math.max(0, (nodeTier || 1) - 1)];
 
-  const cardMsg = hasNode
+  const cardMsg = (hasNode || isFreeActive)
     ? `🌟 Join me on NFEGlobal Protocol!
 
-⬡ Node #${nodeId} | Tier ${nodeTier} ACTIVE
+⬡ ${isFreeActive ? 'Free Trial Node' : 'Node'} #${nodeId} | Tier ${isFreeActive ? 'Free' : nodeTier} ACTIVE
 👥 My Team: ${teamSize} nodes | ${directRefs} directs
 
 ✅ 18-tier matrix on ${chainName}
@@ -351,7 +368,7 @@ ${inviteLink}
 
   const toTelegram  = () => window.open(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(cardMsg)}`, '_blank');
   const toWhatsApp  = () => window.open(`https://wa.me/?text=${encodeURIComponent(cardMsg)}`, '_blank');
-  const toTwitter   = () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(hasNode ? `⬡ Nodes on NFEGlobal — Node #${nodeId} Tier ${nodeTier} ACTIVE\n100% On-Chain | Real ${nativeSymbol} rewards | 18-tier ${chainName} matrix\n\nActivate under my node 👇\n${inviteLink}\n\n#NFEGlobal #${chainName} #DeFi` : `⬡ Join NFEGlobal — Decentralized ${nativeSymbol} Matrix Network on ${chainName}\n\n${inviteLink}\n\n#NFEGlobal #${chainName}`)}`, '_blank');
+  const toTwitter   = () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent((hasNode || isFreeActive) ? `⬡ Nodes on NFEGlobal — Node #${nodeId} Tier ${isFreeActive ? 'Free' : nodeTier} ACTIVE\n100% On-Chain | Real ${nativeSymbol} rewards | 18-tier ${chainName} matrix\n\nActivate under my node 👇\n${inviteLink}\n\n#NFEGlobal #${chainName} #DeFi` : `⬡ Join NFEGlobal — Decentralized ${nativeSymbol} Matrix Network on ${chainName}\n\n${inviteLink}\n\n#NFEGlobal #${chainName}`)}`, '_blank');
 
   return (
     <div style={{ marginBottom: 20 }}>
@@ -368,7 +385,11 @@ ${inviteLink}
             {hasNode ? (
               <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginTop: 2 }}>NODE #{nodeId}</div>
             ) : (
-              <div style={{ fontSize: 18, fontWeight: 900, color: '#FFD700', marginTop: 2 }}>FREE MEMBER</div>
+              isFreeActive && nodeId ? (
+                <div style={{ fontSize: 18, fontWeight: 900, color: '#4FC3F7', marginTop: 2 }}>FREE NODE #{nodeId}</div>
+              ) : (
+                <div style={{ fontSize: 18, fontWeight: 900, color: '#FFD700', marginTop: 2 }}>FREE MEMBER</div>
+              )
             )}
           </div>
           <div style={{ background: `${tierColor}25`, border: `1.5px solid ${tierColor}70`, borderRadius: 12, padding: '6px 14px', textAlign: 'center', boxShadow: `0 0 10px ${tierColor}30` }}>
@@ -811,6 +832,7 @@ export default function ReferralScreen() {
                 directRefs={directRefs}
                 inviteLink={inviteLink}
                 hasNode={hasNode}
+                isFreeActive={isFreeActive}
               />
             </motion.div>
           )}
@@ -820,9 +842,9 @@ export default function ReferralScreen() {
         {!showShareCard && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
             {[
-              { label: 'TELEGRAM', emoji: '✈️', color: '#2AABEE', bg: 'rgba(42,171,238,0.1)', border: 'rgba(42,171,238,0.3)', onClick: () => { const msg = hasNode ? `🚀 Join me on NFEGlobal!\n\n⬡ Node #${nodeId} | Tier ${nodeTier}\n⚡ ${miningRate} $NFEGLOBAL/hr mining\n\nActivate under my node:\n${inviteLink}` : `🆓 Try NFEGlobal FREE for 30 days!\n\n${inviteLink}`; window.open(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(msg)}`, '_blank'); } },
-              { label: 'WHATSAPP', emoji: '💬', color: '#25D366', bg: 'rgba(37,211,102,0.1)', border: 'rgba(37,211,102,0.3)', onClick: () => { const msg = hasNode ? `🌟 Join me on NFEGlobal Protocol!\n\nNode #${nodeId} | Tier ${nodeTier} ACTIVE\n⚡ ${miningRate} $NFEGLOBAL/hr | Real ${nativeSymbol} rewards\n\n${inviteLink}` : `🆓 Try NFEGlobal FREE!\n${inviteLink}`; window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'); } },
-              { label: 'TWITTER/X', emoji: '𝕏', color: '#fff', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)', onClick: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`⬡ Mining on NFEGlobal — Node #${nodeId} Tier ${nodeTier}\n${miningRate} $NFEGLOBAL/hr | Real ${nativeSymbol} rewards\n\n${inviteLink}\n\n#NFEGlobal #${chainName} #DeFi`)}`, '_blank') },
+              { label: 'TELEGRAM', emoji: '✈️', color: '#2AABEE', bg: 'rgba(42,171,238,0.1)', border: 'rgba(42,171,238,0.3)', onClick: () => { const msg = (hasNode || isFreeActive) ? `🚀 Join me on NFEGlobal!\n\n⬡ ${isFreeActive ? 'Free Trial Node' : 'Node'} #${nodeId} | Tier ${isFreeActive ? 'Free' : nodeTier}\n⚡ ${miningRate} $NFEGLOBAL/hr mining\n\nActivate under my node:\n${inviteLink}` : `🆓 Try NFEGlobal FREE for 30 days!\n\n${inviteLink}`; window.open(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(msg)}`, '_blank'); } },
+              { label: 'WHATSAPP', emoji: '💬', color: '#25D366', bg: 'rgba(37,211,102,0.1)', border: 'rgba(37,211,102,0.3)', onClick: () => { const msg = (hasNode || isFreeActive) ? `🌟 Join me on NFEGlobal Protocol!\n\n${isFreeActive ? 'Free Trial Node' : 'Node'} #${nodeId} | Tier ${isFreeActive ? 'Free' : nodeTier} ACTIVE\n⚡ ${miningRate} $NFEGLOBAL/hr | Real ${nativeSymbol} rewards\n\n${inviteLink}` : `🆓 Try NFEGlobal FREE!\n${inviteLink}`; window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'); } },
+              { label: 'TWITTER/X', emoji: '𝕏', color: '#fff', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)', onClick: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent((hasNode || isFreeActive) ? `⬡ Mining on NFEGlobal — ${isFreeActive ? 'Free Trial Node' : 'Node'} #${nodeId} Tier ${isFreeActive ? 'Free' : nodeTier}\n${miningRate} $NFEGLOBAL/hr | Real ${nativeSymbol} rewards\n\n${inviteLink}\n\n#NFEGlobal #${chainName} #DeFi` : `⬡ Join NFEGlobal — Decentralized ${nativeSymbol} Matrix Network on ${chainName}\n\n${inviteLink}\n\n#NFEGlobal #${chainName}`)}`, '_blank') },
             ].map((btn, i) => (
               <button key={i} onClick={btn.onClick} style={{ background: btn.bg, border: `1px solid ${btn.border}`, borderRadius: 14, padding: '12px 6px', color: btn.color, fontWeight: 900, fontSize: 10, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
                 <span style={{ fontSize: 20 }}>{btn.emoji}</span> {btn.label}

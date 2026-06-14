@@ -206,7 +206,7 @@ export default function DashboardScreen() {
           )}
         </div>
         <h2 style={{ fontSize: '26px', fontWeight: 900, letterSpacing: '-0.02em', textShadow: '0 0 10px rgba(255,255,255,0.1)' }}>
-          {hasNode ? `NODE #${nodeId}` : (isFreeActive ? 'FREE OPERATIVE' : 'GUEST OPERATOR')}
+          {hasNode ? `NODE #${nodeId}` : (isFreeActive && nodeId ? `FREE NODE #${nodeId}` : 'GUEST OPERATOR')}
         </h2>
         <div style={{ 
           display: 'inline-flex', padding: '4px 12px', borderRadius: '20px', 

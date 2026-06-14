@@ -754,7 +754,7 @@ export default function EarnScreen() {
             <div className="tma-rpg-info-bar">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="tma-rpg-username">
-                  {hasNode ? `OPERATIVE #${nodeId}` : 'FREE TRIAL AGENT'}
+                  {hasNode ? `OPERATIVE #${nodeId}` : (isFreeActive && nodeId ? `FREE TRIAL AGENT #${nodeId}` : 'FREE TRIAL AGENT')}
                 </span>
                 <span style={{ fontSize: '11px', fontWeight: 950, color: '#ffd700', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                   {taps.toLocaleString()} SPARKS
@@ -767,7 +767,7 @@ export default function EarnScreen() {
           </div>
 
           {/* ── Active Node: Passive Mining Terminal ── */}
-          {hasNode && (
+          {(hasNode || isFreeActive) && (
             <div className="w-full" style={{ marginBottom: 8, flexShrink: 0 }}>
               <div className="tma-node-portal" style={{ padding: '12px 14px' }}>
                 <div className="tma-portal-ring" />
@@ -977,7 +977,7 @@ export default function EarnScreen() {
                 <button
                   onClick={() => setActiveTab('mine')}
                   style={{
-                    flex: 0.65,
+                    flex: isFreeActive ? 1 : 0.65,
                     background: 'var(--neon-lime)',
                     border: 'none', borderRadius: 16, padding: '12px 10px', cursor: 'pointer',
                     boxShadow: '0 0 20px rgba(163, 255, 18, 0.3)',
@@ -989,27 +989,29 @@ export default function EarnScreen() {
                   </div>
                 </button>
 
-                <button
-                  onClick={onClaim}
-                  disabled={isClaiming || isExpired || totalMined <= 0}
-                  style={{
-                    flex: 0.35,
-                    background: (totalMined > 0 && !isExpired) ? '#4FC3F7' : 'rgba(255,255,255,0.03)',
-                    border: 'none', borderRadius: 16, padding: '12px 5px',
-                    cursor: (totalMined > 0 && !isExpired) ? 'pointer' : 'not-allowed',
-                    opacity: isClaiming ? 0.6 : 1,
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                    <span style={{ fontSize: 13, fontWeight: 950, color: (totalMined > 0 && !isExpired) ? '#000' : 'rgba(255,255,255,0.15)' }}>
-                      {isClaiming ? '⏳' : 'CLAIM'}
-                    </span>
-                    <span style={{ fontSize: 9, fontWeight: 900, color: (totalMined > 0 && !isExpired) ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.1)' }}>
-                      +{totalMined.toFixed(2)} $NFEGLOBAL
-                    </span>
-                  </div>
-                </button>
+                {!isFreeActive && (
+                  <button
+                    onClick={onClaim}
+                    disabled={isClaiming || isExpired || totalMined <= 0}
+                    style={{
+                      flex: 0.35,
+                      background: (totalMined > 0 && !isExpired) ? '#4FC3F7' : 'rgba(255,255,255,0.03)',
+                      border: 'none', borderRadius: 16, padding: '12px 5px',
+                      cursor: (totalMined > 0 && !isExpired) ? 'pointer' : 'not-allowed',
+                      opacity: isClaiming ? 0.6 : 1,
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                      <span style={{ fontSize: 13, fontWeight: 950, color: (totalMined > 0 && !isExpired) ? '#000' : 'rgba(255,255,255,0.15)' }}>
+                        {isClaiming ? '⏳' : 'CLAIM'}
+                      </span>
+                      <span style={{ fontSize: 9, fontWeight: 900, color: (totalMined > 0 && !isExpired) ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.1)' }}>
+                        +{totalMined.toFixed(2)} $NFEGLOBAL
+                      </span>
+                    </div>
+                  </button>
+                )}
               </div>
             )}
           </div>
