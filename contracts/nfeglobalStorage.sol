@@ -22,9 +22,6 @@ contract ReentrancyGuard {
 
 abstract contract nfeglobalStorage is ReentrancyGuard {
     error NodeNotExist();
-    error AlreadyProposed();
-    error AlreadyDormant();
-    error NotInactiveLongEnough();
     error TransferFailed();
     error InvalidNode();
 
@@ -37,9 +34,6 @@ abstract contract nfeglobalStorage is ReentrancyGuard {
     address public rewardPool;
     address public oracleAdmin;
     address public matrixAdmin;
-    address public governance;
-    uint256 public constant CLAIM_PERIOD = 30 days;
-    uint256 public dormancyThreshold = 1095 days;
 
     uint256 public registrationFeeUSD = 7e17; // 0.70 USD
 
@@ -70,10 +64,6 @@ abstract contract nfeglobalStorage is ReentrancyGuard {
     mapping(uint256 => uint256) public queuedTier;
     mapping(uint256 => uint256) public queuedCostBNB;
     mapping(uint256 => uint256) public lastTreasuryActivity;
-    mapping(uint256 => bool) public treasuryDormant;
-    mapping(uint256 => uint256) public dormantStart;
-    mapping(uint256 => bool) public dormancyProposed;
-    mapping(uint256 => uint256) public dormancyProposalTime;
 
     bool public oracleCircuitBreaker;
     uint256 public circuitBreakerActivatedAt;
@@ -81,15 +71,13 @@ abstract contract nfeglobalStorage is ReentrancyGuard {
     mapping(uint256 => uint256) public matrixDepth;
     mapping(uint256 => uint256) public minVacancyDepth;
 
-    uint256 public constant AUTO_BATCH = 1;
 
     uint256 internal constant MAX_PRICE_DEVIATION = 2000;
     uint256 internal constant MAX_MANUAL_PRICE_DEVIATION = 5000;
 
     uint256 internal constant ORACLE_HEARTBEAT = 28 hours;
     uint256 internal constant PRICE_STALENESS_THRESHOLD = 27 hours;
-    uint256 internal rescueTimeLock;
-    uint256 internal constant RESCUE_DELAY = 48 hours;
+
 
     uint256 public maxMatrixDepth = 25;
     uint256 internal constant directPercent = 1000;
@@ -138,9 +126,46 @@ abstract contract nfeglobalStorage is ReentrancyGuard {
     mapping(uint256 => uint256) public treasuryBalance;
     uint256 public totalTreasuryBalance;
     uint256 public totalPendingRewards;
-    bool public migrationLocked;
     address public owner;
-    address public migrationHelper;
+
+    // Configurable treasury queue batch processing size (appended at the end to preserve upgrade storage layout)
+    uint256 public autoBatch = 1;
+
+    // ── Governance (appended — upgrade-safe) ────────────────────────────────
+    // The governor controls critical parameter changes via a timelocked
+    // NFEGovernance contract. Initially address(0); set once by owner.
+    address public governor;
+
+    // Dormancy: nodes inactive beyond dormancyPeriod have their treasury swept
+    uint256 public dormancyPeriod = 1095 days; // 3 years default
+
+    // Dormancy distribution basis points (must sum to 10 000)
+    uint256 public dormancyRewardPoolBP = 7000; // 70% → Reward Pool
+    uint256 public dormancyDAOBP        = 2000; // 20% → DAO Treasury
+    uint256 public dormancyFeeRecBP     = 1000; // 10% → Fee Receiver
+
+    // DAO Treasury address — receives dormancy DAO share
+    address public daoTreasury;
+
+    address public incomeVault;
+
+    // ── ICE System (appended — upgrade-safe) ─────────────────────────────────
+    // NFECycleManager — tracks subscription lifecycle flags (no tree duplication)
+    address public cycleManager;
+
+    // NFERenewalEngine — executes annual renewals and funding priority logic
+    address public renewalEngine;
+
+    // FounderPool and LeaderboardPool for V3 bonus ecosystem
+    address public founderPool;
+    address public leaderboardPool;
+
+    event FounderPoolUpdated(address indexed oldFP, address indexed newFP);
+    event LeaderboardPoolUpdated(address indexed oldLP, address indexed newLP);
+    event IncomeVaultUpdated(address indexed oldVault, address indexed newVault);
+    event CycleManagerUpdated(address indexed oldCM, address indexed newCM);
+    event RenewalEngineUpdated(address indexed oldEngine, address indexed newEngine);
+    event RenewalDistributed(uint256 indexed nodeId, uint256 cost, uint256 timestamp);
 
     event NodeCreated(
         address indexed wallet,
@@ -170,7 +195,6 @@ abstract contract nfeglobalStorage is ReentrancyGuard {
     event LayersUpdated(uint indexed layerType, uint oldValue, uint newValue);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event FeeReceiverSwept(uint platformFees, uint missedRewards, uint total);
-    event RescueScheduled(uint executeAfter);
     event DustSwept(uint amount, address indexed pool, uint timestamp);
     event PoolCheckRequired(uint indexed nodeId, uint timestamp);
     event MatrixFallback(uint indexed nodeId, uint indexed sponsor, uint timestamp);
@@ -178,57 +202,27 @@ abstract contract nfeglobalStorage is ReentrancyGuard {
     event TreasuryUpgradeExecuted(uint indexed nodeId, uint oldTier, uint newTier, uint treasuryAmount);
     event TreasuryQueueProcessed(uint indexed nodeId, uint remainingQueueSize);
     event PriceBoundsUpdated(uint oldMin, uint oldMax, uint newMin, uint newMax);
+    event AutoBatchUpdated(uint256 newBatch);
+
+    // Governance events
+    event GovernorSet(address indexed oldGovernor, address indexed newGovernor);
+    event DormantNodeSwept(uint indexed nodeId, uint rewardPoolAmt, uint daoAmt, uint feeAmt);
+    event DormancyPeriodUpdated(uint oldPeriod, uint newPeriod);
+    event DormancyDistributionUpdated(uint rpBP, uint daoBP, uint feeBP);
+    event DaoTreasuryUpdated(address indexed oldAddr, address indexed newAddr);
 
     event TreasuryCredited(uint indexed nodeId, uint amount, uint balance);
-    event TreasuryDormant(uint indexed nodeId, uint amount, uint timestamp);
-    event DormancyRecovered(uint indexed nodeId);
-    event DormantTreasuryTransferred(uint indexed nodeId, uint amount);
-    event DaoSpendingExecuted(address indexed target, uint amount, string purpose);
-    event DormancyThresholdUpdated(uint oldVal, uint newVal);
-    event TreasuryAbandoned(uint256 indexed nodeId, address indexed recipient, uint256 amount);
 
     event TreasuryUsed(
         uint indexed nodeId,
         uint amount,
         uint remainingBalance
     );
-    event DaoTreasuryIncreased(
-        uint indexed nodeId,
-        uint amount,
-        uint newDaoTreasuryBalance
-    );
-    event DaoTreasuryDecreased(
-        address indexed receiver,
-        uint amount,
-        uint remainingDaoTreasury
-    );
-    event DormancyProposed(
-        uint indexed nodeId,
-        uint timestamp
-    );
-    event DormancyActivated(
-        uint indexed nodeId,
-        uint timestamp
-    );
-    event DaoProposalCreated(
-        uint proposalId,
-        address target,
-        uint amount,
-        uint executeAfter
-    );
-    event DaoProposalExecuted(
-        uint proposalId
-    );
     event OracleCircuitBreakerTriggered(
         uint oldPrice,
         uint newPrice,
         uint deviation
     );
-    event DustSkimmed(
-        uint amount,
-        address rewardPool
-    );
-    event MigrationLocked();
     event Tier18TreasuryReleased(
         uint indexed nodeId,
         uint amount
@@ -255,13 +249,14 @@ abstract contract nfeglobalStorage is ReentrancyGuard {
         _checkOwnerOrMatrixAdmin();
         _;
     }
-    function _checkGovernance() internal view {
-        require(msg.sender == governance);
+    function _checkGovernor() internal view {
+        require(msg.sender == governor || msg.sender == owner);
     }
-    modifier onlyGovernance() {
-        _checkGovernance();
+    modifier onlyGovernor() {
+        _checkGovernor();
         _;
     }
+
 
     constructor(uint256 _defaultRefer) {
         defaultRefer = _defaultRefer;

@@ -7,7 +7,8 @@ export default function TabBar() {
     { id: 'dash',      icon: '📊', label: 'Stats' },
     { id: 'mine',      icon: '🚀', label: hasNode ? 'Upgrade' : 'Activate' },
     { id: 'team',      icon: '🕸️', label: 'Network' },
-    { id: 'dao',       icon: '🏛️', label: 'DAO' },
+    { id: 'destiny',   icon: '🌌', label: 'Destiny' },
+    { id: 'frogcase',  icon: '🐸', label: 'Frog Case' },
     { id: 'contracts', icon: '📄', label: 'Contracts' },
   ];
 

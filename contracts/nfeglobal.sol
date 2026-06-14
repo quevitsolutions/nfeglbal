@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 
 
 pragma solidity ^0.8.20;
@@ -17,6 +18,15 @@ interface AggregatorV3Interface {
 
 interface IRewardPool {
     function registerNode(uint nodeId) external;
+}
+
+interface IFounderPool {
+    function onNodeRegistered(uint256 nodeId, uint256 sponsorId) external;
+    function onNodeUpgrade(uint256 nodeId, uint256 fromTier, uint256 toTier) external;
+}
+
+interface ILeaderboardPool {
+    function recordPoints(uint256 nodeId, uint256 actionType, uint256 amount) external;
 }
 
 contract nfeglobal is nfeglobalStorage {
@@ -116,10 +126,7 @@ contract nfeglobal is nfeglobalStorage {
         return lastTreasuryActivity[_nodeId];
     }
 
-    
-    function missedRewardsByTier(uint _nodeId, uint _tier) public view returns (uint) {
-        return nfeglobalViews.missedRewardsByTier(rewardHistory, _nodeId, _tier);
-    }
+
 
     
     function treasury(uint _nodeId) public view returns (uint bnbAmount, uint usdValue) {
@@ -201,6 +208,17 @@ contract nfeglobal is nfeglobalStorage {
         }
         pendingReward[msg.sender] = 0; 
         totalPendingRewards -= amount;
+
+        if (incomeVault != address(0) && nid != 0 && nid != 55555) {
+            (bool success, ) = incomeVault.call{value: amount, gas: 200000}(
+                abi.encodeWithSignature("deposit(uint256)", nid)
+            );
+            if (success) {
+                totalBNBDistributed += amount;
+                return;
+            }
+        }
+
         totalBNBDistributed += amount; 
         (bool ok,) = payable(msg.sender).call{value: amount}("");
         require(ok);
@@ -248,46 +266,6 @@ contract nfeglobal is nfeglobalStorage {
 
     
     
-    function scheduleRescueNative() external onlyOwner {
-        _scheduleRescueNativeInternal();
-    }
-
-    function _scheduleRescueNativeInternal() private {
-        rescueTimeLock = block.timestamp + RESCUE_DELAY;
-        emit RescueScheduled(rescueTimeLock);
-    }
-
-    
-    
-    
-    
-    
-    function rescueNative(uint _amount) external onlyOwner {
-        _rescueNativeInternal(_amount);
-    }
-
-    function _rescueNativeInternal(uint _amount) private {
-        require(rescueTimeLock != 0);
-        require(block.timestamp >= rescueTimeLock);
-
-        
-        uint reserved = totalTreasuryBalance + totalPendingRewards;
-        require(address(this).balance > reserved);
-        uint maxDust = address(this).balance - reserved;
-        uint toSend  = _amount > maxDust ? maxDust : _amount;
-
-        rescueTimeLock = 0; 
-
-        
-        address destination = rewardPool != address(0) ? rewardPool : feeReceiver;
-        (bool ok,) = payable(destination).call{value: toSend}("");
-        require(ok);
-
-        emit DustSwept(toSend, destination, block.timestamp);
-    }
-
-    
-    
     
 
     function _createNodeInternal(address _user, uint _sponsor, uint _value) internal {
@@ -300,14 +278,14 @@ contract nfeglobal is nfeglobalStorage {
         lastTreasuryActivity[newId] = block.timestamp;
 
         uint regFee = getRegistrationFee();
-        require(_value >= regFee, "Insufficient registration fee"); 
+        require(_value >= regFee); 
         
         // Forward registration fee to feeReceiver
         _pushReward(feeReceiver, regFee);
 
         if(_value > regFee) {
             (bool ok,) = payable(_user).call{value: _value - regFee}("");
-            require(ok, "Refund failed");
+            require(ok);
         }
 
         node.sponsor = uint64(_sponsor);
@@ -333,6 +311,9 @@ contract nfeglobal is nfeglobalStorage {
         emit NodeCreated(node.wallet, node.nodeId, node.sponsor, node.matrixParent);
         emit FreeNodeRegistered(newId, _user, _sponsor);
         emit PoolCheckRequired(newId, block.timestamp);
+        if (founderPool != address(0)) {
+            try IFounderPool(founderPool).onNodeRegistered(newId, _sponsor) {} catch {}
+        }
         _autoUpgradeBatch();
     }
 
@@ -386,13 +367,14 @@ contract nfeglobal is nfeglobalStorage {
         bool isSuper = (_nodeId == defaultRefer);
         Infeglobal.Node storage node = nodes[_nodeId];
         require(node.nodeId != 0);
-        require(msg.sender == node.wallet);
+        require(
+            msg.sender == node.wallet ||
+            msg.sender == incomeVault  ||
+            msg.sender == renewalEngine,
+            "Not authorized"
+        );
 
         lastTreasuryActivity[_nodeId] = block.timestamp;
-        if (dormancyProposed[_nodeId]) {
-            dormancyProposed[_nodeId] = false;
-            dormancyProposalTime[_nodeId] = 0;
-        }
 
         require(_toTier > node.tier);
         require(_toTier <= 18);
@@ -422,6 +404,16 @@ contract nfeglobal is nfeglobalStorage {
             emit TierUnlocked(node.wallet, _nodeId, i + 1);
         }
 
+        if (founderPool != address(0)) {
+            try IFounderPool(founderPool).onNodeUpgrade(_nodeId, initialLvl, _toTier) {} catch {}
+        }
+        if (leaderboardPool != address(0)) {
+            ILeaderboardPool(leaderboardPool).recordPoints(_nodeId, 1, _toTier - initialLvl);
+            ILeaderboardPool(leaderboardPool).recordPoints(node.sponsor, 2, _toTier - initialLvl);
+            ILeaderboardPool(leaderboardPool).recordPoints(_nodeId, 3, totalCostBNB);
+            ILeaderboardPool(leaderboardPool).recordPoints(node.sponsor, 3, totalCostBNB);
+        }
+
         if (initialLvl == 0 && isFreeRegistered[_nodeId]) {
             isFreeRegistered[_nodeId] = false;
             totalFreeUpgraded += 1;
@@ -430,6 +422,11 @@ contract nfeglobal is nfeglobalStorage {
         }
 
         emit PoolCheckRequired(_nodeId, block.timestamp);
+        // C-01-gas: Only call registerNode if the node can possibly qualify (Bronze min = Tier 6).
+        // Avoids ~3k wasted gas on guaranteed reverts for every Tier 1-5 upgrade.
+        if (rewardPool != address(0) && nodes[_nodeId].tier >= 6) {
+            try IRewardPool(rewardPool).registerNode(_nodeId) {} catch {}
+        }
         _releaseTier18Treasury(_nodeId);
         _autoUpgradeBatch();
     }
@@ -444,8 +441,8 @@ contract nfeglobal is nfeglobalStorage {
         require(!oracleCircuitBreaker);
         if (block.timestamp > lastPriceUpdate + 24 hours) _syncOraclePrice();
         uint256 _nodeId = nodeId[msg.sender];
-        require(_nodeId != 0, "Node does not exist");
-        require(isFreeRegistered[_nodeId], "Already activated or not free");
+        require(_nodeId != 0);
+        require(isFreeRegistered[_nodeId]);
         _unlockTierCore(_nodeId, 1);
     }
 
@@ -504,7 +501,20 @@ contract nfeglobal is nfeglobalStorage {
                 emit TreasuryCredited(recipientNodeId, amount, treasuryBalance[recipientNodeId]);
                 _enqueueIfEligible(recipientNodeId);
             } else {
-                _pushReward(nodes[recipientNodeId].wallet, amount);
+                if (incomeVault != address(0) && recipientNodeId != 55555) {
+                    (bool success, ) = incomeVault.call{value: amount, gas: 200000}(
+                        abi.encodeWithSignature("deposit(uint256)", recipientNodeId)
+                    );
+                    if (!success) {
+                        pendingReward[nodes[recipientNodeId].wallet] += amount;
+                        totalPendingRewards += amount;
+                        emit RewardPending(nodes[recipientNodeId].wallet, amount);
+                    } else {
+                        totalBNBDistributed += amount;
+                    }
+                } else {
+                    _pushReward(nodes[recipientNodeId].wallet, amount);
+                }
                 _propagateRewardsDistributed(recipientNodeId, amount);
             }
         } else {
@@ -614,19 +624,7 @@ contract nfeglobal is nfeglobalStorage {
 
 
 
-    function getMatrixUsers(uint _nodeId, uint _layer, uint _startIndex, uint _num) external view returns(Infeglobal.Node[] memory) {
-        return nfeglobalViews.getMatrixUsers(nodes, teams, _nodeId, _layer, _startIndex, _num);
-    }
 
-    function getIncome(uint _nodeId, uint _length) external view returns(Infeglobal.RewardEvent[] memory) {
-        return nfeglobalViews.getIncome(rewardHistory, _nodeId, _length);
-    }
-
-
-
-    function getNetworkNodes(uint _nodeId, uint _layer, uint _num) external view returns(Infeglobal.Node[] memory) {
-        return nfeglobalViews.getNetworkNodes(nodes, networkTree, _nodeId, _layer, _num);
-    }
 
     function getTierRewards(uint _nodeId) external view returns(uint[18] memory) {
         return nfeglobalViews.getTierRewards(rewardInfo, _nodeId);
@@ -634,51 +632,316 @@ contract nfeglobal is nfeglobalStorage {
 
 
     function setAddr(uint _type, address _new, uint _num) external {
-        _delegateToHelper(abi.encodeCall(this.setAddr, (_type, _new, _num)));
+        if(_type == 0) {
+            _checkOwner();
+            require(_new != address(0));
+            address oldAddr = feeReceiver;
+            feeReceiver = _new;
+            emit AddressUpdated(0, _new, oldAddr);                  
+        } 
+        else if(_type == 1) {
+            _checkOwner();
+            require(_new != address(0));
+            address oldAddr = rewardPool;
+            rewardPool = _new;
+            emit AddressUpdated(1, _new, oldAddr);                  
+        } 
+        else if(_type == 12) { 
+            revert("");
+        }
+        else if(_type == 6) {
+            _checkOwnerOrMatrixAdmin();
+            require(_num >= 1);
+            require(_num <= 50); 
+            uint oldValue = maxMatrixDepth;
+            maxMatrixDepth = _num;
+            emit LayersUpdated(0, oldValue, _num);
+        }
+        else if(_type == 7) {
+            _checkOwnerOrMatrixAdmin();
+            require(_new != address(0));
+            matrixAdmin = _new;
+            emit MatrixAdminUpdated(_new);
+        }
+        else if(_type == 10) {
+            _checkOwnerOrOracleAdmin();
+            require(_new != address(0));
+            oracleAdmin = _new;
+            emit OracleAdminUpdated(_new);
+        }
+        else if(_type == 11) {
+            _checkOwnerOrOracleAdmin();
+            require(_new != address(0)); 
+            config.priceFeed = _new;
+            _syncOraclePrice();
+        }
+        else {
+            revert(""); 
+        }
     }
 
-    function setRegistrationFeeUSD(uint256 newFee) external onlyOwner {
-        _delegateToHelper(abi.encodeCall(this.setRegistrationFeeUSD, (newFee)));
+    function setRegistrationFeeUSD(uint256 newFee) external onlyGovernor {
+        registrationFeeUSD = newFee;
+    }
+
+    /**
+     * @notice Set the number of nodes processed per treasury queue batch
+     * @param _batch Number of entries to process (1 to 50)
+     */
+    function setAutoBatch(uint _batch) external onlyGovernor {
+        require(_batch > 0);
+        require(_batch <= 50);
+        autoBatch = _batch;
+
+        emit AutoBatchUpdated(_batch);
     }
 
     function getRegistrationFee() public view returns (uint256) {
         uint256 price = nativeTokenPrice;
-        require(price > 0, "Invalid price");
+        require(price > 0);
         return (registrationFeeUSD * 1e8) / price;
     }
 
     function manualUpdatePrice(uint _newPrice) external onlyOwnerOrOracleAdmin {
-        _delegateToHelper(abi.encodeCall(this.manualUpdatePrice, (_newPrice)));
+        require(block.timestamp >= lastManualPriceUpdate + 1 hours);
+        require(_newPrice >= config.minAllowedPrice);
+        require(_newPrice <= config.maxAllowedPrice);
+        
+        uint deviation = _newPrice > nativeTokenPrice ? 
+            ((_newPrice - nativeTokenPrice) * 10000) / nativeTokenPrice :
+            ((nativeTokenPrice - _newPrice) * 10000) / nativeTokenPrice;
+            
+        require(deviation <= MAX_MANUAL_PRICE_DEVIATION);
+        
+        nativeTokenPrice = _newPrice;
+        lastPriceUpdate = block.timestamp;
+        lastManualPriceUpdate = block.timestamp; 
+        emit OraclePriceUpdated(_newPrice, block.timestamp);
     }
     
     function setPriceBounds(uint _min, uint _max) external onlyOwnerOrOracleAdmin {
-        _delegateToHelper(abi.encodeCall(this.setPriceBounds, (_min, _max)));
+        require(_min > 0);
+        require(_max > _min);
+        uint oldMin = config.minAllowedPrice;
+        uint oldMax = config.maxAllowedPrice;
+        config.minAllowedPrice = _min;
+        config.maxAllowedPrice = _max;
+        minAllowedPrice = _min;
+        maxAllowedPrice = _max;
+        
+        emit PriceBoundsUpdated(oldMin, oldMax, _min, _max);
     }
 
     function setNativeTokenSymbol(string calldata _symbol) external onlyOwnerOrOracleAdmin {
-        _delegateToHelper(abi.encodeCall(this.setNativeTokenSymbol, (_symbol)));
+        nativeTokenSymbol = _symbol;
+        config.nativeSymbol = _symbol;
     }
     
     function renounceOwnership() external onlyOwner {
-        _delegateToHelper(abi.encodeCall(this.renounceOwnership, ()));
+        address oldOwner = owner;
+        owner = address(0);
+        emit OwnershipTransferred(oldOwner, address(0));
     }
 
     function transferOwnership(address _newOwner) external onlyOwner {
-        _delegateToHelper(abi.encodeCall(this.transferOwnership, (_newOwner)));
+        require(_newOwner != address(0));
+        address oldOwner = owner;
+        owner = _newOwner;
+        emit OwnershipTransferred(oldOwner, _newOwner);
+    }
+
+    // =========================================================================
+    // Governance
+    // =========================================================================
+
+    /**
+     * @notice Register the NFEGovernance contract as governor.
+     *         Can be called multiple times by owner to migrate governor
+     *         (owner → multisig → DAO). Emits GovernorSet.
+     */
+    function setGovernor(address _gov) external onlyOwner {
+        require(_gov != address(0));
+        address old = governor;
+        governor = _gov;
+        emit GovernorSet(old, _gov);
+    }
+
+    /**
+     * @notice Set the income vault helper contract address.
+     *         Only callable by governor or owner.
+     * @param _vault  The new IncomeVaultHelper address.
+     */
+    function setVault(address _vault) external onlyGovernor {
+        require(_vault != address(0));
+        address oldVault = incomeVault;
+        incomeVault = _vault;
+        emit IncomeVaultUpdated(oldVault, _vault);
+    }
+
+    function setFounderPool(address _fp) external onlyGovernor {
+        require(_fp != address(0));
+        address old = founderPool;
+        founderPool = _fp;
+        emit FounderPoolUpdated(old, _fp);
+    }
+
+    function setLeaderboardPool(address _lp) external onlyGovernor {
+        require(_lp != address(0));
+        address old = leaderboardPool;
+        leaderboardPool = _lp;
+        emit LeaderboardPoolUpdated(old, _lp);
+    }
+
+    // =========================================================================
+    // ICE System — Cycle Manager & Renewal Engine Hooks
+    // =========================================================================
+
+    /**
+     * @notice Register the NFECycleManager contract.
+     *         Only callable by governor or owner.
+     * @param _cm  Address of the deployed NFECycleManager.
+     */
+    function setCycleManager(address _cm) external onlyGovernor {
+        require(_cm != address(0));
+        address old = cycleManager;
+        cycleManager = _cm;
+        emit CycleManagerUpdated(old, _cm);
+    }
+
+    /**
+     * @notice Register the NFERenewalEngine contract.
+     *         Only callable by governor or owner.
+     * @param _engine  Address of the deployed NFERenewalEngine.
+     */
+    function setRenewalEngine(address _engine) external onlyGovernor {
+        require(_engine != address(0));
+        address old = renewalEngine;
+        renewalEngine = _engine;
+        emit RenewalEngineUpdated(old, _engine);
+    }
+
+    /**
+     * @notice Execute full tier distribution for a renewal payment.
+     *         Only callable by the registered renewalEngine.
+     *         Treats the renewal like a Tier-0 unlock (Direct 10% + Layer + Matrix + Pool + Fee).
+     * @param _nodeId   The node being renewed.
+     * @param costBNB   The total renewal cost in BNB (used for distribution math).
+     *                  msg.value must equal the non-treasury portion of costBNB.
+     */
+    function distributeRenewal(uint256 _nodeId, uint256 costBNB) external payable nonReentrant {
+        require(msg.sender == renewalEngine);
+        require(_nodeId != 0 && nodes[_nodeId].nodeId != 0, "Invalid node");
+        require(_nodeId != defaultRefer, "Genesis exempt");
+
+        // Update treasury activity timestamp
+        lastTreasuryActivity[_nodeId] = block.timestamp;
+
+        // Run full distribution at Tier-0 scale using the costBNB
+        // _executeTierDistribution expects contract to hold the BNB
+        _executeTierDistribution(_nodeId, 0, costBNB);
+
+        emit RenewalDistributed(_nodeId, costBNB, block.timestamp);
+        if (leaderboardPool != address(0)) {
+            try ILeaderboardPool(leaderboardPool).recordPoints(nodes[_nodeId].sponsor, 5, 1) {} catch {}
+        }
+    }
+
+    /**
+     * @notice Deduct from a node's treasury balance.
+     *         Only callable by the registered renewalEngine.
+     * @param _nodeId  The node whose treasury is deducted.
+     * @param amount   Amount to deduct in wei.
+     */
+    function deductTreasury(uint256 _nodeId, uint256 amount) external {
+        require(msg.sender == renewalEngine);
+        require(amount > 0);
+        uint256 bal = treasuryBalance[_nodeId];
+        require(bal >= amount);
+
+        // CEI: effects first
+        treasuryBalance[_nodeId] -= amount;
+        totalTreasuryBalance = totalTreasuryBalance >= amount
+            ? totalTreasuryBalance - amount : 0;
+        totalTreasuryUsed[_nodeId] += amount;
+        _propagateTreasuryUsed(_nodeId, amount);
+        lastTreasuryActivity[_nodeId] = block.timestamp;
+        emit TreasuryUsed(_nodeId, amount, treasuryBalance[_nodeId]);
+    }
+
+    /**
+     * @notice Sweep a dormant node’s treasury balance (70/20/10).
+     *         Only callable by governor or owner. Node must have been
+     *         inactive for at least dormancyPeriod.
+     * @param _nodeId  The node whose treasury is to be swept.
+     */
+    function sweepDormantTreasury(uint _nodeId) external onlyGovernor nonReentrant {
+        require(_nodeId != defaultRefer);
+        require(
+            block.timestamp - lastTreasuryActivity[_nodeId] >= dormancyPeriod
+        );
+        uint bal = treasuryBalance[_nodeId];
+        require(bal > 0);
+
+        // Clear balance before transfers (CEI pattern)
+        treasuryBalance[_nodeId] = 0;
+        totalTreasuryBalance = totalTreasuryBalance >= bal ? totalTreasuryBalance - bal : 0;
+
+        uint rpAmt  = bal * dormancyRewardPoolBP / 10000;
+        uint daoAmt = bal * dormancyDAOBP        / 10000;
+        uint feeAmt = bal - rpAmt - daoAmt; // remainder to avoid rounding loss
+
+        _pushReward(rewardPool   != address(0) ? rewardPool   : feeReceiver, rpAmt);
+        _pushReward(daoTreasury  != address(0) ? daoTreasury  : feeReceiver, daoAmt);
+        _pushReward(feeReceiver, feeAmt);
+
+        emit DormantNodeSwept(_nodeId, rpAmt, daoAmt, feeAmt);
+    }
+
+    /**
+     * @notice Update the dormancy period (governor or owner).
+     * @param _period  Seconds of inactivity before a node is considered dormant.
+     *                 Clamped to [365 days, 3650 days].
+     */
+    function setDormancyPeriod(uint _period) external onlyGovernor {
+        require(_period >= 365 days);
+        require(_period <= 3650 days);
+        uint old = dormancyPeriod;
+        dormancyPeriod = _period;
+        emit DormancyPeriodUpdated(old, _period);
+    }
+
+    /**
+     * @notice Update the dormancy distribution split (governor or owner).
+     *         Basis points must sum to exactly 10 000.
+     * @param _rpBP   Reward pool share in bp.
+     * @param _daoBP  DAO treasury share in bp.
+     * @param _feeBP  Fee receiver share in bp.
+     */
+    function setDormancyDistribution(
+        uint _rpBP,
+        uint _daoBP,
+        uint _feeBP
+    ) external onlyGovernor {
+        require(_rpBP + _daoBP + _feeBP == 10000);
+        dormancyRewardPoolBP = _rpBP;
+        dormancyDAOBP        = _daoBP;
+        dormancyFeeRecBP     = _feeBP;
+        emit DormancyDistributionUpdated(_rpBP, _daoBP, _feeBP);
+    }
+
+    /**
+     * @notice Set the DAO treasury address that receives the dormancy DAO share.
+     * @param _dao  New DAO treasury address.
+     */
+    function setDaoTreasury(address _dao) external onlyGovernor {
+        require(_dao != address(0));
+        address old = daoTreasury;
+        daoTreasury = _dao;
+        emit DaoTreasuryUpdated(old, _dao);
     }
 
 
 
-    
-
-
-    function getNode(uint256 _nodeId) external view returns (Infeglobal.Node memory) {
-        return nfeglobalViews.getNode(nodes, _nodeId);
-    }
-
-    function getNodeByAddress(address _addr) external view returns (Infeglobal.Node memory) {
-        return nfeglobalViews.getNodeByAddress(nodes, nodeId, _addr);
-    }
 
     function getNodeStats(uint _userId) external view returns (
         uint tier,
@@ -705,17 +968,25 @@ contract nfeglobal is nfeglobalStorage {
     
 
 
-    function getPoolQualificationData(uint _userId) external view returns (
-        uint totalDeposited,
-        uint directReferrals,
-        uint totalTeam,
-        uint currentLevel,
-        uint directTeamL1,
-        uint matrixTeam,
-        uint registrationTime,
-        bool isActive
-    ) {
-        return nfeglobalViews.getPoolQualificationData(nodes, networkTree, _userId);
+
+
+    /**
+     * @notice Returns only the wallet address for a node.
+     *         Used by RewardPool to avoid ABI mismatch: the Node struct contains
+     *         fixed-size arrays (sponsorTierRanks, matrixRewardReceiver) which make
+     *         the auto-generated nodes() getter return dynamically-encoded data,
+     *         incompatible with callers that only expect 9 static scalar return values.
+     */
+    function getNodeWallet(uint nodeId) external view returns (address) {
+        return nodes[nodeId].wallet;
+    }
+
+    /**
+     * @notice Returns only the totalContribution for a node.
+     *         Used by RewardPool cap calculations (same ABI mismatch reason as above).
+     */
+    function getNodeContribution(uint nodeId) external view returns (uint) {
+        return nodes[nodeId].totalContribution;
     }
 
 
@@ -734,62 +1005,64 @@ contract nfeglobal is nfeglobalStorage {
 
 
 
-    function _propagateRegistration(uint256 /*nodeId*/, uint256 sponsor) private {
-        uint256 parent = sponsor;
+
+
+
+    function _propagateMapping(
+        uint256 parent,
+        mapping(uint256 => mapping(uint256 => uint256)) storage levelMap,
+        uint256 amount
+    ) private {
         for (uint256 i = 0; i < 10; i++) {
             if (parent == 0) break;
-            levelFreeCount[parent][i] += 1;
+            levelMap[parent][i] += amount;
             parent = nodes[parent].sponsor;
         }
     }
 
+    function _propagateUintMapping(
+        uint256 parent,
+        mapping(uint256 => uint256) storage levelMap
+    ) private {
+        for (uint256 i = 0; i < 10; i++) {
+            if (parent == 0) break;
+            levelMap[parent] += 1;
+            parent = nodes[parent].sponsor;
+        }
+    }
+
+    function _propagateRegistration(uint256 /*nodeId*/, uint256 sponsor) private {
+        _propagateMapping(sponsor, levelFreeCount, 1);
+    }
+
     function _propagateConversion(uint256 nodeId_) private {
         uint256 parent = nodes[nodeId_].sponsor;
+        _propagateMapping(parent, levelPaidCount, 1);
         for (uint256 i = 0; i < 10; i++) {
             if (parent == 0) break;
             if (levelFreeCount[parent][i] > 0) {
                 levelFreeCount[parent][i] -= 1;
             }
-            levelPaidCount[parent][i] += 1;
             parent = nodes[parent].sponsor;
         }
     }
 
     function _propagateTreasuryGenerated(uint256 nodeId_, uint256 amount) private {
-        uint256 parent = nodes[nodeId_].sponsor;
-        for (uint256 i = 0; i < 10; i++) {
-            if (parent == 0) break;
-            levelTreasuryGenerated[parent][i] += amount;
-            parent = nodes[parent].sponsor;
-        }
+        _propagateMapping(nodes[nodeId_].sponsor, levelTreasuryGenerated, amount);
     }
 
     function _propagateTreasuryUsed(uint256 nodeId_, uint256 amount) private {
-        uint256 parent = nodes[nodeId_].sponsor;
-        for (uint256 i = 0; i < 10; i++) {
-            if (parent == 0) break;
-            levelTreasuryUsed[parent][i] += amount;
-            parent = nodes[parent].sponsor;
-        }
+        _propagateMapping(nodes[nodeId_].sponsor, levelTreasuryUsed, amount);
     }
 
     function _propagateRewardsDistributed(uint256 nodeId_, uint256 amount) private {
-        uint256 parent = nodes[nodeId_].sponsor;
-        for (uint256 i = 0; i < 10; i++) {
-            if (parent == 0) break;
-            levelRewardsDistributed[parent][i] += amount;
-            parent = nodes[parent].sponsor;
-        }
+        _propagateMapping(nodes[nodeId_].sponsor, levelRewardsDistributed, amount);
     }
 
     function _propagateUpgrade(uint256 nodeId_) private {
-        uint256 parent = nodes[nodeId_].sponsor;
-        for (uint256 i = 0; i < 10; i++) {
-            if (parent == 0) break;
-            teamTotalUpgrades[parent] += 1;
-            parent = nodes[parent].sponsor;
-        }
+        _propagateUintMapping(nodes[nodeId_].sponsor, teamTotalUpgrades);
     }
+
 
     function _autoUpgradeTier(uint nodeId_, uint costBNB) private {
         Infeglobal.Node storage node = nodes[nodeId_];
@@ -827,13 +1100,13 @@ contract nfeglobal is nfeglobalStorage {
             emit TierUnlocked(node.wallet, nodeId_, currentTier + 1);
             emit TreasuryUpgradeExecuted(nodeId_, currentTier, currentTier + 1, costBNB);
             emit PoolCheckRequired(nodeId_, block.timestamp);
+            // C-01-gas: Only call registerNode if the node can possibly qualify (Bronze min = Tier 6).
+            if (rewardPool != address(0) && node.tier >= 6) {
+                try IRewardPool(rewardPool).registerNode(nodeId_) {} catch {}
+            }
 
             
             lastTreasuryActivity[nodeId_] = block.timestamp;
-            if (dormancyProposed[nodeId_]) {
-                dormancyProposed[nodeId_] = false;
-                dormancyProposalTime[nodeId_] = 0;
-            }
 
             
             _releaseTier18Treasury(nodeId_);
@@ -846,7 +1119,7 @@ contract nfeglobal is nfeglobalStorage {
         uint snapshotTail = queueTail;
         uint processed    = 0;
 
-        while (processed < AUTO_BATCH && queueHead < snapshotTail) {
+        while (processed < autoBatch && queueHead < snapshotTail) {
             uint nodeId_ = queue[queueHead];
             delete queue[queueHead];
             queueHead++;
@@ -928,84 +1201,7 @@ contract nfeglobal is nfeglobalStorage {
 
 
 
-    function proposeDormancy(uint _nodeId) external {
-        _delegateToHelper(abi.encodeCall(this.proposeDormancy, (_nodeId)));
-    }
 
-    function activateDormancy(uint _nodeId) external {
-        _delegateToHelper(abi.encodeCall(this.activateDormancy, (_nodeId)));
-    }
-
-    function claimDormantTreasury() external {
-        _delegateToHelper(abi.encodeCall(this.claimDormantTreasury, ()));
-    }
-
-    function migrateDormantTreasury(uint _nodeId) external nonReentrant {
-        _delegateToHelper(abi.encodeCall(this.migrateDormantTreasury, (_nodeId)));
-    }
-
-    function declareDormant(uint _nodeId) external {
-        _delegateToHelper(abi.encodeCall(this.declareDormant, (_nodeId)));
-    }
-
-    function dormantSince(uint _nodeId) external view returns (uint) {
-        return dormantStart[_nodeId];
-    }
-
-    function reclaimDormantNode() external {
-        _delegateToHelper(abi.encodeCall(this.reclaimDormantNode, ()));
-    }
-
-    function abandonTreasury(uint _nodeId) external nonReentrant {
-        _delegateToHelper(abi.encodeCall(this.abandonTreasury, (_nodeId)));
-    }
-
-    function _delegateToHelper(bytes memory data) private {
-        require(migrationHelper != address(0), "Helper not set");
-        (bool ok, bytes memory res) = migrationHelper.delegatecall(data);
-        if (!ok) {
-            assembly {
-                revert(add(res, 32), mload(res))
-            }
-        }
-    }
-
-
-    function setGovernance(address _newGovernance) public onlyOwner {
-        require(_newGovernance != address(0));
-        address oldGov = governance;
-        governance = _newGovernance;
-        emit AddressUpdated(13, _newGovernance, oldGov);
-    }
-
-    function setMigrationHelper(address _helper) external onlyOwner {
-        require(_helper != address(0));
-        migrationHelper = _helper;
-    }
-
-    function migrateNode(
-        Infeglobal.Node calldata nodeData,
-        uint256 _treasuryBalance
-    ) external onlyOwner {
-        require(migrationHelper != address(0), "Helper not set");
-        (bool ok, ) = migrationHelper.delegatecall(
-            abi.encodeWithSignature("migrateNode((address,uint64,uint64,uint64,uint40,uint8,uint32,uint32,uint256,uint32[18],uint64[18]),uint256)", nodeData, _treasuryBalance)
-        );
-        require(ok, "Delegatecall failed");
-    }
-
-    function migratePendingReward(address _wallet, uint256 _amount) external onlyOwner {
-        require(migrationHelper != address(0), "Helper not set");
-        (bool ok, ) = migrationHelper.delegatecall(
-            abi.encodeWithSignature("migratePendingReward(address,uint256)", _wallet, _amount)
-        );
-        require(ok, "Delegatecall failed");
-    }
-
-    function lockMigrationForever() external onlyOwner {
-        migrationLocked = true;
-        emit MigrationLocked();
-    }
 
     function resetOracleCircuitBreaker() external {
         if (msg.sender != owner && msg.sender != oracleAdmin) {
@@ -1023,81 +1219,9 @@ contract nfeglobal is nfeglobalStorage {
         circuitBreakerActivatedAt = 0;
     }
 
-    function skimDust() external nonReentrant {
-        uint bal = address(this).balance;
-        uint reserved = totalTreasuryBalance + totalPendingRewards;
-        if (bal > reserved) {
-            address target = rewardPool == address(0) ? feeReceiver : rewardPool;
-            (bool ok, ) = payable(target).call{value: bal - reserved}("");
-            require(ok);
-            emit DustSkimmed(bal - reserved, target);
-        }
-    }
 
-    function canUpgrade(uint _userId, uint _levels) external view returns (bool) {
-        return nfeglobalViews.canUpgrade(nodes, _userId, _levels);
-    }
 
-    function getConfig() external view returns (
-        uint _defaultRefer,
-        uint _totalNodes,
-        uint _maxMatrixDepth,
-        uint _bnbPrice,
-        uint _lastUpdate,
-        address _owner,
-        address _oracleAdmin,
-        address _matrixAdmin,
-        address _feeReceiver,
-        address _rewardPool,
-        uint _maxAllowedPrice,
-        uint _minAllowedPrice
-    ) {
-        return nfeglobalViews.getConfig(
-            defaultRefer,
-            totalNodes,
-            maxMatrixDepth,
-            nativeTokenPrice,
-            lastPriceUpdate,
-            owner,
-            oracleAdmin,
-            matrixAdmin,
-            feeReceiver,
-            rewardPool,
-            config.maxAllowedPrice,
-            config.minAllowedPrice
-        );
-    }
 
-    function getMatrixDirect(uint _nodeId) external view returns (uint[2] memory) {
-        return nfeglobalViews.getMatrixDirect(teams, _nodeId);
-    }
-
-    function getTeamSize(uint _userId, uint _depth) external view returns (uint) {
-        return nfeglobalViews.getTeamSize(networkTree, layerDepth, _userId, _depth);
-    }
-
-    function getTierCosts() external view returns (uint[18] memory) {
-        return nfeglobalViews.getTierCosts(nativeTokenPrice, tierPriceUSD);
-    }
-
-    function getTransparencyData() external view returns (
-        uint  _totalNodes,
-        uint  _totalBNBDistributed,
-        uint  _totalTiers,
-        address _contractAddress,
-        address _ownerAddress,
-        bool  _isRenounced
-    ) {
-        return nfeglobalViews.getTransparencyData(totalNodes, totalBNBDistributed, address(this), owner);
-    }
-
-    function getUpgradeCost(uint _fromLevel, uint _levels) external view returns (uint totalCost) {
-        return nfeglobalViews.getUpgradeCost(_fromLevel, _levels, nativeTokenPrice, tierPriceUSD);
-    }
-
-    function getUserLevel(uint _userId) external view returns (uint) {
-        return nfeglobalViews.getUserLevel(nodes, _userId);
-    }
 
     function setViewsContract(address _v) external onlyOwner {
         viewsContract = _v;

@@ -60,12 +60,6 @@ async function main() {
   );
   await core.waitForDeployment();
   
-  // Deploy and link MigrationHelper
-  const HelperFactory = await (typeof hre !== 'undefined' ? hre.ethers : ethers).getContractFactory("MigrationHelper");
-  const helper = await HelperFactory.deploy();
-  await helper.waitForDeployment();
-  await core.setMigrationHelper(await helper.getAddress());
-
   console.log("nfeglobal Core deployed to:", await core.getAddress());
 
   const PoolFactory = await hre.ethers.getContractFactory("RewardPool");

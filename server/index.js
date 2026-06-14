@@ -42,8 +42,8 @@ const nodeSyncCooldown = new Map(); // wallet.toLowerCase() -> lastSyncTimestamp
 
 
 // NFEGlobal & RewardPool Contract Constants
-const NFEGLOBAL_ADDRESS = '0x9daA28D40082E4173b4b07AE76A92Eda0Ff3A522';
-const REWARDPOOL_ADDRESS = '0xA0DE5adE595a43838d1a883D441ea5f0829d66b1';
+const NFEGLOBAL_ADDRESS = '0x4ea93b8Cd18b66c027AdBaa63CCF06B240dA1dFA';
+const REWARDPOOL_ADDRESS = '0x8c9eD734447ae7a54ba4466373a399668E1DE9A4';
 const BSC_RPC = process.env.VITE_RPC_URL || 'https://bsc-dataseed.binance.org/';
 const DEPLOY_BLOCK = 0; // Block around contract deployment for optimization
 
@@ -2660,9 +2660,9 @@ You can interact and respond in ANY language the user speaks. You must reply in 
 
 About NFEGlobal Core:
 - It is a 100% decentralized Web3 Mining Node protocol on the Binance Smart Chain (BNB).
-- Verified NFEGlobal Smart Contract: 0x9daA28D40082E4173b4b07AE76A92Eda0Ff3A522
-- Verified RewardPool Smart Contract: 0xA0DE5adE595a43838d1a883D441ea5f0829d66b1
-- Governance Contract: 0xA6F9eC34b45B732DCDcf849f321466e61a749C83
+- Verified NFEGlobal Smart Contract: 0x89C394B2f7d35F9e798d881DD05a6Acfa42107D7
+- Verified RewardPool Smart Contract: 0x9f64054Ea5F8fD7A5626Aa20F4Ac1b82B3c33346
+- Governance Contract: 0xA4BDb8522a3b3503389aeB603E6cfbc9209e5fD9
 - Users activate a "Mining Node" to earn NFEGlobal tokens and BNB simultaneously.
 - 4 Income Streams:
   1) 10% Direct Referral Income (instant, unlimited width, lifetime)

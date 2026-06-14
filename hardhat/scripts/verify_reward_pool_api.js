@@ -26,15 +26,19 @@ async function main() {
   console.log("Input JSON size (chars):", inputString.length);
 
   // Load deployment info
-  const deploymentPath = path.join(__dirname, "../deployment.json");
+  const network = hre.network.name;
+  const filename = `deployment_${network}.json`;
+  const deploymentPath = path.join(__dirname, `../${filename}`);
   if (!fs.existsSync(deploymentPath)) {
-    console.error("deployment.json not found!");
+    console.error(`${filename} not found!`);
     return;
   }
   const deployment = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
 
   // API parameters
-  const apiKey = "6RDAKJA74DPRFCMA4Z2FUDM9TVQ7M88KT1";
+  const apiKey = network === "polygon" 
+    ? (process.env.POLYGONSCAN_API_KEY || "")
+    : (process.env.BSCSCAN_API_KEY || "6RDAKJA74DPRFCMA4Z2FUDM9TVQ7M88KT1");
   const contractAddress = deployment.contracts.RewardPool;
   const contractName = "contracts/RewardPool.sol:RewardPool";
   
@@ -52,7 +56,8 @@ async function main() {
   console.log("Target RewardPool Address:", contractAddress);
   console.log("Encoded arguments:", constructorArgs);
 
-  const url = "https://api.etherscan.io/v2/api?chainid=97";
+  const chainId = network === "polygon" ? 137 : (network === "bsc" ? 56 : 97);
+  const url = `https://api.etherscan.io/v2/api?chainid=${chainId}`;
   console.log("Submitting standard-json-input verification to:", url);
 
   const params = new URLSearchParams();
@@ -81,7 +86,7 @@ async function main() {
       
       // Poll status
       await new Promise(resolve => setTimeout(resolve, 10000));
-      const statusUrl = `https://api.etherscan.io/v2/api?chainid=97&module=contract&action=checkverifystatus&guid=${guid}&apikey=${apiKey}`;
+      const statusUrl = `https://api.etherscan.io/v2/api?chainid=${chainId}&module=contract&action=checkverifystatus&guid=${guid}&apikey=${apiKey}`;
       const statusRes = await axios.get(statusUrl);
       console.log("Status check response:", statusRes.data);
     } else {

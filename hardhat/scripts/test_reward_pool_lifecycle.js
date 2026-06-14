@@ -36,13 +36,6 @@ async function main() {
     owner.address
   );
   await core.waitForDeployment();
-  
-  // Deploy and link MigrationHelper
-  const HelperFactory = await (typeof hre !== 'undefined' ? hre.ethers : ethers).getContractFactory("MigrationHelper");
-  const helper = await HelperFactory.deploy();
-  await helper.waitForDeployment();
-  await core.setMigrationHelper(await helper.getAddress());
-
   const coreAddr = await core.getAddress();
 
   // Deploy RewardPool

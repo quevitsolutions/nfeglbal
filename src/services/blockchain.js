@@ -62,7 +62,7 @@ class BlockchainService {
       if (!nId || Number(nId) === 0) return { nodeId: 0, hasNode: false };
 
       // All calls are isolated — one failure cannot break others
-      const [viewStats, coreStats, nodeRaw, isActive, pending, poolData, viewBreakdown, poolClaimableData, capInfo] =
+      const [viewStats, coreStats, nodeRaw, isActive, pending, poolData, viewBreakdown, poolClaimableData, capInfo, isFreeActive] =
         await Promise.all([
           this.view.getNodeStats(nId).catch(() => null),         // NFEGLOBALVIEW  → [totalEarned, teamSize, directRefs, level]
           this.core.getNodeStats(nId).catch(() => null),         // NFEGLOBAL  → [tier, directCount, matrixCount, ...]
@@ -73,6 +73,7 @@ class BlockchainService {
           this.view.getIncomeBreakdown(nId).catch(() => null),   // NFEGLOBALVIEW → [direct,matrix,pool,pending] ← pool income
           this.pool.getClaimable(nId).catch(() => null),         // REWARDPOOL → [fromCurrentPool,fromExited,total]
           this.pool.getCapInfo(nId).catch(() => null),           // REWARDPOOL → [capMult,deposited,lifetimeCap,claimed,remaining]
+          this.core.isFreeRegistered(nId).catch(() => false),
         ]);
 
       // ── 4-source tier waterfall ──
@@ -81,10 +82,12 @@ class BlockchainService {
       const t3 = nodeRaw ? Number(nodeRaw[5]) : 0; // nodes()  tier    (index 5)
       const t4 = poolData ? Number(poolData[8]) : 0; // pool     nfeTier (index 8)
 
-      const tier = t1 > 0 ? t1 : t2 > 0 ? t2 : t3 > 0 ? t3 : t4 > 0 ? t4 : 1; // final fallback (node exists but tier unreachable)
+      const tier = (isFreeActive || (t1 === 0 && t2 === 0 && t3 === 0 && t4 === 0))
+        ? 0
+        : (t1 > 0 ? t1 : t2 > 0 ? t2 : t3 > 0 ? t3 : t4 > 0 ? t4 : 1);
 
       console.debug(
-        `[Tier] nId=${Number(nId)} NFEGLOBALVIEW=${t1} CoreStats=${t2} nodes[5]=${t3} pool.nfeTier=${t4} → FINAL=${tier}`,
+        `[Tier] nId=${Number(nId)} NFEGLOBALVIEW=${t1} CoreStats=${t2} nodes[5]=${t3} pool.nfeTier=${t4} isFree=${isFreeActive} → FINAL=${tier}`,
       );
 
       // ── directRefs / teamSize: prefer coreStats, fallback viewStats ──
@@ -129,7 +132,8 @@ class BlockchainService {
         : (poolData?.[4] || 0n);
 
       return {
-        hasNode: true,
+        hasNode: tier > 0,
+        isFreeActive: isFreeActive || (tier === 0),
         nodeId: Number(nId),
         tier,
         directRefs,
@@ -516,6 +520,32 @@ class BlockchainService {
         counts.push(Number(c));
       }
       return counts;
+    }
+  }
+
+  async getLevelWiseTeamStats(nodeId) {
+    try {
+      const stats = await this.view.getLevelWiseTeamStats(nodeId);
+      return {
+        freeUsers: Array.from(stats[0]).map(Number),
+        paidUsers: Array.from(stats[1]).map(Number),
+        teamSize: Array.from(stats[2]).map(Number),
+        treasuryGenerated: Array.from(stats[3]).map(val => ethers.formatEther(val)),
+        treasuryUsed: Array.from(stats[4]).map(val => ethers.formatEther(val)),
+        conversions: Array.from(stats[5]).map(Number),
+        rewardsDistributed: Array.from(stats[6]).map(val => ethers.formatEther(val))
+      };
+    } catch (err) {
+      console.error("getLevelWiseTeamStats failed:", err);
+      return {
+        freeUsers: new Array(10).fill(0),
+        paidUsers: new Array(10).fill(0),
+        teamSize: new Array(10).fill(0),
+        treasuryGenerated: new Array(10).fill("0.0"),
+        treasuryUsed: new Array(10).fill("0.0"),
+        conversions: new Array(10).fill(0),
+        rewardsDistributed: new Array(10).fill("0.0")
+      };
     }
   }
 

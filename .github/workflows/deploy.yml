@@ -1,0 +1,98 @@
+name: NFE Global CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  smart-contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: hardhat/package-lock.json
+
+      - name: Install Hardhat Dependencies
+        working-directory: ./hardhat
+        run: npm ci
+
+      - name: Compile Smart Contracts
+        working-directory: ./hardhat
+        run: npx hardhat compile
+
+      - name: Run Test Suite
+        working-directory: ./hardhat
+        run: npx hardhat test
+
+  build-web-app:
+    needs: smart-contract-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install Web App Dependencies
+        run: npm ci
+
+      - name: Build React/Vite Frontend
+        run: npm run build
+        env:
+          VITE_API_URL: "https://api.nfeglobal.online"
+          VITE_PROJECT_ID: "nfe-global-web3"
+          VITE_BSC_MAINNET_RPC: "https://bsc-dataseed.binance.org/"
+
+  build-marketing-portal:
+    needs: smart-contract-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: marketing-portal/package-lock.json
+
+      - name: Install Marketing Portal Dependencies
+        working-directory: ./marketing-portal
+        run: npm ci
+
+      - name: Build Marketing Portal Frontend
+        working-directory: ./marketing-portal
+        run: npm run build
+
+  deploy-docker-check:
+    needs: [build-web-app, build-marketing-portal]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate Frontend Dockerfile
+        run: docker build --dry-run -f Dockerfile .
+
+      - name: Validate Backend API Dockerfile
+        run: docker build --dry-run -f server/Dockerfile ./server
+
+      - name: Validate Marketing Dockerfile
+        run: docker build --dry-run -f marketing-portal/Dockerfile ./marketing-portal

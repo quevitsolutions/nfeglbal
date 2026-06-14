@@ -21,11 +21,11 @@ export const useContract = () => {
     if (!address) return;
     try {
       const data = await blockchain.getFullDashboardData(address);
-      if (data.hasNode) {
-        // ANTI-FLICKER: Only skip setNodeData if DB already has BOTH hasNode AND nodeId.
+      if (data.hasNode || data.isFreeActive) {
+        // ANTI-FLICKER: Only skip setNodeData if DB already has BOTH hasNode/isFreeActive AND nodeId.
         // If nodeId is null (DB has tier but no node_id yet), we still need blockchain data.
         const storeState = useGameStore.getState();
-        const dbFullyLoaded = storeState.hasNode && storeState.nodeId && Number(storeState.nodeId) > 0;
+        const dbFullyLoaded = (storeState.hasNode || storeState.isFreeActive) && storeState.nodeId && Number(storeState.nodeId) > 0;
         if (!dbFullyLoaded) {
           setNodeData({ nodeId: data.nodeId, tier: data.tier, active: data.nodeActive });
         }
@@ -51,8 +51,10 @@ export const useContract = () => {
         return data.nodeId;
       } else {
         // STABILITY: Never downgrade if DB already shows the user has a node.
-        const currentTier = useGameStore.getState().nodeTier || 0;
-        if (currentTier === 0) {
+        const storeState = useGameStore.getState();
+        const currentTier = storeState.nodeTier || 0;
+        const currentFree = storeState.isFreeActive || false;
+        if (currentTier === 0 && !currentFree) {
           setNodeData({ nodeId: 0, tier: 0, active: false });
         }
         return 0;
@@ -231,6 +233,7 @@ export const useContract = () => {
       }
     },
     fetchTeamCounts: (nid) => blockchain.getReferralCounts(nid),
+    fetchLevelWiseTeamStats: (nid) => blockchain.getLevelWiseTeamStats(nid),
     fetchMatrixCounts: (nid) => blockchain.getMatrixLevelCounts(nid),
     fetchTeamLevelMembers: (nid, layer) => blockchain.getMatrixMembers(nid, layer),
     fetchDirectMembers: (nid) => blockchain.getDirectReferrals(nid),

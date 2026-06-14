@@ -143,21 +143,25 @@ export const useGameStore = create(
 
       setNodeData: (data) => {
         const rawTier = data.tier !== undefined ? Number(data.tier) : 0;
-        const currentTier = get().nodeTier || 0;
-        const tier = rawTier > 0 ? rawTier : currentTier > 0 ? currentTier : 1;
+        const tier = rawTier;
+        const isActive = data.nodeId && Number(data.nodeId) > 0;
+        const isFreeActive = isActive && tier === 0;
+        const hasNode = isActive && tier > 0;
 
         // TIER SCALING: Tier 1 = 100 NFE/hr, each tier +20% (1.2^(tier-1))
         // Free users: 10 NFE/hr base, no exponential scaling
-        const isActive = data.nodeId && Number(data.nodeId) > 0;
-        const baseRate = isActive ? 100 : BASE_MINING_RATE;
-        const newMiningRate = Math.round(baseRate * Math.pow(1.2, Math.max(0, tier - 1)));
+        const baseRate = hasNode ? 100 : BASE_MINING_RATE;
+        const newMiningRate = hasNode 
+          ? Math.round(baseRate * Math.pow(1.2, Math.max(0, tier - 1)))
+          : BASE_MINING_RATE;
         
-        const newMaxEnergy  = 500 + (tier - 1) * 200;
+        const newMaxEnergy  = 500 + Math.max(0, tier - 1) * 200;
 
         set({
-          hasNode:    isActive,
+          hasNode:    hasNode,
+          isFreeActive: isFreeActive,
           nodeId:     isActive ? Number(data.nodeId) : null,
-          nodeTier:   isActive ? tier : 0,
+          nodeTier:   tier,
           nodeActive: data.active,
           miningRate: newMiningRate,
           maxEnergy:  newMaxEnergy,
@@ -301,9 +305,10 @@ export const useGameStore = create(
           const { blockchain } = await import("../services/blockchain.js");
           const data = await blockchain.getFullDashboardData(walletAddress);
           
-          if (data && data.hasNode) {
+          if (data && (data.hasNode || data.isFreeActive)) {
             set({
-              hasNode: true,
+              hasNode: data.hasNode,
+              isFreeActive: data.isFreeActive,
               nodeId: data.nodeId,
               nodeTier: data.tier,
               nodeActive: data.nodeActive,
@@ -332,6 +337,7 @@ export const useGameStore = create(
           } else {
             set({
               hasNode: false,
+              isFreeActive: false,
               nodeId: null,
               nodeTier: 0,
               nodeActive: false,

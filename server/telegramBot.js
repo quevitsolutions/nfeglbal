@@ -8,9 +8,9 @@ import { query } from './db.js';
 import { ethers } from 'ethers';
 
 // Hardcoded for backend Docker context isolation
-const NFEGLOBAL_ADDRESS   = '0xda0d24aAd1685F59614c1a347826fA1100aBd9F6';
-const REWARDPOOL_ADDRESS = '0x582a725c49B10024bd50C73c1063270fCC6fD4A9';
-const BSC_RPC = (process.env.VITE_RPC_URL || 'https://bsc-testnet.bnbchain.org').trim();
+const NFEGLOBAL_ADDRESS   = '0x4ea93b8Cd18b66c027AdBaa63CCF06B240dA1dFA';
+const REWARDPOOL_ADDRESS = '0x8c9eD734447ae7a54ba4466373a399668E1DE9A4';
+const BSC_RPC = (process.env.VITE_RPC_URL || 'https://bsc-dataseed.binance.org/').trim();
 
 const NFEGLOBAL_ABI = [
   'function nodeId(address user) view returns (uint256)',

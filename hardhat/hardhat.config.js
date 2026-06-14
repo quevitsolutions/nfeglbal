@@ -8,26 +8,87 @@ const PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY || "0x000000000000000000000
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
-    version: "0.8.26",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 1,
-        details: {
-          yul: true,
-          constantOptimizer: true,
-          cse: true,
-          deduplicate: true,
-          peephole: true
+    compilers: [
+      {
+        version: "0.8.26",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1000,
+            details: {
+              yul: true,
+              constantOptimizer: true,
+              cse: true,
+              deduplicate: true,
+              peephole: true
+            }
+          },
+          viaIR: true,
+          evmVersion: "shanghai",
+          metadata: {
+            bytecodeHash: "none"
+          },
+          debug: {
+            revertStrings: "default"
+          }
         }
+      }
+    ],
+    // Keep revert strings for the local hardhat network so tests can match reason strings
+    overrides: {
+      "contracts/nfeglobal.sol": { 
+        version: "0.8.26", 
+        settings: { 
+          optimizer: { 
+            enabled: true, 
+            runs: 1,
+            details: {
+              yul: true,
+              constantOptimizer: true,
+              cse: true,
+              deduplicate: true,
+              peephole: true
+            }
+          }, 
+          viaIR: true, 
+          evmVersion: "shanghai" 
+        } 
       },
-      viaIR: true,
-      evmVersion: "shanghai",
-      metadata: {
-        bytecodeHash: "none"
+      "contracts/nfeglobalStorage.sol": { 
+        version: "0.8.26", 
+        settings: { 
+          optimizer: { 
+            enabled: true, 
+            runs: 1,
+            details: {
+              yul: true,
+              constantOptimizer: true,
+              cse: true,
+              deduplicate: true,
+              peephole: true
+            }
+          }, 
+          viaIR: true, 
+          evmVersion: "shanghai" 
+        } 
       },
-      debug: {
-        revertStrings: "strip"
+      "contracts/NFEGovernance.sol": { 
+        version: "0.8.26", 
+        settings: { 
+          optimizer: { 
+            enabled: true, 
+            runs: 1,
+            details: {
+              yul: true,
+              constantOptimizer: true,
+              cse: true,
+              deduplicate: true,
+              peephole: true
+            }
+          }, 
+          viaIR: true, 
+          evmVersion: "shanghai" 
+        } 
       }
     }
   },
@@ -36,6 +97,8 @@ module.exports = {
       chainId: 56,
       allowUnlimitedContractSize: true,
       blockGasLimit: 100000000,
+      initialBaseFeePerGas: 0,
+      gasPrice: 0,
       accounts: {
         count: 100,
       }
@@ -50,10 +113,9 @@ module.exports = {
       url: "https://bsc-dataseed.binance.org/",
       chainId: 56,
       accounts: [PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : `0x${PRIVATE_KEY}`],
-      gasPrice: 100000000, // 0.1 Gwei (100,000,000 wei)
     },
     polygon: {
-      url: "https://polygon-rpc.com",
+      url: "https://polygon-bor-rpc.publicnode.com",
       chainId: 137,
       accounts: [PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : `0x${PRIVATE_KEY}`],
     },

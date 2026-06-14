@@ -6,6 +6,7 @@ import { Menu, X, ExternalLink } from 'lucide-react'
 const NAV_LINKS = [
   { label: 'Features',  to: '/features' },
   { label: 'Earnings',  to: '/earnings' },
+  { label: 'Destiny 🌌', to: '/destiny' },
   { label: 'Academy',   to: '/academy' },
   { label: 'Play (Free)', to: '/play' },
   { label: 'Assets',    to: '/assets' },

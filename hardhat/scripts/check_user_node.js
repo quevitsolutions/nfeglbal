@@ -2,8 +2,8 @@ const hre = require("hardhat");
 const { ethers } = hre;
 
 async function main() {
-  const contractAddress = "0x8f21F8458D19743932540a2E62FFd20AEc89cb72";
-  const userAddress = ethers.getAddress("0xf220dc8e6cddb7cddcb628043c969d4f09ded25e"); // from logs (lowercased)
+  const contractAddress = "0x89C394B2f7d35F9e798d881DD05a6Acfa42107D7";
+  const userAddress = ethers.getAddress("0xA237A82f0623b0214e49CE33ec55132D2f579053");
   
   const Core = await ethers.getContractAt("nfeglobal", contractAddress);
   const nodeId = await Core.nodeId(userAddress);

@@ -14,15 +14,19 @@ import DashboardScreen from './pages/DashboardScreen.jsx';
 import ContractsScreen from './pages/ContractsScreen.jsx';
 import TeamScreen from './pages/TeamScreen.jsx';
 import AdminScreen from './pages/AdminScreen.jsx';
-import NFEGlobalDAOScreen from './pages/NFEGlobalDAOScreen.jsx';
+import CalculatorScreen from './pages/CalculatorScreen.jsx';
+import DestinyScreen from './pages/DestinyScreen.jsx';
 import DynamicPortal from './components/DynamicPortal.jsx';
+import FrogCaseScreen from './pages/FrogCaseScreen.jsx';
 
 // Sidebar nav definition (desktop)
 const NAV_ITEMS = [
   { id: 'dash',      icon: '📊',  label: 'Dashboard' },
   { id: 'mine',      icon: '🚀',  label: 'Activate' },
   { id: 'team',      icon: '🕸️',  label: 'Network' },
-  { id: 'dao',       icon: '🏛️',  label: 'Governance' },
+  { id: 'destiny',   icon: '🌌',  label: 'Destiny' },
+  { id: 'frogcase',  icon: '🐸',  label: 'Frog Case' },
+  { id: 'calc',      icon: '🧮',  label: 'Calculator' },
   { id: 'contracts', icon: '📄',  label: 'Contracts' },
 ];
 
@@ -201,13 +205,14 @@ export default function App() {
 
       {/* Main content area */}
       <main className="page" style={{
-        paddingBottom: 'calc(var(--tabbar-h) + 20px)',
+        paddingBottom: activeTab === 'frogcase' ? 0 : 'calc(var(--tabbar-h) + 20px)',
+        paddingTop: activeTab === 'frogcase' ? 0 : undefined,
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
         flex: 1,
         minHeight: 0,
-        overflowY: 'auto',
+        overflowY: activeTab === 'frogcase' ? 'hidden' : 'auto',
         WebkitOverflowScrolling: 'touch'
       }}>
         <AnimatePresence mode="wait">
@@ -217,12 +222,14 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 'min-content' }}
+            style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', minHeight: activeTab === 'frogcase' ? 0 : 'min-content', overflow: activeTab === 'frogcase' ? 'hidden' : 'visible' }}
           >
             {activeTab === 'dash'      && <DashboardScreen />}
             {activeTab === 'mine'      && <UpgradeScreen />}
             {activeTab === 'team'      && <TeamScreen />}
-            {activeTab === 'dao'       && <NFEGlobalDAOScreen />}
+            {activeTab === 'destiny'   && <DestinyScreen />}
+            {activeTab === 'frogcase'  && <FrogCaseScreen />}
+            {activeTab === 'calc'      && <CalculatorScreen />}
             {activeTab === 'contracts' && <ContractsScreen />}
             {activeTab === 'admin'     && <AdminScreen />}
           </motion.div>

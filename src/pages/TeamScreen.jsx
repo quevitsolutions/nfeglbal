@@ -458,7 +458,7 @@ function GraphicalBinaryTreeView({ nodeId, nodeTier, walletAddress, directRefs, 
 
 export default function TeamScreen() {
   const { isConnected, nodeId, nodeTier, directRefs, teamSize, walletAddress } = useGameStore();
-  const { fetchMatrixCounts, fetchTeamLevelMembers, fetchDirectMembers } = useContract();
+  const { fetchMatrixCounts, fetchTeamLevelMembers, fetchDirectMembers, fetchLevelWiseTeamStats } = useContract();
 
   const [rpcMatrixCounts, setRpcMatrixCounts] = useState(new Array(18).fill(0));
   const [loadingCounts, setLoadingCounts] = useState(false);
@@ -466,9 +466,12 @@ export default function TeamScreen() {
   const [levelMembers, setLevelMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
 
-  const [activeTab, setActiveTab] = useState('matrix');
+  const [activeTab, setActiveTab] = useState('referral'); // Default to Referral Stats tab
   const [directMembers, setDirectMembers] = useState([]);
   const [loadingDirect, setLoadingDirect] = useState(false);
+
+  const [referralStats, setReferralStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
     setExpandedLevel(null);
@@ -515,6 +518,25 @@ export default function TeamScreen() {
       loadStats();
     }
   }, [isConnected, nodeId]);
+
+  useEffect(() => {
+    const loadReferralStats = async () => {
+      if (!nodeId) return;
+      setLoadingStats(true);
+      try {
+        const stats = await fetchLevelWiseTeamStats(nodeId);
+        setReferralStats(stats);
+      } catch (err) {
+        console.error('Failed to load referral stats', err);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    if (activeTab === 'referral' && isConnected && nodeId) {
+      loadReferralStats();
+    }
+  }, [activeTab, isConnected, nodeId]);
 
   const toggleLevel = async (levelIndex) => {
     if (expandedLevel === levelIndex) {
@@ -582,6 +604,11 @@ export default function TeamScreen() {
 
       <div className="h-scroll-noscroll" style={{ display: 'flex', gap: '8px', padding: '0 16px 20px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', justifyContent: 'center' }}>
         <button 
+          onClick={() => setActiveTab('referral')}
+          style={{ flexShrink: 0, padding: '10px 16px', borderRadius: '8px', background: activeTab === 'referral' ? 'rgba(163,255,18,0.15)' : 'rgba(255,255,255,0.05)', color: activeTab === 'referral' ? '#A3FF12' : '#888', border: `1px solid ${activeTab === 'referral' ? 'rgba(163,255,18,0.3)' : 'transparent'}`, fontSize: '10px', fontWeight: 800 }}>
+          REFERRALS
+        </button>
+        <button 
           onClick={() => setActiveTab('matrix')}
           style={{ flexShrink: 0, padding: '10px 16px', borderRadius: '8px', background: activeTab === 'matrix' ? 'rgba(79,195,247,0.15)' : 'rgba(255,255,255,0.05)', color: activeTab === 'matrix' ? '#4FC3F7' : '#888', border: `1px solid ${activeTab === 'matrix' ? 'rgba(79,195,247,0.3)' : 'transparent'}`, fontSize: '10px', fontWeight: 800 }}>
           MATRIX
@@ -602,6 +629,104 @@ export default function TeamScreen() {
           MY DIRECTS ({directRefs})
         </button>
       </div>
+
+      {activeTab === 'referral' && (
+        <div style={{ padding: '0 8px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 900, color: '#A3FF12', marginBottom: '16px', letterSpacing: '1.5px', textAlign: 'center' }}>
+            10-LEVEL REFERRAL TREE
+          </div>
+
+          {loadingStats ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#FFB74D', fontSize: '11px', fontWeight: 700 }}>
+              LOADING REFERRAL INSIGHTS...
+            </div>
+          ) : !referralStats ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#666', fontSize: '11px' }}>
+              No referral data available. Make sure your node is active.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {/* Overall Conversion Metrics */}
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 16, padding: 16, marginBottom: 12 }}>
+                <div style={{ fontSize: 10, fontWeight: 900, color: '#A3FF12', letterSpacing: 1, marginBottom: 10 }}>TEAM GROWTH ANALYTICS</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                  <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 10, padding: 8, textAlign: 'center' }}>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: '#fff' }}>
+                      {referralStats.freeUsers.reduce((a, b) => a + b, 0)}
+                    </div>
+                    <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', fontWeight: 800, marginTop: 2 }}>FREE USERS</div>
+                  </div>
+                  <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 10, padding: 8, textAlign: 'center' }}>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: '#A3FF12' }}>
+                      {referralStats.paidUsers.reduce((a, b) => a + b, 0)}
+                    </div>
+                    <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', fontWeight: 800, marginTop: 2 }}>PAID NODES</div>
+                  </div>
+                  <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 10, padding: 8, textAlign: 'center' }}>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: '#4FC3F7' }}>
+                      {(() => {
+                        const totalFree = referralStats.freeUsers.reduce((a, b) => a + b, 0);
+                        const totalPaid = referralStats.paidUsers.reduce((a, b) => a + b, 0);
+                        const total = totalFree + totalPaid;
+                        return total > 0 ? ((totalPaid / total) * 100).toFixed(1) + "%" : "0%";
+                      })()}
+                    </div>
+                    <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.4)', fontWeight: 800, marginTop: 2 }}>CONVERSION</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Level Breakdown List */}
+              {Array.from({ length: 10 }).map((_, i) => {
+                const freeCount = referralStats.freeUsers[i] || 0;
+                const paidCount = referralStats.paidUsers[i] || 0;
+                const total = freeCount + paidCount;
+                const convRate = total > 0 ? ((paidCount / total) * 100).toFixed(1) + "%" : "0%";
+                const rewards = parseFloat(referralStats.rewardsDistributed[i] || 0);
+
+                return (
+                  <div key={i} style={{
+                    borderRadius: 14,
+                    border: '1px solid rgba(255,255,255,0.04)',
+                    background: 'rgba(255,255,255,0.01)',
+                    padding: '12px 16px',
+                    display: 'flex', flexDirection: 'column', gap: 8
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 9, fontWeight: 900, color: '#FFB74D', background: 'rgba(255,183,77,0.1)', padding: '2px 6px', borderRadius: 4 }}>
+                          LEVEL {i + 1}
+                        </span>
+                        <span style={{ fontSize: 11, color: '#aaa', fontWeight: 700 }}>
+                          Total size: {total}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--neon-lime)' }}>
+                        {convRate} Conv.
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                      <div style={{ background: 'rgba(0,0,0,0.15)', padding: 6, borderRadius: 8, textAlign: 'center' }}>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: 'rgba(255,255,255,0.8)' }}>{freeCount}</div>
+                        <div style={{ fontSize: 7, color: '#555', fontWeight: 800 }}>FREE</div>
+                      </div>
+                      <div style={{ background: 'rgba(0,0,0,0.15)', padding: 6, borderRadius: 8, textAlign: 'center' }}>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--neon-lime)' }}>{paidCount}</div>
+                        <div style={{ fontSize: 7, color: '#555', fontWeight: 800 }}>PAID</div>
+                      </div>
+                      <div style={{ background: 'rgba(0,0,0,0.15)', padding: 6, borderRadius: 8, textAlign: 'center' }}>
+                        <div style={{ fontSize: 11, fontWeight: 900, color: '#4FC3F7' }}>{rewards.toFixed(3)} BNB</div>
+                        <div style={{ fontSize: 7, color: '#555', fontWeight: 800 }}>REWARDS</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {activeTab === 'matrix' && (
         <div style={{ padding: '0 8px' }}>

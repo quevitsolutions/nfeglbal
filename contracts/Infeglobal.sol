@@ -125,7 +125,6 @@ interface Infeglobal {
     event LayersUpdated(uint indexed layerType, uint oldValue, uint newValue);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event FeeReceiverSwept(uint platformFees, uint missedRewards, uint total); // @deprecated: sweepFeeReceiver is now a no-op
-    event RescueScheduled(uint executeAfter);
     /// @notice Emitted when contract dust (balance above reserved) is swept to the reward pool
     event DustSwept(uint amount, address indexed pool, uint timestamp);
     // Keeper bot signal — emitted on createNode and unlockTier for off-chain pool sync
@@ -140,14 +139,9 @@ interface Infeglobal {
     event TreasuryQueueProcessed(uint indexed nodeId, uint remainingQueueSize);
     /// @notice M-05 Fix: Emitted when price safety bounds are updated — makes changes detectable on-chain
     event PriceBoundsUpdated(uint oldMin, uint oldMax, uint newMin, uint newMax);
+    event AutoBatchUpdated(uint256 newBatch);
 
     event TreasuryCredited(uint indexed nodeId, uint amount, uint balance);
-    event TreasuryDormant(uint indexed nodeId, uint amount, uint timestamp);
-    event DormancyRecovered(uint indexed nodeId);
-    event DormantTreasuryTransferred(uint indexed nodeId, uint amount);
-    event DaoSpendingExecuted(address indexed target, uint amount, string purpose);
-    event DormancyThresholdUpdated(uint oldVal, uint newVal);
-    event TreasuryAbandoned(uint256 indexed nodeId, address indexed recipient, uint256 amount);
 
     // V2.1 Hardening Events
     event TreasuryUsed(
@@ -155,43 +149,11 @@ interface Infeglobal {
         uint amount,
         uint remainingBalance
     );
-    event DaoTreasuryIncreased(
-        uint indexed nodeId,
-        uint amount,
-        uint newDaoTreasuryBalance
-    );
-    event DaoTreasuryDecreased(
-        address indexed receiver,
-        uint amount,
-        uint remainingDaoTreasury
-    );
-    event DormancyProposed(
-        uint indexed nodeId,
-        uint timestamp
-    );
-    event DormancyActivated(
-        uint indexed nodeId,
-        uint timestamp
-    );
-    event DaoProposalCreated(
-        uint proposalId,
-        address target,
-        uint amount,
-        uint executeAfter
-    );
-    event DaoProposalExecuted(
-        uint proposalId
-    );
     event OracleCircuitBreakerTriggered(
         uint oldPrice,
         uint newPrice,
         uint deviation
     );
-    event DustSkimmed(
-        uint amount,
-        address rewardPool
-    );
-    event MigrationLocked();
     event Tier18TreasuryReleased(
         uint indexed nodeId,
         uint amount
@@ -297,10 +259,6 @@ interface Infeglobal {
     function queuedTier(uint nodeId) external view returns (uint);
     function queuedCostBNB(uint nodeId) external view returns (uint);
     function lastTreasuryActivity(uint nodeId) external view returns (uint);
-    function treasuryDormant(uint nodeId) external view returns (bool);
-    function dormantStart(uint nodeId) external view returns (uint);
-    function governance() external view returns (address);
-    function migrationLocked() external view returns (bool);
     function totalTreasuryBalance() external view returns (uint);
     function queue(uint index) external view returns (uint);
     function queueHead() external view returns (uint);
@@ -310,8 +268,6 @@ interface Infeglobal {
     function totalPendingRewards() external view returns (uint);
 
     // V2.1 Hardening Getters & Mappings
-    function dormancyProposed(uint nodeId) external view returns (bool);
-    function dormancyProposalTime(uint nodeId) external view returns (uint);
     function oracleCircuitBreaker() external view returns (bool);
     function circuitBreakerActivatedAt() external view returns (uint);
     function config() external view returns (string memory nativeSymbol, address priceFeed, uint256 maxAllowedPrice, uint256 minAllowedPrice);
@@ -397,6 +353,9 @@ interface Infeglobal {
     /// @notice Min allowed price for oracle circuit breaker
     function minAllowedPrice() external view returns (uint);
 
+    /// @notice Treasury queue batch size configuration
+    function autoBatch() external view returns (uint);
+
     /// @notice Total missed rewards currently locked in contract (Backwards-compatibility alias)
     function totalMissedRewards() external view returns (uint);
 
@@ -427,13 +386,6 @@ interface Infeglobal {
     /// @notice Updates addresses: type 0=feeReceiver, 1=rewardPool, 7+=admin roles
     function setAddr(uint _type, address _new, uint _num) external;
 
-    function rescueNative(uint _amount) external;
-
-    /// @notice Owner: Schedule a rescue (owner only). Must wait 48h timelock before executing.
-    function scheduleRescueNative() external;
-
-
-
     /// @notice Oracle admin: manually set BNB price (max 20% deviation)
     function manualUpdatePrice(uint _newPrice) external;
 
@@ -452,20 +404,84 @@ interface Infeglobal {
     /// @notice Allows a registered node to upgrade their own tier by exactly 1 level (funded by tier-reserved missed rewards if sufficient, otherwise paid)
     function selfUpgrade() external payable;
 
-    /// @notice Public permissionless keeper function — processes up to AUTO_BATCH=1 treasury queue entries
+    /// @notice Owner: set number of nodes processed per treasury queue batch
+    function setAutoBatch(uint _batch) external;
+
+    /// @notice Public permissionless keeper function — processes up to autoBatch treasury queue entries
     function processTreasuryQueue() external;
 
-    function proposeDormancy(uint _nodeId) external;
-    function activateDormancy(uint _nodeId) external;
-    function claimDormantTreasury() external;
-    function migrateDormantTreasury(uint _nodeId) external;
-    function declareDormant(uint _nodeId) external;
-    function dormantSince(uint _nodeId) external view returns (uint);
-    function reclaimDormantNode() external;
-    function abandonTreasury(uint _nodeId) external;
-    function setGovernance(address _newGovernance) external;
-    function lockMigrationForever() external;
     function resetOracleCircuitBreaker() external;
-    function skimDust() external;
-    function dormancyThreshold() external view returns (uint);
-}
+
+    // ── GOVERNANCE ──────────────────────────────────────────────────────────
+
+    /// @notice Owner: register the NFEGovernance contract as the governor.
+    ///         Can be updated to migrate from EOA → multisig → DAO.
+    function setGovernor(address _gov) external;
+
+    /// @notice Governor/Owner: sweep a dormant node's treasury (70/20/10).
+    ///         Node must have been inactive for at least dormancyPeriod.
+    function sweepDormantTreasury(uint _nodeId) external;
+
+    /// @notice Governor/Owner: update the dormancy inactivity period.
+    ///         Clamped to [365 days, 3650 days].
+    function setDormancyPeriod(uint _period) external;
+
+    /// @notice Governor/Owner: update the dormancy distribution split.
+    ///         Basis points must sum to exactly 10 000.
+    function setDormancyDistribution(uint _rpBP, uint _daoBP, uint _feeBP) external;
+
+    /// @notice Governor/Owner: set the DAO treasury address.
+    function setDaoTreasury(address _dao) external;
+
+    // ── GOVERNANCE STATE READERS ────────────────────────────────────────────
+
+    /// @notice Current governor address (NFEGovernance contract or multisig/DAO).
+    function governor() external view returns (address);
+
+    /// @notice Seconds of inactivity before a node is considered dormant.
+    function dormancyPeriod() external view returns (uint256);
+
+    /// @notice Dormancy reward pool share in basis points.
+    function dormancyRewardPoolBP() external view returns (uint256);
+
+    /// @notice Dormancy DAO share in basis points.
+    function dormancyDAOBP() external view returns (uint256);
+
+    /// @notice Dormancy fee receiver share in basis points.
+    function dormancyFeeRecBP() external view returns (uint256);
+
+    /// @notice DAO treasury address.
+    function daoTreasury() external view returns (address);
+
+    /// @notice Income vault address.
+    function incomeVault() external view returns (address);
+
+    /// @notice Governor/Owner: set the income vault address.
+    function setVault(address _vault) external;
+
+    // ── ICE SYSTEM ─────────────────────────────────────────────────────────
+
+    /// @notice NFECycleManager address.
+    function cycleManager() external view returns (address);
+
+    /// @notice NFERenewalEngine address.
+    function renewalEngine() external view returns (address);
+
+    /// @notice Governor/Owner: register the NFECycleManager contract.
+    function setCycleManager(address _cm) external;
+
+    /// @notice Governor/Owner: register the NFERenewalEngine contract.
+    function setRenewalEngine(address _engine) external;
+
+    /// @notice RenewalEngine only: execute full tier distribution for a renewal.
+    function distributeRenewal(uint256 _nodeId, uint256 costBNB) external payable;
+
+    /// @notice RenewalEngine only: deduct from a node's treasury balance.
+    function deductTreasury(uint256 _nodeId, uint256 amount) external;
+
+    /// @notice Returns wallet address for a node (ICE helper).
+    function getNodeWallet(uint nodeId) external view returns (address);
+
+    /// @notice Returns total contribution for a node (ICE helper).
+    function getNodeContribution(uint nodeId) external view returns (uint);
+}

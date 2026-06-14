@@ -1,0 +1,20 @@
+{
+  "network": "bsc",
+  "chainId": 56,
+  "deployedAt": "2026-06-14T02:32:52.821Z",
+  "deployer": "0x0Bc4218A25C44403A05DbF778F90e7D41499Aa02",
+  "contracts": {
+    "ChainlinkBNBUSD": "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE",
+    "nfeglobalViews": "0xD6d38f4a5eeCe3E605f6eA7aA42f23c562270411",
+    "nfeglobal": "0x4ea93b8Cd18b66c027AdBaa63CCF06B240dA1dFA",
+    "RewardPool": "0x8c9eD734447ae7a54ba4466373a399668E1DE9A4",
+    "NFEGovernance": "0x9c105ca246292a3d0066Fc9044BC6f57fBe12f3F",
+    "NFEGlobalViewsContract": "0xecD1e4eD289585143aB6c4f08103a4f7d898Eb33",
+    "RewardPoolLeadership": "0xC00Ff91f31d4dbC775eBFfeD94A123A52a3b46b0",
+    "FounderPool": "0x5C352a36987D0F556429e975AAfe1efE2735fa32",
+    "LeaderboardPool": "0x8d20C9734e1b4D94b0DfD05D6DA517efd95D51FB",
+    "NFEVestingVault": "0xc58aB1190B60CB379a0E5920ba6317Db24d71Bbb",
+    "NFECycleManager": "0x690c953A2FD0Ed2829746456c55fE7A298114Ede",
+    "NFERenewalEngine": "0x303d7fa59fc3Ec6DC9FF3C4a3940881b6B0cd064"
+  }
+}

@@ -1298,6 +1298,170 @@ body {
   }
 }
 
+/* ══════════════════════════════════════════
+   MARKETING LANDING PAGE (LoginScreen.jsx)
+   ══════════════════════════════════════════ */
+
+/* Hero grid layout */
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 40px;
+  align-items: center;
+}
+
+/* Metrics bar layout */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  text-align: center;
+}
+
+/* Features list grid inside "Why Join" */
+.features-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Detail rows grids */
+.detail-row-1 {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 32px;
+}
+.detail-row-2 {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 32px;
+}
+.detail-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+/* Hover effects for video cards */
+.video-promo-card {
+  transition: all 0.3s ease;
+}
+.video-promo-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 200, 50, 0.3) !important;
+  box-shadow: 0 15px 35px rgba(255, 200, 50, 0.08) !important;
+}
+
+/* Animation keyframes */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.7; }
+}
+
+@keyframes ping {
+  0% { transform: scale(1); opacity: 1; }
+  70%, 100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 991px) {
+  .hero-grid {
+    grid-template-columns: 1fr !important;
+    gap: 32px;
+    text-align: center;
+  }
+  .hero-grid p {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .hero-grid div:nth-child(1) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .hero-globe-wrapper {
+    height: 300px !important;
+  }
+  .detail-row-1, .detail-row-2, .detail-row-3 {
+    grid-template-columns: 1fr !important;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-badges {
+    display: none !important;
+  }
+  .metrics-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 16px;
+  }
+  .features-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+  }
+  .checklist-grid {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+    padding: 20px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .dashboard-preview-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .dashboard-nav {
+    flex-direction: row !important;
+    justify-content: space-around !important;
+  }
+  .dashboard-nav button {
+    flex: 1 !important;
+    padding: 6px 2px !important;
+  }
+}
 
 
+/* ══════════════════════════════════════════
+   FROG CASE MINI APP
+   ══════════════════════════════════════════ */
+
+/* Full-height page that overrides the default page scroll padding */
+.page-frogcase {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #05080f 0%, #08040e 100%);
+  overflow: hidden;
+}
+
+/* Spin animation used for loading/spinning states */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.spin { animation: spin 0.5s linear infinite; }
+
+/* Frog tab indicator dot */
+.frog-tab-dot {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  margin: 0 auto;
+}
 

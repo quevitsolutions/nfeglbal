@@ -236,11 +236,37 @@ export default function DashboardScreen() {
         </motion.div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 32 }}>
-          {(hasNode ? [
-            { label: 'SELF LEVEL', val: `TIER ${nodeTier}`, sub: `Spent: ${formatBNB(poolQual.totalDeposited)}`, color: '#FFB74D', glowKey: null },
-            { label: 'UNCLAIMED', val: formatBNB(pendingReward), sub: 'Node Balance', color: 'var(--neon-lime)', glowKey: parseFloat(pendingReward) > 0 ? 'lime' : null, action: parseFloat(pendingReward) > 0 ? 'TAP TO CLAIM' : null },
-            { label: 'POOL ROI', val: formatBNB(poolClaimable), sub: 'Global Payout', color: '#4FC3F7', glowKey: parseFloat(poolClaimable) > 0 ? 'blue' : null, action: parseFloat(poolClaimable) > 0 ? 'TAP TO CLAIM' : null },
-            { label: 'ACTIVE SPONSOR', val: sponsorNodeId ? `#${sponsorNodeId}` : 'GENESIS', sub: 'Matrix Parent', color: '#9B51FF', glowKey: null }
+          {((hasNode || isFreeActive) ? [
+            { 
+              label: 'SELF LEVEL', 
+              val: hasNode ? `TIER ${nodeTier}` : 'FREE OPERATIVE', 
+              sub: hasNode ? `Spent: ${formatBNB(poolQual.totalDeposited)}` : 'Free Trial Node', 
+              color: '#FFB74D', 
+              glowKey: null 
+            },
+            { 
+              label: 'UNCLAIMED', 
+              val: formatBNB(pendingReward), 
+              sub: 'Node Balance', 
+              color: 'var(--neon-lime)', 
+              glowKey: parseFloat(pendingReward) > 0 ? 'lime' : null, 
+              action: parseFloat(pendingReward) > 0 ? 'TAP TO CLAIM' : null 
+            },
+            { 
+              label: 'POOL ROI', 
+              val: hasNode ? formatBNB(poolClaimable) : '0.00 BNB', 
+              sub: hasNode ? 'Global Payout' : 'Ineligible (Free)', 
+              color: hasNode ? '#4FC3F7' : '#444', 
+              glowKey: (hasNode && parseFloat(poolClaimable) > 0) ? 'blue' : null, 
+              action: (hasNode && parseFloat(poolClaimable) > 0) ? 'TAP TO CLAIM' : null 
+            },
+            { 
+              label: 'ACTIVE SPONSOR', 
+              val: sponsorNodeId ? `#${sponsorNodeId}` : 'GENESIS', 
+              sub: 'Matrix Parent', 
+              color: '#9B51FF', 
+              glowKey: null 
+            }
           ] : [
             { label: 'SELF LEVEL', val: 'INACTIVE', sub: 'No Node Activated', color: '#FF5252', glowKey: null },
             { label: 'WALLET BAL', val: `${parseFloat(bnbBalance).toFixed(4)} BNB`, sub: 'Ready to Activate', color: 'var(--neon-lime)', glowKey: null },

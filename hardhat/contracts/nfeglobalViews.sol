@@ -45,6 +45,8 @@ library nfeglobalViews {
         mapping(uint => Infeglobal.RewardEvent[]) storage rewardHistory,
         uint _nodeId, uint _length
     ) external view returns (Infeglobal.RewardEvent[] memory) {
+        // L-02 Fix: guard against _length == 0 — `returnLen - 1` underflows in 0.8+
+        if (_length == 0) return new Infeglobal.RewardEvent[](0);
         uint historyLen = rewardHistory[_nodeId].length;
         if (historyLen == 0) return new Infeglobal.RewardEvent[](0);
 
@@ -65,6 +67,8 @@ library nfeglobalViews {
         mapping(uint => Infeglobal.RewardEvent[]) storage rewardHistory,
         uint _nodeId, uint _length
     ) external view returns (Infeglobal.RewardEvent[] memory) {
+        // L-02 Fix: guard against _length == 0 — `returnLen - 1` underflows in 0.8+
+        if (_length == 0) return new Infeglobal.RewardEvent[](0);
         uint historyLen = rewardHistory[_nodeId].length;
         if (historyLen == 0) return new Infeglobal.RewardEvent[](0);
 
@@ -589,6 +593,11 @@ interface ICoreForViews {
     function tierPriceUSD(uint) external view returns (uint);
     function maxMatrixDepth() external view returns (uint);
     function totalBNBDistributed() external view returns (uint);
+    function nodeId(address) external view returns (uint);
+    // networkTree(parentId, depth, index)
+    function networkTree(uint, uint, uint) external view returns (uint);
+    // rewardHistory(nodeId, index)
+    function rewardHistory(uint, uint) external view returns (uint, uint, uint, uint, bool, uint, uint);
 }
 
 contract NFEGlobalViewsContract {
@@ -913,4 +922,241 @@ contract NFEGlobalViewsContract {
         _isRenounced = (core.owner() == address(0));
     }
 
+    function getNode(uint256 _nodeId) external view returns (Infeglobal.Node memory) {
+        ICoreForViews core = ICoreForViews(msg.sender);
+        (
+            address wallet,
+            uint64 nodeId,
+            uint64 sponsor,
+            uint64 matrixParent,
+            uint40 joinedAt,
+            uint8 tier,
+            uint32 directNodes,
+            uint32 totalMatrixNodes,
+            uint totalContribution
+        ) = core.nodes(_nodeId);
+        
+        Infeglobal.Node memory node;
+        node.wallet = wallet;
+        node.nodeId = nodeId;
+        node.sponsor = sponsor;
+        node.matrixParent = matrixParent;
+        node.joinedAt = joinedAt;
+        node.tier = tier;
+        node.directNodes = directNodes;
+        node.totalMatrixNodes = totalMatrixNodes;
+        node.totalContribution = totalContribution;
+        return node;
+    }
+
+    function getNodeByAddress(address _addr) external view returns (Infeglobal.Node memory) {
+        ICoreForViews core = ICoreForViews(msg.sender);
+        uint256 id = core.nodeId(_addr);
+        require(id != 0, "Node not found");
+        
+        (
+            address wallet,
+            uint64 nodeId,
+            uint64 sponsor,
+            uint64 matrixParent,
+            uint40 joinedAt,
+            uint8 tier,
+            uint32 directNodes,
+            uint32 totalMatrixNodes,
+            uint totalContribution
+        ) = core.nodes(id);
+        
+        Infeglobal.Node memory node;
+        node.wallet = wallet;
+        node.nodeId = nodeId;
+        node.sponsor = sponsor;
+        node.matrixParent = matrixParent;
+        node.joinedAt = joinedAt;
+        node.tier = tier;
+        node.directNodes = directNodes;
+        node.totalMatrixNodes = totalMatrixNodes;
+        node.totalContribution = totalContribution;
+        return node;
+    }
+
+    function getMatrixUsers(uint256 _nodeId, uint256 _layer, uint256 _startIndex, uint256 _num) external view returns(Infeglobal.Node[] memory) {
+        ICoreForViews core = ICoreForViews(msg.sender);
+        uint256 length = 0;
+        while (true) {
+            try core.teams(_nodeId, _layer, length) {
+                length++;
+            } catch {
+                break;
+            }
+        }
+        if (length == 0 || _startIndex >= length) return new Infeglobal.Node[](0);
+        
+        uint256 resultCount = (length > _num + _startIndex) ? _num : (length - _startIndex);
+        Infeglobal.Node[] memory _users = new Infeglobal.Node[](resultCount);
+        
+        for (uint256 i = 0; i < resultCount; i++) {
+            uint256 targetId = core.teams(_nodeId, _layer, _startIndex + i);
+            (
+                address wallet,
+                uint64 nodeId,
+                uint64 sponsor,
+                uint64 matrixParent,
+                uint40 joinedAt,
+                uint8 tier,
+                uint32 directNodes,
+                uint32 totalMatrixNodes,
+                uint totalContribution
+            ) = core.nodes(targetId);
+            
+            _users[i].wallet = wallet;
+            _users[i].nodeId = nodeId;
+            _users[i].sponsor = sponsor;
+            _users[i].matrixParent = matrixParent;
+            _users[i].joinedAt = joinedAt;
+            _users[i].tier = tier;
+            _users[i].directNodes = directNodes;
+            _users[i].totalMatrixNodes = totalMatrixNodes;
+            _users[i].totalContribution = totalContribution;
+        }
+        return _users;
+    }
+
+    function getNetworkNodes(uint256 _nodeId, uint256 _layer, uint256 _num) external view returns (Infeglobal.Node[] memory) {
+        ICoreForViews core = ICoreForViews(msg.sender);
+        uint256 treeLen = 0;
+        while (true) {
+            try core.networkTree(_nodeId, _layer, treeLen) {
+                treeLen++;
+            } catch {
+                break;
+            }
+        }
+        if (treeLen == 0) return new Infeglobal.Node[](0);
+
+        uint256 returnLen = treeLen > _num ? _num : treeLen;
+        Infeglobal.Node[] memory _users = new Infeglobal.Node[](returnLen);
+
+        uint256 taken = 0;
+        for (uint256 i = treeLen; i > treeLen - returnLen; i--) {
+            uint256 targetId = core.networkTree(_nodeId, _layer, i - 1);
+            (
+                address wallet,
+                uint64 nodeId,
+                uint64 sponsor,
+                uint64 matrixParent,
+                uint40 joinedAt,
+                uint8 tier,
+                uint32 directNodes,
+                uint32 totalMatrixNodes,
+                uint totalContribution
+            ) = core.nodes(targetId);
+            
+            _users[taken].wallet = wallet;
+            _users[taken].nodeId = nodeId;
+            _users[taken].sponsor = sponsor;
+            _users[taken].matrixParent = matrixParent;
+            _users[taken].joinedAt = joinedAt;
+            _users[taken].tier = tier;
+            _users[taken].directNodes = directNodes;
+            _users[taken].totalMatrixNodes = totalMatrixNodes;
+            _users[taken].totalContribution = totalContribution;
+            taken++;
+        }
+        return _users;
+    }
+
+    function getIncome(uint256 _nodeId, uint256 _length) external view returns (Infeglobal.RewardEvent[] memory) {
+        if (_length == 0) return new Infeglobal.RewardEvent[](0);
+        ICoreForViews core = ICoreForViews(msg.sender);
+        
+        uint256 historyLen = 0;
+        while (true) {
+            try core.rewardHistory(_nodeId, historyLen) {
+                historyLen++;
+            } catch {
+                break;
+            }
+        }
+        if (historyLen == 0) return new Infeglobal.RewardEvent[](0);
+
+        uint256 returnLen = historyLen > _length ? _length : historyLen;
+        Infeglobal.RewardEvent[] memory _income = new Infeglobal.RewardEvent[](returnLen);
+
+        uint256 index = returnLen - 1;
+        for (uint256 i = historyLen; i > historyLen - returnLen; i--) {
+            (
+                uint256 id,
+                uint256 layer,
+                uint256 amount,
+                uint256 time,
+                bool isMissed,
+                uint256 rewardType,
+                uint256 tier
+            ) = core.rewardHistory(_nodeId, i - 1);
+            
+            _income[index] = Infeglobal.RewardEvent(id, layer, amount, time, isMissed, rewardType, tier);
+            if (index > 0) index--;
+        }
+        return _income;
+    }
+
+    function getPoolQualificationData(uint256 _userId) external view returns (
+        uint256 totalDeposited,
+        uint256 directReferrals,
+        uint256 totalTeam,
+        uint256 currentLevel,
+        uint256 directTeamL1,
+        uint256 matrixTeam,
+        uint256 registrationTime,
+        bool isActive
+    ) {
+        ICoreForViews core = ICoreForViews(msg.sender);
+        (
+            address wallet,
+            ,
+            ,
+            ,
+            uint40 joinedAt,
+            uint8 tier,
+            uint32 directNodes,
+            uint32 totalMatrixNodes,
+            uint totalContribution
+        ) = core.nodes(_userId);
+        
+        totalDeposited = totalContribution;
+        directReferrals = uint256(directNodes);
+        
+        for (uint256 i = 0; i < 10; i++) {
+            totalTeam += core.levelFreeCount(_userId, i) + core.levelPaidCount(_userId, i);
+        }
+        
+        currentLevel = uint256(tier);
+        directTeamL1 = uint256(directNodes);
+        matrixTeam = uint256(totalMatrixNodes);
+        registrationTime = uint256(joinedAt);
+        isActive = (wallet != address(0));
+    }
+
+    function missedRewardsByTier(uint256 _nodeId, uint256 _tier) external view returns (uint256 total) {
+        ICoreForViews core = ICoreForViews(msg.sender);
+        uint256 index = 0;
+        while (true) {
+            try core.rewardHistory(_nodeId, index) returns (
+                uint256 ,
+                uint256 ,
+                uint256 amount,
+                uint256 ,
+                bool isMissed,
+                uint256 ,
+                uint256 tier
+            ) {
+                if (isMissed && tier == _tier) {
+                    total += amount;
+                }
+                index++;
+            } catch {
+                break;
+            }
+        }
+    }
 }

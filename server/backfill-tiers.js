@@ -20,7 +20,7 @@ const pool = new Pool({
   port:     Number(process.env.DB_PORT || 5432),
 });
 
-const NFEGLOBAL_ADDRESS = '0xda0d24aAd1685F59614c1a347826fA1100aBd9F6';
+const NFEGLOBAL_ADDRESS = '0x4ea93b8Cd18b66c027AdBaa63CCF06B240dA1dFA';
 
 // CORRECT ABI from frontend abi.js:
 // nodes(nodeId) returns (address wallet, uint88 nodeId_, uint256 sponsor,

@@ -6,7 +6,6 @@ async function main() {
     { name: "NFEGlobalViewsContract", file: "nfeglobalViews.sol/NFEGlobalViewsContract.json" },
     { name: "nfeglobalViews (Library)", file: "nfeglobalViews.sol/nfeglobalViews.json" },
     { name: "RewardPool", file: "RewardPool.sol/RewardPool.json" },
-    { name: "Governance", file: "Governance.sol/Governance.json" },
     { name: "BNBPriceOracle", file: "BNBPriceOracle.sol/BNBPriceOracle.json" }
   ];
 

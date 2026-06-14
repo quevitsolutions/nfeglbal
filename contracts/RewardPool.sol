@@ -22,6 +22,12 @@ pragma solidity ^0.8.20;
  *           owner-updatable so future business rule changes don't need redeploy
  */
 
+interface IRewardPoolLeadership {
+    function claimFor(uint256 nodeId) external returns (uint256);
+    function recordAchievement(uint256 nodeId, uint8 poolId) external;
+    function getClaimableTotal(uint256 nodeId) external view returns (uint256);
+}
+
 interface Infeglobal {
     // ── Qualification data (used by registerNode & views) ──────────────────
     function getPoolQualificationData(uint _userId) external view returns (
@@ -35,26 +41,22 @@ interface Infeglobal {
         bool isActive
     );
 
-    // ── Node struct getter (ABI exposes only scalar fields) ─────────────────
-    // Matches Node struct: wallet, nodeId(uint64), sponsor(uint64),
-    // matrixParent(uint64), joinedAt(uint40), tier(uint8),
-    // directNodes(uint32), totalMatrixNodes(uint32), totalContribution(uint)
-    function nodes(uint nodeId) external view returns (
-        address wallet,
-        uint64  id,
-        uint64  sponsor,
-        uint64  matrixParent,
-        uint40  joinedAt,
-        uint8   tier,
-        uint32  directNodes,
-        uint32  totalMatrixNodes,
-        uint    totalContribution
-    );
+    // ── Targeted node field getters ──────────────────────────────────────────
+    // NOTE: nodes() is NOT declared here because the Node struct contains two
+    // fixed-size array fields (uint32[18] sponsorTierRanks, uint64[18] matrixRewardReceiver)
+    // that make the auto-generated getter return dynamically-encoded ABI data.
+    // Calling it via a 9-field static interface causes a silent revert.
+    // Use the targeted getters below instead.
+    function getNodeWallet(uint nodeId) external view returns (address);
+    function getNodeContribution(uint nodeId) external view returns (uint);
 
     // ── Node registration & upgrade ─────────────────────────────────────────
     function createNode(uint _sponsor) external payable;
     function unlockTier(uint _nodeId, uint _toTier) external payable;
     function selfUpgrade() external payable;
+
+    // ── Pull-payment recovery ────────────────────────────────────────────────
+    function withdraw() external;
 
     // ── Missed / pending rewards (treasury accounting) ──────────────────────
     function missedRewardsByTier(uint nodeId, uint tier) external view returns (uint);
@@ -122,6 +124,8 @@ contract RewardPool {
 
     Infeglobal public engine;
     address  public owner;
+    address  public incomeVault;
+    address  public leadershipEngine;
 
     // Cumulative BNB per pool (wei, scaled ×1e18 for precision)
     uint public bronzeAccPerNode;
@@ -159,9 +163,7 @@ contract RewardPool {
     uint public totalReceived;
     uint public totalDistributed;
 
-    // Emergency rescue timelock
-    uint public rescueTimeLock;
-    uint private constant RESCUE_DELAY = 48 hours;
+
 
     /* ─────────────────────────────────────────────
        EVENTS
@@ -177,8 +179,9 @@ contract RewardPool {
     event OwnershipTransferred(address newOwner);
     event CallerAuthorized(address caller, bool status);
     event PoolParamsUpdated(string param, uint value);
-    event RescueScheduled(uint executeAfter);
-    event RescueExecuted(address to, uint amount);
+    event IncomeVaultUpdated(address indexed oldVault, address indexed newVault);
+    event LeadershipEngineUpdated(address indexed oldEngine, address indexed newEngine);
+
 
     /* ─────────────────────────────────────────────
        MODIFIERS
@@ -195,8 +198,10 @@ contract RewardPool {
      */
     modifier onlyAuthorized(uint nodeId) {
         if (msg.sender != owner && !authorizedCallers[msg.sender] && msg.sender != address(engine)) {
-            // Also allow the node's own registered wallet
-            (address wallet,,,,,,,,) = engine.nodes(nodeId);
+            // Also allow the node's own registered wallet.
+            // Uses getNodeWallet() instead of nodes() to avoid ABI mismatch:
+            // Node struct has array fields that make the auto-getter dynamically encoded.
+            address wallet = engine.getNodeWallet(nodeId);
             require(msg.sender == wallet, "Not authorized");
         }
         _;
@@ -255,6 +260,10 @@ contract RewardPool {
 
     receive() external payable {
         if (msg.value == 0) return;
+        if (msg.sender == leadershipEngine) {
+            // Leadership rewards transfer from engine during claim
+            return;
+        }
 
         totalReceived += msg.value;
 
@@ -293,9 +302,21 @@ contract RewardPool {
     function registerNode(uint nodeId) external nonReentrant onlyAuthorized(nodeId) {
         // ── Super node path ───────────────────────────────────────────────
         if (isSuperNode[nodeId]) {
-            require(!superRegistered[nodeId], "Super node already registered");
+            // H-01 Fix: return instead of revert so auto-calls from nfeglobal
+            // (try/catch) don't waste gas on a silent revert after first registration.
+            if (superRegistered[nodeId]) return;
             (,,,,,,, bool sIsActive) = engine.getPoolQualificationData(nodeId);
             require(sIsActive, "Node not active in engine");
+
+            // Fix: exit any existing normal pool first to avoid double-counting
+            // this node in pool member counts and losing unclaimed accruals.
+            uint8 prevPool = nodePool[nodeId];
+            if (prevPool > 0) {
+                uint earnedPrev = _pendingFromPool(nodeId, prevPool);
+                if (earnedPrev > 0) pendingClaim[nodeId] += earnedPrev;
+                _exitPool(nodeId, prevPool);
+                nodePool[nodeId] = 0;
+            }
 
             _enterPool(nodeId, 1);
             _enterPool(nodeId, 2);
@@ -322,7 +343,8 @@ contract RewardPool {
         // A capped node would inflate pool counts and can never claim, permanently
         // locking a pool slot and diluting rewards for all other members.
         {
-            (,,,,,,,, uint totalContribution) = engine.nodes(nodeId);
+            // Uses getNodeContribution() instead of nodes() — see interface comment.
+            uint totalContribution = engine.getNodeContribution(nodeId);
             uint capMult = newPool == 3 ? GOLD_CAP_MULT : newPool == 2 ? SILVER_CAP_MULT : BRONZE_CAP_MULT;
             uint lifetimeCap = totalContribution * capMult;
             require(lifetimeCap == 0 || totalClaimed[nodeId] < lifetimeCap, "Node earnings cap already reached");
@@ -337,6 +359,10 @@ contract RewardPool {
         _enterPool(nodeId, newPool);
         nodePool[nodeId] = newPool;
 
+        if (address(leadershipEngine) != address(0)) {
+            try IRewardPoolLeadership(leadershipEngine).recordAchievement(nodeId, newPool) {} catch {}
+        }
+
         emit PoolTransition(nodeId, oldPool, newPool, pendingClaim[nodeId]);
         if (oldPool == 0) emit NodeRegistered(nodeId, newPool);
     }
@@ -350,9 +376,21 @@ contract RewardPool {
      *         Protected by reentrancy guard.
      */
     function claim(uint nodeId) external nonReentrant {
-        (address wallet,,,,,,,, uint totalContribution) = engine.nodes(nodeId);
+        // Uses targeted getters instead of nodes() — see interface comment.
+        address wallet = engine.getNodeWallet(nodeId);
+        uint totalContribution = engine.getNodeContribution(nodeId);
         require(wallet != address(0), "Invalid wallet");
         require(msg.sender == wallet, "Not node wallet");
+
+        bool ok;
+
+        // Pull leadership rewards if the engine is set
+        uint leadershipReward = 0;
+        if (address(leadershipEngine) != address(0)) {
+            try IRewardPoolLeadership(leadershipEngine).claimFor(nodeId) returns (uint amt) {
+                leadershipReward = amt;
+            } catch {}
+        }
 
         // ── Super node: all pools, no cap ─────────────────────────────────
         if (isSuperNode[nodeId]) {
@@ -360,7 +398,8 @@ contract RewardPool {
             uint sTotal = _pendingFromPool(nodeId, 1)
                         + _pendingFromPool(nodeId, 2)
                         + _pendingFromPool(nodeId, 3)
-                        + pendingClaim[nodeId];
+                        + pendingClaim[nodeId]
+                        + leadershipReward;
             require(sTotal > 0, "Nothing to claim");
 
             _updateDebt(nodeId, 1);
@@ -369,19 +408,33 @@ contract RewardPool {
             pendingClaim[nodeId] = 0;
             totalDistributed += sTotal;
 
-            (bool sOk,) = payable(wallet).call{value: sTotal, gas: TRANSFER_GAS}("");
-            require(sOk, "Transfer failed");
+            // Direct transfer to wallet for all, bypassing incomeVault!
+            (ok,) = payable(wallet).call{value: sTotal, gas: TRANSFER_GAS}("");
+            require(ok, "Transfer failed");
+
             emit RewardClaimed(nodeId, wallet, sTotal);
             return;
         }
 
         // ── Normal node ────────────────────────────────────────────────────
         uint8 pool = nodePool[nodeId];
-        require(pool > 0, "Not in a pool - call registerNode first");
+        
+        // If not in a pool but has leadership rewards, we can still claim them
+        if (pool == 0) {
+            require(leadershipReward > 0, "Not in a pool and no leadership rewards");
+            
+            totalDistributed += leadershipReward;
+            (ok,) = payable(wallet).call{value: leadershipReward, gas: TRANSFER_GAS}("");
+            require(ok, "Transfer failed");
+            
+            emit RewardClaimed(nodeId, wallet, leadershipReward);
+            return;
+        }
 
         uint capMult = pool == 3 ? GOLD_CAP_MULT : pool == 2 ? SILVER_CAP_MULT : BRONZE_CAP_MULT;
         uint cap = totalContribution * capMult;
         require(cap > 0, "No contribution recorded");
+        
         if (totalClaimed[nodeId] >= cap) {
             _exitPool(nodeId, pool);
             nodePool[nodeId] = 0;
@@ -391,7 +444,15 @@ contract RewardPool {
                 else residualGold += pendingClaim[nodeId];
                 pendingClaim[nodeId] = 0;
             }
-            emit CapReached(nodeId, wallet, totalClaimed[nodeId]);
+            
+            if (leadershipReward > 0) {
+                totalDistributed += leadershipReward;
+                (ok,) = payable(wallet).call{value: leadershipReward, gas: TRANSFER_GAS}("");
+                require(ok, "Transfer failed");
+                emit RewardClaimed(nodeId, wallet, leadershipReward);
+            } else {
+                emit CapReached(nodeId, wallet, totalClaimed[nodeId]);
+            }
             return;
         }
 
@@ -399,22 +460,22 @@ contract RewardPool {
         _updateDebt(nodeId, pool);
 
         uint gross = current + pendingClaim[nodeId];
-        require(gross > 0, "Nothing to claim");
+        require(gross + leadershipReward > 0, "Nothing to claim");
 
         uint capRemaining = cap - totalClaimed[nodeId];
-        uint total = gross > capRemaining ? capRemaining : gross;
-        uint leftover = gross - total;
+        uint standardToClaim = gross > capRemaining ? capRemaining : gross;
+        uint leftover = gross - standardToClaim;
 
         pendingClaim[nodeId] = leftover;
-        totalClaimed[nodeId] += total;
-        totalDistributed    += total;
+        totalClaimed[nodeId] += standardToClaim;
+        
+        uint total = standardToClaim + leadershipReward;
+        totalDistributed += total;
 
         // Auto-Exit on Cap: stop accruing shares if they hit their limit
         if (totalClaimed[nodeId] >= cap) {
             _exitPool(nodeId, pool);
             nodePool[nodeId] = 0;
-            // M-02 Fix: clear trapped leftover — it can never be claimed once cap is
-            // reached (subsequent claim() reverts). Route to residual instead of locking.
             if (leftover > 0) {
                 if (pool == 1) residualBronze += leftover;
                 else if (pool == 2) residualSilver += leftover;
@@ -424,8 +485,10 @@ contract RewardPool {
             emit CapReached(nodeId, wallet, totalClaimed[nodeId]);
         }
 
-        (bool ok,) = payable(wallet).call{value: total, gas: TRANSFER_GAS}("");
+        // Direct transfer to wallet, bypassing incomeVault completely!
+        (ok,) = payable(wallet).call{value: total, gas: TRANSFER_GAS}("");
         require(ok, "Transfer failed");
+        
         emit RewardClaimed(nodeId, wallet, total);
     }
 
@@ -438,12 +501,19 @@ contract RewardPool {
         uint fromExitedPools,
         uint total
     ) {
+        uint leadershipReward = 0;
+        if (address(leadershipEngine) != address(0)) {
+            try IRewardPoolLeadership(leadershipEngine).getClaimableTotal(nodeId) returns (uint amt) {
+                leadershipReward = amt;
+            } catch {}
+        }
+
         if (isSuperNode[nodeId] && superRegistered[nodeId]) {
             fromCurrentPool = _pendingFromPool(nodeId, 1)
                             + _pendingFromPool(nodeId, 2)
                             + _pendingFromPool(nodeId, 3);
             fromExitedPools = pendingClaim[nodeId];
-            total = fromCurrentPool + fromExitedPools;
+            total = fromCurrentPool + fromExitedPools + leadershipReward;
             return (fromCurrentPool, fromExitedPools, total);
         }
 
@@ -453,7 +523,7 @@ contract RewardPool {
         total = fromCurrentPool + fromExitedPools;
 
         if (pool > 0) {
-            (,,,,,,,, uint totalContribution) = engine.nodes(nodeId);
+            uint totalContribution = engine.getNodeContribution(nodeId);
             uint capMult = pool == 3 ? GOLD_CAP_MULT : pool == 2 ? SILVER_CAP_MULT : BRONZE_CAP_MULT;
             uint cap = totalContribution * capMult;
             // H-02 Fix: safe subtraction prevents underflow revert if capMult was
@@ -461,6 +531,8 @@ contract RewardPool {
             uint capRemaining = cap > totalClaimed[nodeId] ? cap - totalClaimed[nodeId] : 0;
             if (total > capRemaining) total = capRemaining;
         }
+
+        total = total + leadershipReward;
     }
 
     function getCapInfo(uint nodeId) external view returns (
@@ -471,7 +543,7 @@ contract RewardPool {
         uint remaining
     ) {
         uint8 pool = nodePool[nodeId];
-        (,,,,,,,, uint totalContribution) = engine.nodes(nodeId);
+        uint totalContribution = engine.getNodeContribution(nodeId);
         capMultiplier = pool == 3 ? GOLD_CAP_MULT : pool == 2 ? SILVER_CAP_MULT : pool == 1 ? BRONZE_CAP_MULT : 0;
         totalDeposited = totalContribution;
         lifetimeCap    = totalContribution * capMultiplier;
@@ -549,7 +621,7 @@ contract RewardPool {
         currentPool = nodePool[nodeId];
         poolName    = _poolName(currentPool);
 
-        (,,,,,,,, uint totalContribution) = engine.nodes(nodeId);
+        uint totalContribution = engine.getNodeContribution(nodeId);
         (uint deposited, , , uint tier, , , ,) = engine.getPoolQualificationData(nodeId);
         totalDeposited = deposited;
         nfeTier        = tier;
@@ -589,7 +661,7 @@ contract RewardPool {
         currentPoolId = nodePool[nodeId];
         poolName      = _poolName(currentPoolId);
         
-        (,,,,,,,, uint totalContribution) = engine.nodes(nodeId);
+        uint totalContribution = engine.getNodeContribution(nodeId);
         (, uint dRefs, , uint tier, , uint mTeam, , ) = engine.getPoolQualificationData(nodeId);
         
         totalDeposited     = totalContribution;
@@ -645,7 +717,7 @@ contract RewardPool {
     function isCapReached(uint nodeId) external view returns (bool) {
         uint8 pool = nodePool[nodeId];
         if (pool == 0) return false;
-        (,,,,,,,, uint totalContribution) = engine.nodes(nodeId);
+        uint totalContribution = engine.getNodeContribution(nodeId);
         uint capMult = pool == 3 ? GOLD_CAP_MULT : pool == 2 ? SILVER_CAP_MULT : BRONZE_CAP_MULT;
         return totalClaimed[nodeId] >= totalContribution * capMult;
     }
@@ -695,6 +767,12 @@ contract RewardPool {
      */
     function setSuperNode(uint nodeId, bool status) external onlyOwner {
         if (!status && superRegistered[nodeId]) {
+            // Fix: credit accrued rewards before exiting so unclaimed accruals
+            // are not wiped by the debt reset in _exitPool.
+            uint accrued = _pendingFromPool(nodeId, 1)
+                         + _pendingFromPool(nodeId, 2)
+                         + _pendingFromPool(nodeId, 3);
+            if (accrued > 0) pendingClaim[nodeId] += accrued;
             // M-01/M-05 Fix: exit all pools before revoking super status so node
             // counts stay accurate and nodePool mapping is cleaned up correctly.
             // Super nodes are registered in pools 1, 2, 3 independently
@@ -764,53 +842,37 @@ contract RewardPool {
         emit PoolParamsUpdated(pool, value);
     }
 
-    /**
-     * @notice Schedule an emergency rescue (48h timelock).
-     *         Protects against impulsive misuse while allowing recovery of stuck funds.
-     */
-    function scheduleRescue() public onlyOwner {
-        rescueTimeLock = block.timestamp + RESCUE_DELAY;
-        emit RescueScheduled(rescueTimeLock);
-    }
 
-    function scheduleRescueBNB() external onlyOwner {
-        scheduleRescue();
-    }
-
-    function scheduleRescueNative() external onlyOwner {
-        scheduleRescue();
-    }
 
     /**
-     * @notice Execute rescue after 48h timelock.
+     * @notice Recover BNB credited to this pool as pendingReward inside the
+     *         engine. The engine pushes pool fees with a 100k gas stipend; if
+     *         receive() exceeds it (e.g., first inflow writing cold storage),
+     *         the BNB is parked as pendingReward[address(this)] in the engine
+     *         and only this contract can withdraw it. Callable by anyone;
+     *         recovered BNB flows through receive() and is distributed.
      */
-    function rescueBNB(address to, uint amount) external onlyOwner {
-        _rescueNativeInternal(to, amount);
-    }
-
-    function rescueNative(address to, uint amount) external onlyOwner {
-        _rescueNativeInternal(to, amount);
-    }
-
-    function _rescueNativeInternal(address to, uint amount) private {
-        require(rescueTimeLock > 0 && block.timestamp >= rescueTimeLock, "Timelock not elapsed");
-        require(to != address(0), "Zero address");
-        // M-04 Fix: cap rescue amount to true surplus only — protect all accrued but
-        // unclaimed pool rewards. Sweepable = balance minus everything distributed
-        // minus everything still pending (totalReceived - totalDistributed = owed).
-        uint owed = totalReceived > totalDistributed ? totalReceived - totalDistributed : 0;
-        uint sweepable = address(this).balance > owed ? address(this).balance - owed : 0;
-        require(amount <= sweepable, "Amount exceeds sweepable surplus");
-        rescueTimeLock = 0;
-        (bool ok,) = payable(to).call{value: amount}("");
-        require(ok, "Rescue failed");
-        emit RescueExecuted(to, amount);
+    function recoverEngineRewards() external nonReentrant {
+        engine.withdraw();
     }
 
     function transferOwnership(address _new) external onlyOwner {
         require(_new != address(0), "Zero address");
         owner = _new;
         emit OwnershipTransferred(_new);
+    }
+
+    function setVault(address _vault) external onlyOwner {
+        require(_vault != address(0), "Zero address");
+        address oldVault = incomeVault;
+        incomeVault = _vault;
+        emit IncomeVaultUpdated(oldVault, _vault);
+    }
+
+    function setLeadershipEngine(address _engine) external onlyOwner {
+        address old = leadershipEngine;
+        leadershipEngine = _engine;
+        emit LeadershipEngineUpdated(old, _engine);
     }
 
     /* ─────────────────────────────────────────────
@@ -832,9 +894,21 @@ contract RewardPool {
     }
 
     function _pendingFromPool(uint nodeId, uint8 pool) private view returns (uint) {
-        if (pool == 1) return (bronzeAccPerNode - bronzeDebt[nodeId]) / 1e18;
-        if (pool == 2) return (silverAccPerNode - silverDebt[nodeId]) / 1e18;
-        if (pool == 3) return (goldAccPerNode   - goldDebt[nodeId])   / 1e18;
+        // C-03 Fix: safe subtraction — debt can theoretically exceed accumulator
+        // after edge-case re-registration or admin cap changes, which would cause
+        // an underflow revert (Solidity 0.8+) and permanently lock the account.
+        if (pool == 1) {
+            return bronzeAccPerNode >= bronzeDebt[nodeId]
+                ? (bronzeAccPerNode - bronzeDebt[nodeId]) / 1e18 : 0;
+        }
+        if (pool == 2) {
+            return silverAccPerNode >= silverDebt[nodeId]
+                ? (silverAccPerNode - silverDebt[nodeId]) / 1e18 : 0;
+        }
+        if (pool == 3) {
+            return goldAccPerNode >= goldDebt[nodeId]
+                ? (goldAccPerNode - goldDebt[nodeId]) / 1e18 : 0;
+        }
         return 0;
     }
 

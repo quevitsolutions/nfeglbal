@@ -4,9 +4,11 @@ const path = require("path");
 require("dotenv").config();
 
 async function main() {
-  const deploymentPath = path.join(__dirname, "../deployment.json");
+  const network = hre.network.name;
+  const filename = `deployment_${network}.json`;
+  const deploymentPath = path.join(__dirname, `../${filename}`);
   if (!fs.existsSync(deploymentPath)) {
-    throw new Error("❌ deployment.json not found! Run deploy.js first.");
+    throw new Error(`❌ ${filename} not found! Run deploy.js first.`);
   }
 
   const deployment = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
@@ -16,7 +18,7 @@ async function main() {
     nfeglobalViews: viewsAddr,
     nfeglobal: coreAddr,
     RewardPool: poolAddr,
-    Governance: govAddr,
+    NFEGovernance: govAddr,
   } = deployment.contracts;
 
   const genesisUser  = process.env.GENESIS_USER_ADDRESS;
@@ -69,16 +71,20 @@ async function main() {
     55555,       // _genesisNodeId
   ]);
 
-  // 4. Governance
-  await tryVerify("Governance", govAddr, [coreAddr]);
+  // 4. NFEGovernance
+  await tryVerify("NFEGovernance", govAddr, [coreAddr, ownerAddr]);
+
+  const explorerUrl = deployment.network === "polygon"
+    ? "https://polygonscan.com"
+    : (deployment.network === "bscTestnet" ? "https://testnet.bscscan.com" : "https://bscscan.com");
 
   console.log("\n============================================================");
   console.log("🎉 VERIFICATION COMPLETE —", deployment.network.toUpperCase());
   console.log("============================================================");
-  console.log(`  nfeglobalViews : https://bscscan.com/address/${viewsAddr}#code`);
-  console.log(`  nfeglobal Core : https://bscscan.com/address/${coreAddr}#code`);
-  console.log(`  RewardPool     : https://bscscan.com/address/${poolAddr}#code`);
-  console.log(`  Governance     : https://bscscan.com/address/${govAddr}#code`);
+  console.log(`  nfeglobalViews : ${explorerUrl}/address/${viewsAddr}#code`);
+  console.log(`  nfeglobal Core : ${explorerUrl}/address/${coreAddr}#code`);
+  console.log(`  RewardPool     : ${explorerUrl}/address/${poolAddr}#code`);
+  console.log(`  Governance     : ${explorerUrl}/address/${govAddr}#code`);
   console.log("============================================================\n");
 }
 

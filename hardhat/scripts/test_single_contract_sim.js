@@ -35,12 +35,6 @@ async function main() {
   );
   await core.waitForDeployment();
   
-  // Deploy and link MigrationHelper
-  const HelperFactory = await (typeof hre !== 'undefined' ? hre.ethers : ethers).getContractFactory("MigrationHelper");
-  const helper = await HelperFactory.deploy();
-  await helper.waitForDeployment();
-  await core.setMigrationHelper(await helper.getAddress());
-
   const coreAddr = await core.getAddress();
   console.log("Core deployed at:", coreAddr);
 

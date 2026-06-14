@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 async function main() {
-  const address = "0xFe5dc74f5C7285cc8d61461934A9028c01DebC95";
+  const address = "0x9f64054Ea5F8fD7A5626Aa20F4Ac1b82B3c33346";
   console.log("Fetching deployed bytecode for:", address);
 
   const deployedBytecode = await hre.ethers.provider.getCode(address);

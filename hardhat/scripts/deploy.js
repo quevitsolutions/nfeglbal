@@ -4,8 +4,15 @@ const hre = require("hardhat");
 // nfeglobalViews library is immutable — reuse across deployments to save gas.
 const EXISTING_VIEWS = {
   bscTestnet: "0xeb5C38B2dD7F6c6F0641E605C7AE5a47AF9E31b7",
-  bsc: "", // Leave blank to deploy fresh on Mainnet
-  polygon: "", // Leave blank to deploy fresh on Polygon Mainnet
+  bsc: "0xD6d38f4a5eeCe3E605f6eA7aA42f23c562270411", // Resuming deployment
+  polygon: "0xFE9F449E74AA28ef832eCb1917266C68Ab6BEC70", // Reuse deployed library
+};
+
+// core engine contract can also be reused if deployment failed mid-way.
+const EXISTING_CORE = {
+  bscTestnet: "",
+  bsc: "0x4ea93b8Cd18b66c027AdBaa63CCF06B240dA1dFA", // Resuming core deployment
+  polygon: "0xA0DE5adE595a43838d1a883D441ea5f0829d66b1",
 };
 
 // ── CHAINLINK NATIVE/USD FEED ADDRESSES ──────────────────────────────────────
@@ -13,7 +20,7 @@ const EXISTING_VIEWS = {
 const CHAINLINK_FEEDS = {
   bscTestnet: "0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526", // BSC Testnet BNB/USD
   bsc:        "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE", // BSC Mainnet BNB/USD
-  polygon:    "0xAB594600376Ec9fD91F8e885dADF0CE036862dE0", // Polygon Mainnet POL/USD
+  polygon:    "0xAB594600376ec9fD91F8e8851f0c0738969d7cfd", // Polygon Mainnet POL/USD
 };
 
 async function main() {
@@ -23,10 +30,44 @@ async function main() {
   console.log("\n🚀 Deploying NFEGLOBAL contracts to", network);
   console.log("Deployer:", deployer.address);
   const balance = await deployer.provider.getBalance(deployer.address);
-  console.log("Balance:", hre.ethers.formatEther(balance), "BNB\n");
+  const symbol = network === "polygon" ? "POL" : "BNB";
+  console.log("Balance:", hre.ethers.formatEther(balance), `${symbol}\n`);
 
   if (balance === 0n) {
-    throw new Error(`❌ Insufficient BNB: Wallet balance is 0`);
+    throw new Error(`❌ Insufficient ${symbol}: Wallet balance is 0`);
+  }
+
+  // Calculate gas overrides for Polygon & BSC
+  const feeData = await hre.ethers.provider.getFeeData();
+  
+  let currentGasPrice = 50000000n; // 0.05 Gwei default for BSC
+  
+  async function callWithRetry(fn) {
+    try {
+      const overrides = {};
+      if (network === "polygon") {
+        const priorityFee = 30000000000n; // 30 Gwei
+        const baseFee = feeData.gasPrice ? feeData.gasPrice : 150000000000n;
+        overrides.maxPriorityFeePerGas = priorityFee;
+        overrides.maxFeePerGas = baseFee + priorityFee;
+      } else if (network === "bsc") {
+        overrides.gasPrice = currentGasPrice;
+      }
+      return await fn(overrides);
+    } catch (err) {
+      if (network === "bsc") {
+        const msg = err.message.toLowerCase();
+        if (msg.includes("underpriced") || msg.includes("low") || msg.includes("fee") || msg.includes("price")) {
+          if (currentGasPrice === 50000000n) {
+            console.log(`\n⚠️ Gas price 0.05 Gwei was rejected. Retrying with 0.1 Gwei...`);
+            currentGasPrice = 100000000n; // 0.1 Gwei
+            const overrides = { gasPrice: currentGasPrice };
+            return await fn(overrides);
+          }
+        }
+      }
+      throw err;
+    }
   }
 
   // ── STEP 0: Resolve Roles (Genesis, Fee Receiver, Owner, Admins) ───────────
@@ -75,7 +116,7 @@ async function main() {
   if (network === "hardhat") {
     process.stdout.write("1/3 Deploying mock BNBPriceOracle for local network... ");
     const MockOracleFactory = await hre.ethers.getContractFactory("BNBPriceOracle");
-    const mockOracle = await MockOracleFactory.deploy();
+    const mockOracle = await callWithRetry(ov => MockOracleFactory.deploy(ov));
     await mockOracle.waitForDeployment();
     chainlinkFeed = await mockOracle.getAddress();
     console.log("✅ Deployed at:", chainlinkFeed);
@@ -96,90 +137,117 @@ async function main() {
   } else {
     process.stdout.write("2/3 Deploying nfeglobalViews... ");
     const ViewsFactory = await hre.ethers.getContractFactory("nfeglobalViews");
-    const views = await ViewsFactory.deploy();
+    const views = await callWithRetry(ov => ViewsFactory.deploy(ov));
     await views.waitForDeployment();
     viewsAddr = await views.getAddress();
     console.log("✅", viewsAddr);
   }
 
   // ── STEP 3: nfeglobal (Core Engine) ───────────────────────────────────────
-  process.stdout.write("3/3 Deploying nfeglobal Core... ");
-  const CoreFactory = await hre.ethers.getContractFactory("nfeglobal", {
-    libraries: { nfeglobalViews: viewsAddr },
-  });
-  const core = await CoreFactory.deploy(
-    genesisUserAddr,        // _firstUser (Genesis)
-    feeReceiverAddr,        // _feeReceiver
-    hre.ethers.ZeroAddress, // _rewardPool (linked in Step 5)
-    deployer.address,       // _owner (deployer initially to allow setup)
-    oracleAdminAddr,        // _oracleAdmin
-    matrixAdminAddr         // _matrixAdmin
-  );
-  await core.waitForDeployment();
-  
-  // Deploy and link MigrationHelper
-  const HelperFactory = await (typeof hre !== 'undefined' ? hre.ethers : ethers).getContractFactory("MigrationHelper");
-  const helper = await HelperFactory.deploy();
-  await helper.waitForDeployment();
-  await core.setMigrationHelper(await helper.getAddress());
-
-  const coreAddr = await core.getAddress();
-  console.log("✅", coreAddr);
+  let core;
+  let coreAddr;
+  const existingCoreAddr = EXISTING_CORE[network];
+  if (existingCoreAddr && existingCoreAddr !== "") {
+    coreAddr = existingCoreAddr;
+    console.log("3/3 nfeglobal Core     ♻️  (reusing existing):", coreAddr);
+    const CoreFactory = await hre.ethers.getContractFactory("nfeglobal", {
+      libraries: { nfeglobalViews: viewsAddr },
+    });
+    core = CoreFactory.attach(coreAddr);
+  } else {
+    process.stdout.write("3/3 Deploying nfeglobal Core... ");
+    const CoreFactory = await hre.ethers.getContractFactory("nfeglobal", {
+      libraries: { nfeglobalViews: viewsAddr },
+    });
+    core = await callWithRetry(ov => CoreFactory.deploy(
+      genesisUserAddr,        // _firstUser (Genesis)
+      feeReceiverAddr,        // _feeReceiver
+      hre.ethers.ZeroAddress, // _rewardPool (linked in Step 5)
+      deployer.address,       // _owner (deployer initially to allow setup)
+      oracleAdminAddr,        // _oracleAdmin
+      matrixAdminAddr,        // _matrixAdmin
+      { ...ov, gasLimit: 7000000 }
+    ));
+    await core.waitForDeployment();
+    coreAddr = await core.getAddress();
+    console.log("✅", coreAddr);
+  }
 
   // ── STEP 4: RewardPool ─────────────────────────────────────────────────────
   process.stdout.write("4/4 Deploying RewardPool... ");
   const PoolFactory = await hre.ethers.getContractFactory("RewardPool");
-  const pool = await PoolFactory.deploy(
+  const pool = await callWithRetry(ov => PoolFactory.deploy(
     coreAddr,         // _engine = nfeglobal
     deployer.address, // _owner (deployer initially to allow setup)
-    55555             // _genesisNodeId
-  );
+    55555,            // _genesisNodeId
+    { ...ov, gasLimit: 6000000 }
+  ));
   await pool.waitForDeployment();
   const poolAddr = await pool.getAddress();
   console.log("✅", poolAddr);
 
-  // ── STEP 4.5: Governance ──────────────────────────────────────────────────
-  process.stdout.write("4.5/4 Deploying Governance... ");
-  const GovFactory = await hre.ethers.getContractFactory("Governance");
-  const governance = await GovFactory.deploy(coreAddr);
+  // ── STEP 5: Link RewardPool → nfeglobal ───────────────────────────────────
+  process.stdout.write("\n🔗 Linking RewardPool... ");
+  let tx = await callWithRetry(ov => core.setAddr(1, poolAddr, 0, ov));
+  await tx.wait();
+  console.log("✅");
+
+  // ── STEP 5.5: Deploy NFEGovernance ─────────────────────────────────────────
+  process.stdout.write("5.5/5.5 Deploying NFEGovernance... ");
+  const GovFactory = await hre.ethers.getContractFactory("NFEGovernance");
+  const governance = await callWithRetry(ov => GovFactory.deploy(
+    coreAddr,   // _nfe core contract
+    ownerAddr,  // _governor address (final owner)
+    { ...ov, gasLimit: 2500000 }
+  ));
   await governance.waitForDeployment();
   const govAddr = await governance.getAddress();
   console.log("✅", govAddr);
 
-  // ── STEP 5: Link RewardPool → nfeglobal ───────────────────────────────────
-  process.stdout.write("\n🔗 Linking RewardPool... ");
-  let tx = await core.setAddr(1, poolAddr, 0);
-  await tx.wait();
-  console.log("✅");
-
-  // ── STEP 5.5: Link Governance → nfeglobal ────────────────────────────────
-  process.stdout.write("🔗 Linking Governance... ");
-  tx = await core.setGovernance(govAddr);
-  await tx.wait();
-  console.log("✅");
+  // ── STEP 5.9: Set Price Bounds (Polygon only) ─────────────────────────────
+  if (network === "polygon") {
+    process.stdout.write("🔗 Setting price bounds for Polygon POL... ");
+    tx = await callWithRetry(ov => core.setPriceBounds(5000000n, 1000000000n, ov)); // $0.05 to $10.00
+    await tx.wait();
+    console.log("✅");
+  }
 
   // ── STEP 6: Link Chainlink BNB/USD feed → nfeglobal ───────────────────────
   process.stdout.write("🔗 Linking Chainlink BNB/USD feed... ");
-  tx = await core.setAddr(11, chainlinkFeed, 0);
+  tx = await callWithRetry(ov => core.setAddr(11, chainlinkFeed, 0, ov));
+  await tx.wait();
+  console.log("✅");
+
+  // ── STEP 6.1: Reset Oracle Circuit Breaker (Polygon only) ─────────────────
+  if (network === "polygon") {
+    process.stdout.write("🔗 Resetting oracle circuit breaker after initial price sync... ");
+    tx = await callWithRetry(ov => core.resetOracleCircuitBreaker(ov));
+    await tx.wait();
+    console.log("✅");
+  }
+
+  // ── STEP 6.5: Link NFEGovernance as Governor in Core ──────────────────────
+  process.stdout.write("🔗 Linking NFEGovernance as Governor in Core... ");
+  tx = await callWithRetry(ov => core.setGovernor(govAddr, ov));
   await tx.wait();
   console.log("✅");
 
   // ── STEP 7: Transfer Ownership to final Owner address ─────────────────────
   if (ownerAddr.toLowerCase() !== deployer.address.toLowerCase()) {
     process.stdout.write("👑 Transferring core ownership to final owner... ");
-    tx = await core.transferOwnership(ownerAddr);
+    tx = await callWithRetry(ov => core.transferOwnership(ownerAddr, ov));
     await tx.wait();
     console.log("✅");
 
     process.stdout.write("👑 Transferring RewardPool ownership to final owner... ");
-    tx = await pool.transferOwnership(ownerAddr);
+    tx = await callWithRetry(ov => pool.transferOwnership(ownerAddr, ov));
     await tx.wait();
     console.log("✅");
   }
 
   // ── FINAL BALANCE ──────────────────────────────────────────────────────────
   const finalBalance = await deployer.provider.getBalance(deployer.address);
-  console.log("\nRemaining balance:", hre.ethers.formatEther(finalBalance), "BNB");
+  console.log("\nRemaining balance:", hre.ethers.formatEther(finalBalance), symbol);
 
   // ── SUMMARY ────────────────────────────────────────────────────────────────
   console.log("\n============================================================");
@@ -189,14 +257,15 @@ async function main() {
   console.log("  nfeglobalViews Lib   : ", viewsAddr);
   console.log("  nfeglobal Core       : ", coreAddr);
   console.log("  RewardPool           : ", poolAddr);
-  console.log("  Governance           : ", govAddr);
+  console.log("  NFEGovernance        : ", govAddr);
+
   console.log("============================================================");
   console.log("\n📋 Update these in: src/config/constants.js & server/index.js\n");
 
   const fs = require("fs");
   const output = {
     network,
-    chainId: network === "bsc" ? 56 : 97,
+    chainId: network === "bsc" ? 56 : (network === "polygon" ? 137 : 97),
     deployedAt: new Date().toISOString(),
     deployer: deployer.address,
     contracts: {
@@ -204,11 +273,12 @@ async function main() {
       nfeglobalViews: viewsAddr,
       nfeglobal: coreAddr,
       RewardPool: poolAddr,
-      Governance: govAddr,
+      NFEGovernance: govAddr,
     }
   };
-  fs.writeFileSync("deployment.json", JSON.stringify(output, null, 2));
-  console.log("💾 Saved to hardhat/deployment.json\n");
+  const filename = `deployment_${network}.json`;
+  fs.writeFileSync(filename, JSON.stringify(output, null, 2));
+  console.log(`💾 Saved to hardhat/${filename}\n`);
 }
 
 main()

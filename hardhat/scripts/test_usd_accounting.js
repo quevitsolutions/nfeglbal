@@ -21,12 +21,6 @@ async function main() {
     owner.address, owner.address, hre.ethers.ZeroAddress, owner.address, owner.address, owner.address
   );
   await core.waitForDeployment();
-  
-  // Deploy and link MigrationHelper
-  const HelperFactory = await (typeof hre !== 'undefined' ? hre.ethers : ethers).getContractFactory("MigrationHelper");
-  const helper = await HelperFactory.deploy();
-  await helper.waitForDeployment();
-  await core.setMigrationHelper(await helper.getAddress());
 
   await core.setAddr(11, await oracle.getAddress(), 0);
   await core.setPriceBounds(10n * 100000000n, 100000n * 100000000n);
