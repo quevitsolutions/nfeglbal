@@ -9,31 +9,21 @@ import { useChainEvents } from './hooks/useChainEvents.js';
 import LoginScreen from './components/LoginScreen.jsx';
 import TopBar from './components/TopBar.jsx';
 import TabBar from './components/TabBar.jsx';
-import UpgradeScreen from './pages/UpgradeScreen.jsx';
-import DashboardScreen from './pages/DashboardScreen.jsx';
-import ContractsScreen from './pages/ContractsScreen.jsx';
-import TeamScreen from './pages/TeamScreen.jsx';
+import CoreHubScreen from './pages/CoreHubScreen.jsx';
+import V3RewardsScreen from './pages/V3RewardsScreen.jsx';
+import AcademyHubScreen from './pages/AcademyHubScreen.jsx';
 import AdminScreen from './pages/AdminScreen.jsx';
-import CalculatorScreen from './pages/CalculatorScreen.jsx';
-import DestinyScreen from './pages/DestinyScreen.jsx';
 import DynamicPortal from './components/DynamicPortal.jsx';
-import FrogCaseScreen from './pages/FrogCaseScreen.jsx';
 
 // Sidebar nav definition (desktop)
 const NAV_ITEMS = [
-  { id: 'dash',      icon: '📊',  label: 'Dashboard' },
-  { id: 'mine',      icon: '🚀',  label: 'Activate' },
-  { id: 'team',      icon: '🕸️',  label: 'Network' },
-  { id: 'destiny',   icon: '🌌',  label: 'Destiny' },
-  { id: 'frogcase',  icon: '🐸',  label: 'Frog Case' },
-  { id: 'calc',      icon: '🧮',  label: 'Calculator' },
-  { id: 'contracts', icon: '📄',  label: 'Contracts' },
+  { id: 'core',    icon: '📊', label: 'Core Platform' },
+  { id: 'v3',      icon: '💎', label: 'V3 Rewards' },
+  { id: 'academy', icon: '📚', label: 'Academy & Info' }
 ];
 
-function DesktopSidebar({ activeTab, setActiveTab, nodeId, nodeTier, isAdmin, hasNode }) {
-  const tabs = [...NAV_ITEMS].map(t => 
-    t.id === 'mine' ? { ...t, label: hasNode ? 'Upgrade' : 'Activate' } : t
-  );
+function DesktopSidebar({ activeTab, setActiveTab, nodeId, nodeTier, isAdmin }) {
+  const tabs = [...NAV_ITEMS];
   if (isAdmin) {
     tabs.push({ id: 'admin', icon: '⚡', label: 'Master Admin' });
   }
@@ -165,11 +155,10 @@ export default function App() {
     const { fetchReferralData, fetchUserData, walletAddress } = useGameStore.getState();
     if (!walletAddress) return;
 
-    if (activeTab === 'team') {
-      fetchReferralData().catch(() => {});
-    } else if (activeTab === 'dash' || activeTab === 'mine' || activeTab === 'dao') {
+    if (activeTab === 'core' || activeTab === 'v3' || activeTab === 'academy') {
       useGameStore.setState({ lastBackendSync: null });
       fetchUserData().catch(() => {});
+      fetchReferralData().catch(() => {});
     }
   }, [activeTab, isConnected]);
 
@@ -197,7 +186,6 @@ export default function App() {
         nodeId={nodeId}
         nodeTier={nodeTier}
         isAdmin={isAdmin}
-        hasNode={hasNode}
       />
 
       {/* TopBar — fixed on mobile/tablet, grid on desktop */}
@@ -205,14 +193,13 @@ export default function App() {
 
       {/* Main content area */}
       <main className="page" style={{
-        paddingBottom: activeTab === 'frogcase' ? 0 : 'calc(var(--tabbar-h) + 20px)',
-        paddingTop: activeTab === 'frogcase' ? 0 : undefined,
+        paddingBottom: 'calc(var(--tabbar-h) + 20px)',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
         flex: 1,
         minHeight: 0,
-        overflowY: activeTab === 'frogcase' ? 'hidden' : 'auto',
+        overflowY: 'auto',
         WebkitOverflowScrolling: 'touch'
       }}>
         <AnimatePresence mode="wait">
@@ -222,16 +209,12 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', minHeight: activeTab === 'frogcase' ? 0 : 'min-content', overflow: activeTab === 'frogcase' ? 'hidden' : 'visible' }}
+            style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 'min-content' }}
           >
-            {activeTab === 'dash'      && <DashboardScreen />}
-            {activeTab === 'mine'      && <UpgradeScreen />}
-            {activeTab === 'team'      && <TeamScreen />}
-            {activeTab === 'destiny'   && <DestinyScreen />}
-            {activeTab === 'frogcase'  && <FrogCaseScreen />}
-            {activeTab === 'calc'      && <CalculatorScreen />}
-            {activeTab === 'contracts' && <ContractsScreen />}
-            {activeTab === 'admin'     && <AdminScreen />}
+            {activeTab === 'core'    && <CoreHubScreen />}
+            {activeTab === 'v3'      && <V3RewardsScreen />}
+            {activeTab === 'academy' && <AcademyHubScreen />}
+            {activeTab === 'admin'   && <AdminScreen />}
           </motion.div>
         </AnimatePresence>
       </main>
