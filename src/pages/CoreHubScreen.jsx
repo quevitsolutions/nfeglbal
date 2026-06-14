@@ -1,21 +1,25 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import EarnScreen from './EarnScreen.jsx';
 import DashboardScreen from './DashboardScreen.jsx';
 import UpgradeScreen from './UpgradeScreen.jsx';
 import TeamScreen from './TeamScreen.jsx';
+import ReferralScreen from './ReferralScreen.jsx';
 import CalculatorScreen from './CalculatorScreen.jsx';
 import ContractsScreen from './ContractsScreen.jsx';
 
 const CORE_SUB_TABS = [
+  { id: 'mine',      icon: '⛏️', label: 'Mine' },
   { id: 'dash',      icon: '📊', label: 'Dashboard' },
   { id: 'upgrade',   icon: '🚀', label: 'Upgrade' },
   { id: 'network',   icon: '🕸️', label: 'Network' },
+  { id: 'friends',   icon: '👥', label: 'Friends' },
   { id: 'calc',      icon: '🧮', label: 'Calculator' },
   { id: 'contracts', icon: '📄', label: 'Contracts' }
 ];
 
 export default function CoreHubScreen() {
-  const [subTab, setSubTab] = useState('dash');
+  const [subTab, setSubTab] = useState('mine');
 
   return (
     <div className="hub-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
@@ -71,9 +75,11 @@ export default function CoreHubScreen() {
             transition={{ duration: 0.15 }}
             style={{ width: '100%' }}
           >
+            {subTab === 'mine'      && <EarnScreen />}
             {subTab === 'dash'      && <DashboardScreen />}
             {subTab === 'upgrade'   && <UpgradeScreen />}
             {subTab === 'network'   && <TeamScreen />}
+            {subTab === 'friends'   && <ReferralScreen />}
             {subTab === 'calc'      && <CalculatorScreen />}
             {subTab === 'contracts' && <ContractsScreen />}
           </motion.div>

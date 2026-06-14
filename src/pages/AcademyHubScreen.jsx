@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import NFEGlobalDAOScreen from './NFEGlobalDAOScreen.jsx';
-import EventsScreen from './EventsScreen.jsx';
 import NFEGlobalAcademyScreen from './NFEGlobalAcademyScreen.jsx';
+import TaskScreen from './TaskScreen.jsx';
+import EventsScreen from './EventsScreen.jsx';
 import NFEGlobalAIHostScreen from './NFEGlobalAIHostScreen.jsx';
 
 const ACADEMY_SUB_TABS = [
   { id: 'dao',      icon: '🏛️', label: 'Governance' },
   { id: 'academy',  icon: '📚', label: 'Academy' },
+  { id: 'tasks',    icon: '✅', label: 'Tasks' },
   { id: 'events',   icon: '🎟️', label: 'Events' },
   { id: 'aihost',   icon: '🤖', label: 'AI Host' }
 ];
@@ -71,6 +73,7 @@ export default function AcademyHubScreen() {
           >
             {subTab === 'dao'     && <NFEGlobalDAOScreen />}
             {subTab === 'academy' && <NFEGlobalAcademyScreen />}
+            {subTab === 'tasks'   && <TaskScreen />}
             {subTab === 'events'  && <EventsScreen />}
             {subTab === 'aihost'  && <NFEGlobalAIHostScreen />}
           </motion.div>
