@@ -526,6 +526,7 @@ export const useGameStore = create(
         walletAddress: s.walletAddress,
         isConnected: s.isConnected,
         hasNode: s.hasNode,
+        isFreeActive: s.isFreeActive,
         nodeId: s.nodeId,
         nodeTier: s.nodeTier,
         nodeActive: s.nodeActive,

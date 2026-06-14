@@ -21,7 +21,7 @@ export default function TopBar() {
   const getLeagueInfo = () => {
     const displayId = nodeId && Number(nodeId) > 0 ? ` · #${nodeId}` : '';
     if (!hasNode) {
-      if (isFreeActive) {
+      if (isFreeActive || (nodeId && Number(nodeId) > 0)) {
         return { name: `Free Op${displayId}`, class: 'league-bronze', icon: '🥉' };
       }
       return { name: 'Bronze Op', class: 'league-bronze', icon: '🥉' };

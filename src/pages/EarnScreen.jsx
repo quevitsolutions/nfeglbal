@@ -754,7 +754,7 @@ export default function EarnScreen() {
             <div className="tma-rpg-info-bar">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="tma-rpg-username">
-                  {hasNode ? `OPERATIVE #${nodeId}` : (isFreeActive && nodeId ? `FREE TRIAL AGENT #${nodeId}` : 'FREE TRIAL AGENT')}
+                  {hasNode ? `OPERATIVE #${nodeId}` : (nodeId ? `FREE TRIAL AGENT #${nodeId}` : 'FREE TRIAL AGENT')}
                 </span>
                 <span style={{ fontSize: '11px', fontWeight: 950, color: '#ffd700', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                   {taps.toLocaleString()} SPARKS
