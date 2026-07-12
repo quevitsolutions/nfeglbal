@@ -30,7 +30,7 @@ const CORE_ABI = [
 const STATUS_LABELS = ['🗳️ ACTIVE', '✅ SUCCEEDED', '⏳ QUEUED', '🚀 EXECUTED', '❌ DEFEATED'];
 const STATUS_COLORS = ['#A3FF12', '#4FC3F7', '#FFB74D', '#A3FF12', '#FF5252'];
 
-export default function NFEGlobalDAOScreen() {
+export default function AIPCoreDAOScreen() {
   const { hasNode, nodeId, walletAddress, setActiveTab } = useGameStore();
 
   const [tab, setTab] = useState('proposals');
@@ -122,7 +122,7 @@ export default function NFEGlobalDAOScreen() {
   const loadTreasuryData = async () => {
     try {
       const provider = new ethers.JsonRpcProvider(RPC_NODES[0]);
-      const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, CORE_ABI, provider);
+      const core = new ethers.Contract(CONTRACTS.AIPCORE, CORE_ABI, provider);
       
       const [daoTreasuryVal, totalMissedVal, totalPendingVal, thresholdVal] = await Promise.all([
         core.daoTreasury().catch(() => 0n),
@@ -158,7 +158,7 @@ export default function NFEGlobalDAOScreen() {
     setAuditLoading(true);
     try {
       const provider = new ethers.JsonRpcProvider(RPC_NODES[0]);
-      const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, CORE_ABI, provider);
+      const core = new ethers.Contract(CONTRACTS.AIPCORE, CORE_ABI, provider);
       const nodeRaw = await core.nodes(nId).catch(() => null);
       if (!nodeRaw || nodeRaw.wallet === ethers.ZeroAddress) {
         setAuditedNode(null);
@@ -262,7 +262,7 @@ export default function NFEGlobalDAOScreen() {
   const handleProcessQueue = async () => {
     const signer = await getEthersSigner(config);
     if (!signer) return toast.error("Wallet not connected!");
-    const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, CORE_ABI, signer);
+    const core = new ethers.Contract(CONTRACTS.AIPCORE, CORE_ABI, signer);
     const tid = toast.loading("Processing treasury queue...");
     try {
       const tx = await core.processTreasuryQueue();
@@ -277,7 +277,7 @@ export default function NFEGlobalDAOScreen() {
   const handleDeclareDormant = async (nodeIdToDeclare) => {
     const signer = await getEthersSigner(config);
     if (!signer) return toast.error("Wallet not connected!");
-    const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, CORE_ABI, signer);
+    const core = new ethers.Contract(CONTRACTS.AIPCORE, CORE_ABI, signer);
     const tid = toast.loading(`Declaring Node #${nodeIdToDeclare} dormant...`);
     try {
       const tx = await core.declareDormant(nodeIdToDeclare);
@@ -292,7 +292,7 @@ export default function NFEGlobalDAOScreen() {
   const handleReclaimNode = async () => {
     const signer = await getEthersSigner(config);
     if (!signer) return toast.error("Wallet not connected!");
-    const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, CORE_ABI, signer);
+    const core = new ethers.Contract(CONTRACTS.AIPCORE, CORE_ABI, signer);
     const tid = toast.loading(`Reclaiming node...`);
     try {
       const tx = await core.reclaimDormantNode();
@@ -308,7 +308,7 @@ export default function NFEGlobalDAOScreen() {
   const handleAbandonTreasury = async (nodeIdToAbandon) => {
     const signer = await getEthersSigner(config);
     if (!signer) return toast.error("Wallet not connected!");
-    const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, CORE_ABI, signer);
+    const core = new ethers.Contract(CONTRACTS.AIPCORE, CORE_ABI, signer);
     const tid = toast.loading(`Abandoning Node #${nodeIdToAbandon} treasury...`);
     try {
       const tx = await core.abandonTreasury(nodeIdToAbandon);
@@ -336,7 +336,7 @@ export default function NFEGlobalDAOScreen() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
         <button onClick={() => setActiveTab('dash')} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', fontSize: 18, width: 36, height: 36, borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 900 }}>🏛️ NFEGlobal DAO Hall</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 900 }}>🏛️ AIPCore DAO Hall</h1>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 1 }}>Community Governance · Treasury · Timelock Proposals</div>
         </div>
       </div>

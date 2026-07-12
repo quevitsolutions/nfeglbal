@@ -49,7 +49,7 @@ function MilestoneTracker({ total }) {
 // Binary matrix: 2^level people. 70% of level USD cost = matrix income/person.
 // Level USD costs from contract: $5,$5,$10,$20,$40,$80,$160… doubling to $327,680
 const LVL_USD_COST = [5,5,10,20,40,80,160,320,640,1280,2560,5120,10240,20480,40960,81920,163840,327680];
-const TIER_NFEGlobal_RATE = [100,200,200,300,300,300,500,500,500,800,800,800,1200,1200,1200,2000,2000,2500];
+const TIER_AIPCore_RATE = [100,200,200,300,300,300,500,500,500,800,800,800,1200,1200,1200,2000,2000,2500];
 const TC = ['#A3FF12','#B4FF3A','#FFD700','#FFC107','#FF9800','#FF7043','#FF5252','#E91E63','#AB47BC','#7E57C2','#5C6BC0','#42A5F5','#26C6DA','#26A69A','#66BB6A','#8BC34A','#CDDC39','#FF6B35'];
 function calcFmt(n){ if(n>=1e9)return(n/1e9).toFixed(2)+'B'; if(n>=1e6)return(n/1e6).toFixed(2)+'M'; if(n>=1e3)return(n/1e3).toFixed(1)+'K'; return n.toFixed?n.toFixed(2):String(n); }
 
@@ -175,7 +175,7 @@ function IncomeCalculator({ currentTier }) {
           {showTiers && (
             <div style={{ marginTop:10, background:'rgba(0,0,0,0.3)', borderRadius:12, overflow:'hidden' }}>
               <div style={{ display:'grid', gridTemplateColumns:'40px 60px 60px 70px 1fr 1fr', gap:4, padding:'8px 10px', background:'rgba(255,255,255,0.03)', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
-                {['LVL','COST $','BNB~','NFEGlobal/hr','L1 EARN $','STATUS'].map(h => <span key={h} style={{ fontSize:7, fontWeight:900, color:'#555', letterSpacing:0.5 }}>{h}</span>)}
+                {['LVL','COST $','BNB~','AIPCore/hr','L1 EARN $','STATUS'].map(h => <span key={h} style={{ fontSize:7, fontWeight:900, color:'#555', letterSpacing:0.5 }}>{h}</span>)}
               </div>
               <div style={{ maxHeight:300, overflowY:'auto' }}>
                 {LVL_USD_COST.map((costUsd,i) => {
@@ -187,7 +187,7 @@ function IncomeCalculator({ currentTier }) {
                       <span style={{ fontSize:9, fontWeight:900, color, background:`${color}20`, borderRadius:4, padding:'2px 5px', textAlign:'center' }}>L{i+1}</span>
                       <span style={{ fontSize:9, color:'#FFB74D', fontWeight:800 }}>${costUsd}</span>
                       <span style={{ fontSize:9, color:'#FFD700', fontWeight:700 }}>{costNative}</span>
-                      <span style={{ fontSize:9, color:'#4FC3F7', fontWeight:700 }}>{TIER_NFEGlobal_RATE[i]}</span>
+                      <span style={{ fontSize:9, color:'#4FC3F7', fontWeight:700 }}>{TIER_AIPCore_RATE[i]}</span>
                       <span style={{ fontSize:9, color:'#A3FF12', fontWeight:800 }}>${l1Earn.toFixed(2)}</span>
                       <span style={{ fontSize:8, fontWeight:900, color:i+1<=myTier?'#A3FF12':'#555' }}>{i+1<=myTier?'✅':'🔒'}</span>
                     </div>
@@ -243,7 +243,7 @@ function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteL
 
       // Header label
       ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.font = 'bold 11px monospace';
-      ctx.fillText(`NFEGLOBAL PROTOCOL · ${chainName}`, 22, 36);
+      ctx.fillText(`AIPCORE PROTOCOL · ${chainName}`, 22, 36);
 
       // Node ID
       ctx.fillStyle = '#ffffff'; ctx.font = 'bold 30px sans-serif';
@@ -318,12 +318,12 @@ function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteL
 
       // Powered by
       ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.font = '9px monospace';
-      ctx.fillText('nfeglobal.online', W/2, 519);
+      ctx.fillText('aipcore.online', W/2, 519);
       ctx.textAlign = 'left';
 
       // Download
       const a = document.createElement('a');
-      a.download = `nfeglobal-qr-node${nodeId || 'free'}.png`;
+      a.download = `aipcore-qr-node${nodeId || 'free'}.png`;
       a.href = canvas.toDataURL('image/png');
       a.click();
     } catch(e) {
@@ -336,7 +336,7 @@ function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteL
   const tierColor = isFreeActive ? '#4FC3F7' : tierColors[Math.max(0, (nodeTier || 1) - 1)];
 
   const cardMsg = (hasNode || isFreeActive)
-    ? `🌟 Join me on NFEGlobal Protocol!
+    ? `🌟 Join me on AIPCore Protocol!
 
 ⬡ ${isFreeActive ? 'Free Trial Node' : 'Node'} #${nodeId} | Tier ${isFreeActive ? 'Free' : nodeTier} ACTIVE
 👥 My Team: ${teamSize} nodes | ${directRefs} directs
@@ -348,15 +348,15 @@ function ShareCard({ nodeId, nodeTier, miningRate, teamSize, directRefs, inviteL
 👇 Activate under my node:
 ${inviteLink}
 
-Powered by NFEGlobal Smart Contract 🔗`
-    : `🆓 Join NFEGlobal Matrix Network!
+Powered by AIPCore Smart Contract 🔗`
+    : `🆓 Join AIPCore Matrix Network!
 
 Activate your node on ${chainName} to unlock ${nativeSymbol} rewards + 70% matrix income.
 
 👇 Register under my link:
 ${inviteLink}
 
-#NFEGlobal #${chainName} #Crypto #${nativeSymbol}`;
+#AIPCore #${chainName} #Crypto #${nativeSymbol}`;
 
   const copy = () => {
     navigator.clipboard.writeText(cardMsg).then(() => {
@@ -368,7 +368,7 @@ ${inviteLink}
 
   const toTelegram  = () => window.open(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(cardMsg)}`, '_blank');
   const toWhatsApp  = () => window.open(`https://wa.me/?text=${encodeURIComponent(cardMsg)}`, '_blank');
-  const toTwitter   = () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent((hasNode || isFreeActive) ? `⬡ Nodes on NFEGlobal — Node #${nodeId} Tier ${isFreeActive ? 'Free' : nodeTier} ACTIVE\n100% On-Chain | Real ${nativeSymbol} rewards | 18-tier ${chainName} matrix\n\nActivate under my node 👇\n${inviteLink}\n\n#NFEGlobal #${chainName} #DeFi` : `⬡ Join NFEGlobal — Decentralized ${nativeSymbol} Matrix Network on ${chainName}\n\n${inviteLink}\n\n#NFEGlobal #${chainName}`)}`, '_blank');
+  const toTwitter   = () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent((hasNode || isFreeActive) ? `⬡ Nodes on AIPCore — Node #${nodeId} Tier ${isFreeActive ? 'Free' : nodeTier} ACTIVE\n100% On-Chain | Real ${nativeSymbol} rewards | 18-tier ${chainName} matrix\n\nActivate under my node 👇\n${inviteLink}\n\n#AIPCore #${chainName} #DeFi` : `⬡ Join AIPCore — Decentralized ${nativeSymbol} Matrix Network on ${chainName}\n\n${inviteLink}\n\n#AIPCore #${chainName}`)}`, '_blank');
 
   return (
     <div style={{ marginBottom: 20 }}>
@@ -381,7 +381,7 @@ ${inviteLink}
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.4)', letterSpacing: 1.5 }}>NFEGLOBAL PROTOCOL · BSC</div>
+            <div style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.4)', letterSpacing: 1.5 }}>AIPCORE PROTOCOL · BSC</div>
             {hasNode ? (
               <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginTop: 2 }}>NODE #{nodeId}</div>
             ) : (
@@ -660,7 +660,7 @@ export default function ReferralScreen() {
   };
 
   return (
-    <div className="page page-referral" style={{ paddingBottom: '120px' }}>
+    <div className="sub-page page-referral" style={{ paddingBottom: '20px' }}>
 
       {/* ── Page Header ── */}
       <div style={{ textAlign: 'center', padding: '10px 0 16px' }}>
@@ -762,7 +762,7 @@ export default function ReferralScreen() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                 <div style={{ fontSize: 20 }}>✅</div>
                 <a
-                  href={`https://t.me/nfeglobal_bot?start=conn_${walletAddress}`}
+                  href={`https://t.me/aipcore_bot?start=conn_${walletAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setTimeout(() => {
@@ -784,7 +784,7 @@ export default function ReferralScreen() {
               </div>
             ) : (
               <a
-                href={`https://t.me/nfeglobal_bot?start=conn_${walletAddress}`}
+                href={`https://t.me/aipcore_bot?start=conn_${walletAddress}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setTimeout(() => {
@@ -842,9 +842,9 @@ export default function ReferralScreen() {
         {!showShareCard && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
             {[
-              { label: 'TELEGRAM', emoji: '✈️', color: '#2AABEE', bg: 'rgba(42,171,238,0.1)', border: 'rgba(42,171,238,0.3)', onClick: () => { const msg = (hasNode || isFreeActive) ? `🚀 Join me on NFEGlobal!\n\n⬡ ${isFreeActive ? 'Free Trial Node' : 'Node'} #${nodeId} | Tier ${isFreeActive ? 'Free' : nodeTier}\n⚡ ${miningRate} $NFEGLOBAL/hr mining\n\nActivate under my node:\n${inviteLink}` : `🆓 Try NFEGlobal FREE for 30 days!\n\n${inviteLink}`; window.open(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(msg)}`, '_blank'); } },
-              { label: 'WHATSAPP', emoji: '💬', color: '#25D366', bg: 'rgba(37,211,102,0.1)', border: 'rgba(37,211,102,0.3)', onClick: () => { const msg = (hasNode || isFreeActive) ? `🌟 Join me on NFEGlobal Protocol!\n\n${isFreeActive ? 'Free Trial Node' : 'Node'} #${nodeId} | Tier ${isFreeActive ? 'Free' : nodeTier} ACTIVE\n⚡ ${miningRate} $NFEGLOBAL/hr | Real ${nativeSymbol} rewards\n\n${inviteLink}` : `🆓 Try NFEGlobal FREE!\n${inviteLink}`; window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'); } },
-              { label: 'TWITTER/X', emoji: '𝕏', color: '#fff', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)', onClick: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent((hasNode || isFreeActive) ? `⬡ Mining on NFEGlobal — ${isFreeActive ? 'Free Trial Node' : 'Node'} #${nodeId} Tier ${isFreeActive ? 'Free' : nodeTier}\n${miningRate} $NFEGLOBAL/hr | Real ${nativeSymbol} rewards\n\n${inviteLink}\n\n#NFEGlobal #${chainName} #DeFi` : `⬡ Join NFEGlobal — Decentralized ${nativeSymbol} Matrix Network on ${chainName}\n\n${inviteLink}\n\n#NFEGlobal #${chainName}`)}`, '_blank') },
+              { label: 'TELEGRAM', emoji: '✈️', color: '#2AABEE', bg: 'rgba(42,171,238,0.1)', border: 'rgba(42,171,238,0.3)', onClick: () => { const msg = (hasNode || isFreeActive) ? `🚀 Join me on AIPCore!\n\n⬡ ${isFreeActive ? 'Free Trial Node' : 'Node'} #${nodeId} | Tier ${isFreeActive ? 'Free' : nodeTier}\n⚡ ${miningRate} $AIPCORE/hr mining\n\nActivate under my node:\n${inviteLink}` : `🆓 Try AIPCore FREE for 30 days!\n\n${inviteLink}`; window.open(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(msg)}`, '_blank'); } },
+              { label: 'WHATSAPP', emoji: '💬', color: '#25D366', bg: 'rgba(37,211,102,0.1)', border: 'rgba(37,211,102,0.3)', onClick: () => { const msg = (hasNode || isFreeActive) ? `🌟 Join me on AIPCore Protocol!\n\n${isFreeActive ? 'Free Trial Node' : 'Node'} #${nodeId} | Tier ${isFreeActive ? 'Free' : nodeTier} ACTIVE\n⚡ ${miningRate} $AIPCORE/hr | Real ${nativeSymbol} rewards\n\n${inviteLink}` : `🆓 Try AIPCore FREE!\n${inviteLink}`; window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'); } },
+              { label: 'TWITTER/X', emoji: '𝕏', color: '#fff', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)', onClick: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent((hasNode || isFreeActive) ? `⬡ Mining on AIPCore — ${isFreeActive ? 'Free Trial Node' : 'Node'} #${nodeId} Tier ${isFreeActive ? 'Free' : nodeTier}\n${miningRate} $AIPCORE/hr | Real ${nativeSymbol} rewards\n\n${inviteLink}\n\n#AIPCore #${chainName} #DeFi` : `⬡ Join AIPCore — Decentralized ${nativeSymbol} Matrix Network on ${chainName}\n\n${inviteLink}\n\n#AIPCore #${chainName}`)}`, '_blank') },
             ].map((btn, i) => (
               <button key={i} onClick={btn.onClick} style={{ background: btn.bg, border: `1px solid ${btn.border}`, borderRadius: 14, padding: '12px 6px', color: btn.color, fontWeight: 900, fontSize: 10, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
                 <span style={{ fontSize: 20 }}>{btn.emoji}</span> {btn.label}
@@ -937,7 +937,7 @@ export default function ReferralScreen() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
                   <span style={{ fontSize: 12, fontWeight: 900, color: rowColor }}>{Number(friend.local_reward || 0) >= 1000 ? `${(friend.local_reward / 1000).toFixed(1)}K` : Math.floor(friend.local_reward || 0)}</span>
-                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>$NFEGLOBAL</span>
+                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontWeight: 700 }}>$AIPCORE</span>
                 </div>
               </div>
             );
@@ -1102,7 +1102,7 @@ export default function ReferralScreen() {
                   <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(79,195,247,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>👋</div>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 800 }}>{m.label}</div>
-                    <div style={{ fontSize: 11, color: '#4FC3F7', fontWeight: 700 }}>+{formatNumber(m.reward)} $NFEGLOBAL</div>
+                    <div style={{ fontSize: 11, color: '#4FC3F7', fontWeight: 700 }}>+{formatNumber(m.reward)} $AIPCORE</div>
                   </div>
                 </div>
                 {isClaimed ? (
@@ -1111,7 +1111,7 @@ export default function ReferralScreen() {
                   <button onClick={async () => {
                     if (!canClaim) { toast.error(`Need ${m.threshold} friends to claim!`); return; }
                     const tid = toast.loading('Claiming...');
-                    try { await claimFreeMilestoneAction(m.threshold); toast.success(`+${formatNumber(m.reward)} NFEGlobal claimed!`, { id: tid }); }
+                    try { await claimFreeMilestoneAction(m.threshold); toast.success(`+${formatNumber(m.reward)} AIPCore claimed!`, { id: tid }); }
                     catch (err) { toast.error(err.message, { id: tid }); }
                   }} style={{ background: canClaim ? '#4FC3F7' : 'rgba(255,255,255,0.05)', color: canClaim ? '#000' : 'rgba(255,255,255,0.3)', border: 'none', padding: '6px 14px', borderRadius: 20, fontSize: 11, fontWeight: 900, cursor: canClaim ? 'pointer' : 'not-allowed' }}>
                     {canClaim ? 'CLAIM' : 'LOCKED'}

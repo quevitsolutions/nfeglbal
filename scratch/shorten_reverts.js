@@ -67,5 +67,5 @@ function shortenRevertsInFile(filePath) {
 }
 
 const rootPath = path.join(__dirname, '..');
-shortenRevertsInFile(path.join(rootPath, 'contracts/nfeglobal.sol'));
-shortenRevertsInFile(path.join(rootPath, 'hardhat/contracts/nfeglobal.sol'));
+shortenRevertsInFile(path.join(rootPath, 'contracts/aipcore.sol'));
+shortenRevertsInFile(path.join(rootPath, 'hardhat/contracts/aipcore.sol'));

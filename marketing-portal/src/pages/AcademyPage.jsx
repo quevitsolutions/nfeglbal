@@ -8,7 +8,7 @@ const COURSES = [
     duration: '45 mins', lessons: 5, color: '#CBFF01', level: 'Beginner'
   },
   {
-    title: 'Pitching NFEGlobal Core to Influencers',
+    title: 'Pitching AIPCore Core to Influencers',
     desc: 'Scripts, templates, and strategies for closing high-volume KOLs.',
     duration: '1h 20m', lessons: 8, color: '#4FFFFF', level: 'Intermediate'
   },
@@ -32,7 +32,7 @@ export default function AcademyPage() {
       <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 24px', position: 'relative', zIndex: 1 }}>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ textAlign: 'center', marginBottom: 60 }}>
           <div style={{ display: 'inline-block', padding: '8px 16px', background: 'rgba(79,195,247,0.1)', color: '#4FC3F7', borderRadius: 20, fontSize: 13, fontWeight: 900, marginBottom: 16 }}>
-            🎓 NFEGlobal TRAINING ACADEMY
+            🎓 AIPCore TRAINING ACADEMY
           </div>
           <h1 style={{ fontSize: 'clamp(36px, 5vw, 56px)', fontWeight: 900, letterSpacing: -1, marginBottom: 16, lineHeight: 1.1 }}>
             Master The Art Of<br />

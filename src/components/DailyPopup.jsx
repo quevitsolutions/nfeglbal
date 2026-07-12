@@ -19,12 +19,12 @@ export default function DailyPopup() {
       const res = await claimDailyReward();
       // BUG FIX: Use claimed_day from backend (which day was just claimed, 1-10)
       const claimedDay = res.claimed_day || (res.daily_streak === 0 ? 10 : res.daily_streak);
-      toast.success(`🔥 DAY ${claimedDay} STREAK! +${res.reward} $NFEGLOBAL COINS CLAIMED!`, { duration: 4000 });
+      toast.success(`🔥 DAY ${claimedDay} STREAK! +${res.reward} $AIPCORE COINS CLAIMED!`, { duration: 4000 });
       setShowDailyPopup(false);
       
       if (!hasNode) {
         setTimeout(() => {
-          toast('Activate an NFEGlobal Node to earn real BNB, 10x more coins, and massive pool rewards!', {
+          toast('Activate an AIPCore Node to earn real BNB, 10x more coins, and massive pool rewards!', {
             icon: '💎',
             duration: 6000,
             style: { border: '1px solid var(--neon-lime)' }
@@ -74,7 +74,7 @@ export default function DailyPopup() {
           )}
 
           {/* Streak Grid */}
-          <div className="streak-grid-nfeglobal" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', marginBottom: '24px' }}>
+          <div className="streak-grid-aipcore" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', marginBottom: '24px' }}>
             {STREAK_REWARDS.map((reward, i) => {
               const day = i + 1;
               // streak is stored as 0-9 in DB. Display as 1-10.

@@ -6,7 +6,7 @@ const ASSETS = [
   {
     category: 'Presentations',
     items: [
-      { title: 'NFEGlobal Core Official Pitch Deck', type: 'PDF', size: '4.2 MB', icon: FileText, color: '#FF6BFF' },
+      { title: 'AIPCore Core Official Pitch Deck', type: 'PDF', size: '4.2 MB', icon: FileText, color: '#FF6BFF' },
       { title: '1-Pager Executive Summary', type: 'PDF', size: '1.1 MB', icon: FileText, color: '#FF6BFF' },
     ]
   },
@@ -22,7 +22,7 @@ const ASSETS = [
     category: 'Video Assets',
     items: [
       { title: '60s Explainer Video (MP4)', type: 'MP4', size: '45.8 MB', icon: Video, color: '#CBFF01' },
-      { title: 'NFEGlobal Logo Animation Loop', type: 'MP4', size: '18.2 MB', icon: Video, color: '#CBFF01' },
+      { title: 'AIPCore Logo Animation Loop', type: 'MP4', size: '18.2 MB', icon: Video, color: '#CBFF01' },
     ]
   }
 ]
@@ -46,7 +46,7 @@ export default function AssetsPage() {
             Downloads & <span style={{ color: '#FF6BFF' }}>Presentations</span>
           </h1>
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)', maxWidth: 600, margin: '0 auto', lineHeight: 1.6 }}>
-            Everything you need to pitch NFEGlobal Core. High-quality decks, banners, and video assets optimized for conversion.
+            Everything you need to pitch AIPCore Core. High-quality decks, banners, and video assets optimized for conversion.
           </p>
         </motion.div>
 

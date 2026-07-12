@@ -5,7 +5,7 @@ import { useContract } from '../hooks/useContract.js';
 import { useNativePrice, useNativeTokenSymbol } from '../hooks/useNativePrice.js';
 import { ethers } from 'ethers';
 import { CONTRACTS, RPC_NODES } from '../config/constants.js';
-import { NFEGLOBAL_ABI } from '../config/abi.js';
+import { AIPCORE_ABI } from '../config/abi.js';
 import toast from 'react-hot-toast';
 
 // ABI extension for treasury view helper
@@ -59,28 +59,72 @@ export default function UpgradeScreen() {
   const [pendingBnb, setPendingBnb] = useState('0');
   const [isTreasury, setIsTreasury] = useState(false);
   const [treasuryAvailableBnb, setTreasuryAvailableBnb] = useState('0');
+  const [sponsorInput, setSponsorInput] = useState('');
+  // Treasury & vault stats
+  const [vaultStats, setVaultStats] = useState({
+    withdrawable: '0', upgradeVault: '0', lifetimeRewards: '0',
+    lifetimeDeposits: '0', lifetimeUsed: '0', autoUpgrades: 0,
+    manualUpgrades: 0, totalTreasury: '0', daysActive: 0,
+    totalContribution: '0', totalEarned: '0'
+  });
+  const [incomeHistory, setIncomeHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    const { referrerId } = useGameStore.getState();
+    if (referrerId) {
+      setSponsorInput(String(referrerId));
+    }
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const provider = new ethers.JsonRpcProvider(RPC_NODES[0]);
-        const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, provider);
+        const core = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, provider);
         const costsRaw = await core.getTierCosts().catch(() => null);
         if (costsRaw) setTierCosts(costsRaw.map(c => ethers.formatEther(c)));
 
-        // Fetch treasury locked rewards if user has a node
         if (nodeId) {
-          const treasuryContract = new ethers.Contract(CONTRACTS.NFEGLOBAL, TREASURY_ABI, provider);
-          const pending = await treasuryContract.getPendingUpgradeRewards(nodeId).catch(() => 0n);
-          setPendingBnb(ethers.formatEther(pending));
+          const [pending, isEnrolled, balances, nodeStats, income] = await Promise.all([
+            core.getPendingUpgradeRewards(nodeId).catch(() => 0n),
+            core.isTreasuryNode(nodeId).catch(() => false),
+            core.accountBalances(nodeId).catch(() => null),
+            core.getNodeStats(nodeId).catch(() => null),
+            core.getIncome(nodeId, 20).catch(() => []),
+          ]);
 
-          // Check if enrolled in treasury
-          const isEnrolled = await core.isTreasuryNode(nodeId).catch(() => false);
+          setPendingBnb(ethers.formatEther(pending));
           setIsTreasury(isEnrolled);
 
-          // Get treasury balance
-          const balance = await core.getTreasuryBalance().catch(() => [0n, 0n, 0n]);
-          setTreasuryAvailableBnb(ethers.formatEther(balance[2]));
+          if (balances) {
+            setVaultStats({
+              withdrawable:    ethers.formatEther(balances[0]),
+              upgradeVault:    ethers.formatEther(balances[1]),
+              lifetimeRewards: ethers.formatEther(balances[2]),
+              lifetimeDeposits:ethers.formatEther(balances[3]),
+              lifetimeUsed:    ethers.formatEther(balances[4]),
+              autoUpgrades:    Number(balances[5]),
+              manualUpgrades:  Number(balances[6]),
+              totalTreasury:   ethers.formatEther(balances[7]),
+              daysActive:      nodeStats ? Number(nodeStats[5]) : 0,
+              totalContribution: nodeStats ? ethers.formatEther(nodeStats[4]) : '0',
+              totalEarned:     nodeStats ? ethers.formatEther(nodeStats[3]) : '0',
+            });
+            setTreasuryAvailableBnb(ethers.formatEther(balances[1]));
+          }
+
+          if (income && income.length > 0) {
+            setIncomeHistory(income.map(item => ({
+              id: Number(item.id),
+              layer: Number(item.layer),
+              amount: ethers.formatEther(item.amount),
+              time: Number(item.time),
+              isMissed: item.isMissed,
+              rewardType: Number(item.rewardType),
+              tier: Number(item.tier),
+            })));
+          }
         }
       } catch (err) { console.error(err); }
     };
@@ -90,31 +134,31 @@ export default function UpgradeScreen() {
   const handleRegister = async () => {
     setIsLoading(true);
     try {
-      const { referrerId } = useGameStore.getState();
+      const refVal = sponsorInput.trim();
       let effectiveSponsor = 1;
       let useSponsorAddress = false;
       let sponsorAddress = "";
 
-      if (referrerId) {
+      if (refVal) {
         try {
           const provider = new ethers.JsonRpcProvider(RPC_NODES[0]);
-          const contract = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, provider);
+          const contract = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, provider);
           
-          if (typeof referrerId === 'string' && referrerId.startsWith('0x') && referrerId.length === 42) {
-            const refId = await contract.nodeId(referrerId).catch(() => 0n);
+          if (refVal.startsWith('0x') && refVal.length === 42) {
+            const refId = await contract.nodeId(refVal).catch(() => 0n);
             if (refId && Number(refId) > 0) {
               effectiveSponsor = Number(refId);
             } else {
-              const isTargeted = await contract.isTargetedUser(referrerId).catch(() => false);
+              const isTargeted = await contract.isTargetedUser(refVal).catch(() => false);
               if (isTargeted) {
                 useSponsorAddress = true;
-                sponsorAddress = referrerId;
+                sponsorAddress = refVal;
               } else {
                 effectiveSponsor = 1;
               }
             }
-          } else if (Number(referrerId) > 0) {
-            effectiveSponsor = Number(referrerId);
+          } else if (Number(refVal) > 0) {
+            effectiveSponsor = Number(refVal);
           }
         } catch (e) {
           console.warn("Referrer ID lookup failed, using fallback:", e);
@@ -151,7 +195,7 @@ export default function UpgradeScreen() {
       const newTier = await treasuryUnlockTier(nodeId);
       if (newTier) {
         const provider = new ethers.JsonRpcProvider(RPC_NODES[0]);
-        const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, provider);
+        const core = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, provider);
         const balance = await core.getTreasuryBalance().catch(() => [0n, 0n, 0n]);
         setTreasuryAvailableBnb(ethers.formatEther(balance[2]));
       }
@@ -169,7 +213,7 @@ export default function UpgradeScreen() {
   const lockedTiers    = TIERS.filter(t => t.tier > (nextTier ? nextTier.tier : currentTier));
 
   return (
-    <div className="page page-upgrade" style={{ paddingBottom: 120 }}>
+    <div className="sub-page page-upgrade" style={{ paddingBottom: 20 }}>
 
       {/* ── Header ── */}
       <div style={{ padding: '10px 0 20px', display: 'flex', alignItems: 'center' }}>
@@ -187,17 +231,17 @@ export default function UpgradeScreen() {
               ACTIVATE YOUR NODE
             </h1>
             <p style={{ fontSize: 12, color: '#FFB74D', fontWeight: 600, lineHeight: 1.6, maxWidth: 290, margin: '0 auto' }}>
-              Register on-chain to unlock all 18 tiers, earn real {nativeSymbol} and access the full NFEGlobal matrix ecosystem.
+              Register on-chain to unlock all 18 tiers, earn real {nativeSymbol} and access the full AIPCore matrix ecosystem.
             </p>
           </motion.div>
 
-          {/* Tier 1 preview */}
+          {/* Tier 0 preview */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             style={{ background: 'linear-gradient(135deg, rgba(163,255,18,0.12) 0%, rgba(163,255,18,0.03) 100%)', border: '1px solid rgba(163,255,18,0.35)', borderRadius: 24, padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-              <TierHex tier={1} color={TIER_COLORS[0]} size={56} next />
+              <TierHex tier={0} color={TIER_COLORS[0]} size={56} next />
               <div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: '#fff' }}>TIER 1 — ACTIVE NODE</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: '#fff' }}>TIER 0 — ACTIVE NODE</div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#A3FF12', marginTop: 3 }}>Matrix Level 1 Unlocked · Spillover Eligible</div>
               </div>
             </div>
@@ -214,12 +258,48 @@ export default function UpgradeScreen() {
                 </div>
               ))}
             </div>
+            <div style={{ marginBottom: '16px', textAlign: 'left' }}>
+              <label style={{ fontSize: '10px', fontWeight: 900, color: '#A3FF12', letterSpacing: '0.8px', display: 'block', marginBottom: '8px' }}>
+                SPONSOR ID OR ADDRESS
+              </label>
+              <input
+                type="text"
+                placeholder="Enter Sponsor ID or Wallet Address (default: 1)"
+                value={sponsorInput}
+                onChange={(e) => setSponsorInput(e.target.value)}
+                style={{
+                  background: 'rgba(32, 34, 37, 0.8)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '14px',
+                  padding: '12px 16px',
+                  color: '#fff',
+                  fontSize: '13px',
+                  fontFamily: 'Outfit, sans-serif',
+                  outline: 'none',
+                  width: '100%',
+                  fontWeight: 600
+                }}
+              />
+              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.45)', marginTop: '6px', fontWeight: 700 }}>
+                {sponsorInput.trim() ? (
+                  sponsorInput.trim().startsWith('0x') && sponsorInput.trim().length === 42 ? (
+                    "✨ Sponsor Address detected."
+                  ) : Number(sponsorInput.trim()) > 0 ? (
+                    "✨ Sponsor ID #" + sponsorInput.trim() + " detected."
+                  ) : (
+                    "⚠️ Invalid format. Will fallback to Sponsor #1 (Platform)."
+                  )
+                ) : (
+                  "ℹ️ Empty. Will default to Sponsor #1 (Platform)."
+                )}
+              </div>
+            </div>
+
             <button className="giant-btn" onClick={handleRegister} disabled={isLoading}
               style={{ background: 'var(--neon-lime)', color: '#000', width: '100%', height: 'auto', padding: '14px 20px', borderRadius: 16, letterSpacing: 0.5, display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontSize: 15, fontWeight: 900 }}>ACTIVATE TIER 1 NODE</span>
+              <span style={{ fontSize: 15, fontWeight: 900 }}>ACTIVATE TIER 0 NODE</span>
               <span style={{ fontSize: 12, fontWeight: 800, opacity: 0.85 }}>
-                {parseFloat(tierCosts[0]).toFixed(3)} {nativeSymbol}
-                {nativePrice > 0 && <span style={{ marginLeft: 6 }}>≈ ${(parseFloat(tierCosts[0]) * nativePrice).toFixed(2)} USD</span>}
+                0.000 {nativeSymbol} <span style={{ marginLeft: 6 }}>(FREE)</span>
               </span>
             </button>
           </motion.div>
@@ -258,6 +338,93 @@ export default function UpgradeScreen() {
               <div style={{ fontSize: 10, fontWeight: 700, color: '#FFD700', marginTop: 3 }}>SPILLOVER ACTIVE</div>
             </div>
           </motion.div>
+
+          {/* ── TREASURY & VAULT STATS SECTION ── */}
+          <div style={{ marginBottom: 8, fontSize: 10, fontWeight: 900, color: '#FFD700', letterSpacing: 3 }}>
+            🏦 TREASURY &amp; VAULT STATS
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+            {[
+              { label: 'UPGRADE VAULT', value: `${parseFloat(vaultStats.upgradeVault).toFixed(5)} BNB`, sub: 'Auto-Upgrade Funds', color: '#FFD700', icon: '🏦' },
+              { label: 'WITHDRAWABLE', value: `${parseFloat(vaultStats.withdrawable).toFixed(5)} BNB`, sub: 'Core Rewards', color: '#A3FF12', icon: '💸' },
+              { label: 'LIFETIME REWARDS', value: `${parseFloat(vaultStats.lifetimeRewards).toFixed(4)} BNB`, sub: `≈ $${(parseFloat(vaultStats.lifetimeRewards) * (nativePrice || 650)).toFixed(0)}`, color: '#4FC3F7', icon: '💰' },
+              { label: 'TOTAL CONTRIBUTED', value: `${parseFloat(vaultStats.totalContribution).toFixed(4)} BNB`, sub: 'Deposited into system', color: '#FF7043', icon: '📥' },
+              { label: 'AUTO UPGRADES', value: vaultStats.autoUpgrades, sub: 'Via treasury', color: '#AB47BC', icon: '⚡' },
+              { label: 'MANUAL UPGRADES', value: vaultStats.manualUpgrades, sub: 'Self-funded', color: '#26C6DA', icon: '🔧' },
+              { label: 'DAYS ACTIVE', value: vaultStats.daysActive, sub: 'On-chain age', color: '#66BB6A', icon: '📅' },
+              { label: 'TREASURY GENERATED', value: `${parseFloat(vaultStats.totalTreasury).toFixed(4)} BNB`, sub: 'Lifetime via treasury', color: '#FFB74D', icon: '🏛️' },
+            ].map((stat, i) => (
+              <div key={i} style={{
+                background: 'rgba(255,255,255,0.02)',
+                border: `1px solid ${stat.color}20`,
+                borderRadius: 16, padding: '14px 12px',
+              }}>
+                <div style={{ fontSize: 16, marginBottom: 6 }}>{stat.icon}</div>
+                <div style={{ fontSize: 13, fontWeight: 900, color: stat.color }}>{stat.value}</div>
+                <div style={{ fontSize: 8, fontWeight: 800, color: 'rgba(255,255,255,0.35)', letterSpacing: '1px', marginTop: 2 }}>{stat.label}</div>
+                {stat.sub && <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{stat.sub}</div>}
+              </div>
+            ))}
+          </div>
+
+          {/* ── INCOME HISTORY ── */}
+          {incomeHistory.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <button
+                onClick={() => setShowHistory(h => !h)}
+                style={{
+                  width: '100%', background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14,
+                  padding: '12px 16px', cursor: 'pointer', color: '#fff',
+                  fontFamily: 'Outfit', display: 'flex', justifyContent: 'space-between',
+                  alignItems: 'center', fontSize: 12, fontWeight: 900,
+                  borderBottomLeftRadius: showHistory ? 0 : 14,
+                  borderBottomRightRadius: showHistory ? 0 : 14,
+                }}
+              >
+                <span>📊 Income History (Last {incomeHistory.length})</span>
+                <span style={{ fontSize: 10, opacity: 0.5 }}>{showHistory ? '▲ HIDE' : '▼ SHOW'}</span>
+              </button>
+              <AnimatePresence>
+                {showHistory && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}
+                    style={{ overflow: 'hidden', background: 'rgba(255,255,255,0.02)',
+                      border: '1px solid rgba(255,255,255,0.08)', borderTop: 'none',
+                      borderBottomLeftRadius: 14, borderBottomRightRadius: 14 }}
+                  >
+                    <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 280, overflowY: 'auto' }}>
+                      {incomeHistory.map((item, i) => {
+                        const typeLabels = ['', 'Direct', 'Matrix', 'Pool', 'Treasury', 'Missed'];
+                        const typeColors = ['', '#A3FF12', '#4FC3F7', '#FFD700', '#FF9800', '#FF5252'];
+                        const label = item.isMissed ? 'Missed' : (typeLabels[item.rewardType] || 'Reward');
+                        const color = item.isMissed ? '#FF5252' : (typeColors[item.rewardType] || '#A3FF12');
+                        const date = item.time > 0 ? new Date(item.time * 1000).toLocaleDateString() : 'N/A';
+                        return (
+                          <div key={i} style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            padding: '8px 10px', background: 'rgba(0,0,0,0.25)', borderRadius: 10,
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{
+                                fontSize: 8, fontWeight: 900, padding: '2px 6px', borderRadius: 6,
+                                background: `${color}15`, color: color, letterSpacing: '0.5px'
+                              }}>{label.toUpperCase()}</span>
+                              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>L{item.layer} · {date}</span>
+                            </div>
+                            <span style={{ fontSize: 12, fontWeight: 900, color: item.isMissed ? '#FF5252' : '#A3FF12' }}>
+                              {item.isMissed ? '-' : '+'}{parseFloat(item.amount).toFixed(5)} BNB
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
           {/* ── Income protection alert ── */}
           <motion.div
@@ -428,52 +595,103 @@ export default function UpgradeScreen() {
             </motion.div>
           )}
 
-          {/* ── ACTIVE TIERS grid ── */}
-          {activeTiers.length > 0 && (
+          {/* ── UNIFIED 18 TIERS SHOP GRID ── */}
+          {
             <>
-              <div style={{ fontSize: 10, fontWeight: 900, color: '#A3FF12', letterSpacing: 3, marginBottom: 12 }}>
-                ✅ ACTIVE TIERS ({activeTiers.length}/18)
+              <div style={{ fontSize: 10, fontWeight: 900, color: '#FFC72C', letterSpacing: 3, marginBottom: 14 }}>
+                🛍️ NODE SHOP / COLLECTIBLES (18 TIERS)
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 28 }}>
-                {activeTiers.map((t, i) => (
-                  <motion.div key={t.tier}
-                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.04 }}
-                    style={{ background: `${t.color}0d`, border: `1px solid ${t.color}45`, borderRadius: 18, padding: '14px 12px', position: 'relative', overflow: 'hidden' }}>
-                    {/* Tick badge */}
-                    <div style={{ position: 'absolute', top: 8, right: 8, width: 20, height: 20, borderRadius: '50%', background: t.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900, color: '#000' }}>✓</div>
-                    <div style={{ fontSize: 24, fontWeight: 900, color: t.color, marginBottom: 6 }}>T{t.tier}</div>
-                    <div style={{ fontSize: 11, fontWeight: 900, color: '#fff' }}>{t.depth}</div>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: t.color, marginTop: 3 }}>TIER {t.tier} ACTIVE</div>
-                  </motion.div>
-                ))}
-              </div>
-            </>
-          )}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
+                {TIERS.map((t, idx) => {
+                  const isActive = nodeId && t.tier <= currentTier;
+                  const isNext = nodeId ? t.tier === currentTier + 1 : t.tier === 1;
+                  const isLocked = t.tier > (nodeId ? currentTier + 1 : 1);
+                  
+                  const emojis = {
+                    1: '🐍', 2: '🧁', 3: '🐰', 4: '🍦', 5: '🍭', 6: '🧪',
+                    7: '🎭', 8: '🎨', 9: '🛸', 10: '🍌', 11: '🪐', 12: '🎩',
+                    13: '🎮', 14: '🎄', 15: '🔮', 16: '🦖', 17: '🔥', 18: '👑'
+                  };
+                  const emoji = emojis[t.tier] || '⬡';
 
-          {/* ── LOCKED TIERS grid ── */}
-          {lockedTiers.length > 0 && (
-            <>
-              <div style={{ fontSize: 10, fontWeight: 900, color: '#FFB74D', letterSpacing: 3, marginBottom: 12 }}>
-                🔒 LOCKED TIERS — UPGRADE TO UNLOCK
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {lockedTiers.map((t, i) => (
-                  <motion.div key={t.tier}
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 + i * 0.03 }}
-                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, padding: '14px 12px', position: 'relative', opacity: 0.7 }}>
-                    <div style={{ position: 'absolute', top: 8, right: 8, fontSize: 11 }}>🔒</div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: t.color + '70', marginBottom: 6 }}>T{t.tier}</div>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: '#FFD700' }}>{t.depth}</div>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>TIER {t.tier}</div>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: '#A3FF12', marginTop: 6 }}>
-                      {parseFloat(tierCosts[t.tier - 1] || 0).toFixed(3)} {nativeSymbol}
-                    </div>
-                    {nativePrice > 0 && <div style={{ fontSize: 9, fontWeight: 700, color: '#4FC3F7' }}>{usdLabel(tierCosts[t.tier - 1])}</div>}
-                  </motion.div>
-                ))}
+                  const handleCardClick = () => {
+                    if (isActive) {
+                      toast.success(`Tier ${t.tier} is already active!`);
+                    } else if (isNext) {
+                      handleLevelUp(t.tier);
+                    } else {
+                      toast.error(`Please upgrade to Tier ${t.tier - 1} first!`);
+                    }
+                  };
+
+                  return (
+                    <motion.div
+                      key={t.tier}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleCardClick}
+                      style={{
+                        background: isActive ? 'rgba(163,255,18,0.04)' : 'rgba(255,255,255,0.03)',
+                        border: isActive 
+                          ? '1px solid rgba(163,255,18,0.25)' 
+                          : isNext 
+                            ? '1px solid rgba(255,199,44,0.3)' 
+                            : '1px solid rgba(255,255,255,0.04)',
+                        borderRadius: '16px',
+                        padding: '16px 10px',
+                        textAlign: 'center',
+                        position: 'relative',
+                        cursor: 'pointer',
+                        opacity: isActive ? 1 : isNext ? 0.95 : 0.4,
+                        boxShadow: isActive ? '0 0 10px rgba(163,255,18,0.05)' : 'none',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {/* Active green dot or lock badge */}
+                      {isActive ? (
+                        <div style={{
+                          position: 'absolute', top: '8px', right: '8px',
+                          width: '6px', height: '6px', borderRadius: '50%',
+                          background: '#A3FF12', boxShadow: '0 0 6px #A3FF12'
+                        }} />
+                      ) : isNext ? (
+                        <div style={{ position: 'absolute', top: '6px', right: '6px', fontSize: '9px' }}>⚡</div>
+                      ) : (
+                        <div style={{ position: 'absolute', top: '6px', right: '6px', fontSize: '9px', opacity: 0.5 }}>🔒</div>
+                      )}
+
+                      {/* Graphic emoji */}
+                      <div style={{ fontSize: '32px', marginBottom: '8px', filter: isActive ? 'none' : 'grayscale(30%)' }}>
+                        {emoji}
+                      </div>
+
+                      {/* Tier Label */}
+                      <div style={{ fontSize: '11px', fontWeight: 900, color: isActive ? '#A3FF12' : '#fff' }}>
+                        Tier {t.tier}
+                      </div>
+
+                      {/* Price Badge */}
+                      <div style={{
+                        background: 'rgba(32,34,37,0.8)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: '10px',
+                        padding: '3px 6px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '2px',
+                        marginTop: '8px',
+                        maxWidth: '90%'
+                      }}>
+                        <span style={{ fontSize: '9px' }}>⭐️</span>
+                        <span style={{ fontSize: '9px', fontWeight: 900, color: '#FFD700', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                          {isActive ? 'OWNED' : parseFloat(tierCosts[t.tier - 1] || 0).toFixed(2)}
+                        </span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
             </>
-          )}
+          }
 
           {/* Max tier reached */}
           {currentTier >= 18 && (
@@ -484,6 +702,8 @@ export default function UpgradeScreen() {
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>You have unlocked all 18 tiers. Spillover coverage maximized.</div>
             </motion.div>
           )}
+
+
         </>
       )}
     </div>

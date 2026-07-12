@@ -6,7 +6,7 @@ import { useGameStore } from "../store/gameStore.js";
 import toast from "react-hot-toast";
 
 /**
- * NFEGlobal Contract Hook (Clean Wrapper)
+ * AIPCore Contract Hook (Clean Wrapper)
  */
 export const useContract = () => {
   const setNodeData = useGameStore(s => s.setNodeData);
@@ -22,13 +22,8 @@ export const useContract = () => {
     try {
       const data = await blockchain.getFullDashboardData(address);
       if (data.hasNode || data.isFreeActive) {
-        // ANTI-FLICKER: Only skip setNodeData if DB already has BOTH hasNode/isFreeActive AND nodeId.
-        // If nodeId is null (DB has tier but no node_id yet), we still need blockchain data.
-        const storeState = useGameStore.getState();
-        const dbFullyLoaded = (storeState.hasNode || storeState.isFreeActive) && storeState.nodeId && Number(storeState.nodeId) > 0;
-        if (!dbFullyLoaded) {
-          setNodeData({ nodeId: data.nodeId, tier: data.tier, active: data.nodeActive });
-        }
+        // Unconditionally set latest blockchain node metadata to keep Zustand store in sync with chain
+        setNodeData({ nodeId: data.nodeId, tier: data.tier, active: data.nodeActive });
 
         // Always update chain-specific data — additive, not overwriting node identity
         updateChainData({
@@ -50,13 +45,8 @@ export const useContract = () => {
         });
         return data.nodeId;
       } else {
-        // STABILITY: Never downgrade if DB already shows the user has a node.
-        const storeState = useGameStore.getState();
-        const currentTier = storeState.nodeTier || 0;
-        const currentFree = storeState.isFreeActive || false;
-        if (currentTier === 0 && !currentFree) {
-          setNodeData({ nodeId: 0, tier: 0, active: false });
-        }
+        // If the address doesn't own any node on-chain, reset to inactive state
+        setNodeData({ nodeId: 0, tier: 0, active: false });
         return 0;
       }
     } catch (err) {
@@ -78,7 +68,7 @@ export const useContract = () => {
     loadNodeData, fetchBnbBalance, 
     connectWallet: () => {
       // Clear explicit-disconnect flag so auto-reconnect is allowed again
-      try { localStorage.removeItem('nfeglobal_disconnected'); } catch(e) {}
+      try { localStorage.removeItem('aipcore_disconnected'); } catch(e) {}
       openConnectModal?.();
     },
     disconnectWallet: () => disconnect(),
@@ -288,7 +278,7 @@ export const useWalletLifecycle = () => {
     // wagmi re-emits 'connected' on mount when it restores a saved connector.
     // We intercept that here and force-disconnect again.
     const wasExplicitlyDisconnected = (() => {
-      try { return localStorage.getItem('nfeglobal_disconnected') === '1'; } catch(e) { return false; }
+      try { return localStorage.getItem('aipcore_disconnected') === '1'; } catch(e) { return false; }
     })();
     if (wasExplicitlyDisconnected) {
       disconnect(); // re-disconnect wagmi so it clears its own saved state
@@ -296,7 +286,7 @@ export const useWalletLifecycle = () => {
     }
 
     // Clear the flag on a genuine user-initiated connect
-    try { localStorage.removeItem('nfeglobal_disconnected'); } catch(e) {}
+    try { localStorage.removeItem('aipcore_disconnected'); } catch(e) {}
 
     // Set wallet first (synchronous)
     setWallet(address);

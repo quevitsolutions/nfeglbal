@@ -52,7 +52,7 @@ jobs:
       - name: Build React/Vite Frontend
         run: npm run build
         env:
-          VITE_API_URL: "https://api.nfeglobal.online"
+          VITE_API_URL: "https://api.aipcore.online"
           VITE_PROJECT_ID: "nfe-global-web3"
           VITE_BSC_MAINNET_RPC: "https://bsc-dataseed.binance.org/"
 

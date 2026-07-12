@@ -1413,7 +1413,7 @@ export default function FrogCaseScreen() {
 
   const handleInvite = () => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp?.openTelegramLink) {
-      window.Telegram.WebApp.openTelegramLink('https://t.me/share/url?url=https://t.me/NFEGlobalBot');
+      window.Telegram.WebApp.openTelegramLink('https://t.me/share/url?url=https://t.me/AIPCoreBot');
     } else {
       toast.success('Share link copied to clipboard!');
     }

@@ -3,7 +3,7 @@ const { ethers } = require("hardhat");
 
 async function main() {
   const coreAddr = "0x89C394B2f7d35F9e798d881DD05a6Acfa42107D7";
-  const core = await ethers.getContractAt("nfeglobal", coreAddr);
+  const core = await ethers.getContractAt("aipcore", coreAddr);
   
   const rewardPool = await core.rewardPool();
   console.log("Current rewardPool set in Core:", rewardPool);

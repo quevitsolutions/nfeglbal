@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { api } from "../services/api.js";
+import axios from "axios";
 
 const DEMO_TAP_LIMIT = 20;
 const MAX_ENERGY = 500;
@@ -75,6 +76,15 @@ export const useGameStore = create(
       activatedRefs: 0,
       claimedMilestones: [],
 
+      // V2 Hybrid Upgrade Vault
+      withdrawableBalance: 0,
+      upgradeVaultBalance: 0,
+      lifetimeRewards: 0,
+      lifetimeVaultDeposits: 0,
+      lifetimeVaultUsed: 0,
+      dailyUpgradeCount: 0,
+      vaultHistory: [],
+
       // Streak
       streak: 0,
       lastClaimDate: null,
@@ -135,7 +145,7 @@ export const useGameStore = create(
           bnbBalance: "0.00",
           ...RESET_STATE
         });
-        localStorage.removeItem("nfeglobal-game-state");
+        localStorage.removeItem("aipcore-game-state");
       },
 
       setProcessing: (isProcessing, processingLabel = "") =>
@@ -304,19 +314,53 @@ export const useGameStore = create(
         try {
           const { blockchain } = await import("../services/blockchain.js");
           const data = await blockchain.getFullDashboardData(walletAddress);
+
+          let backendData = null;
+          try {
+            const res = await axios.get(`/api/users/profile/${walletAddress}`);
+            backendData = res.data;
+          } catch (e) {
+            console.warn("Backend profile fetch failed:", e.message);
+          }
           
           if (data && (data.hasNode || data.isFreeActive)) {
+            const rawTier = data.tier !== undefined ? Number(data.tier) : 0;
+            const tier = backendData && backendData.nodeTier !== undefined ? backendData.nodeTier : rawTier;
+            const isActive = data.nodeId && Number(data.nodeId) > 0;
+            const hasNode = isActive && tier > 0;
+            
+            const baseRate = hasNode ? 100 : BASE_MINING_RATE;
+            const newMiningRate = hasNode 
+              ? Math.round(baseRate * Math.pow(1.2, Math.max(0, tier - 1)))
+              : BASE_MINING_RATE;
+            
+            const newMaxEnergy  = 500 + Math.max(0, tier - 1) * 200;
+
             set({
               hasNode: data.hasNode,
               isFreeActive: data.isFreeActive,
               nodeId: data.nodeId,
-              nodeTier: data.tier,
+              nodeTier: tier,
               nodeActive: data.nodeActive,
+              miningRate: newMiningRate,
+              maxEnergy: newMaxEnergy,
+              energy: Math.min(newMaxEnergy, get().energy),
+              isLocked: !isActive,
+              demoTaps: 0,
               directRefs: data.directRefs,
               teamSize: data.teamSize,
-              totalEarned: data.totalEarned,
+              totalEarned: backendData ? (backendData.lifetime_rewards + backendData.withdrawable_balance) : data.totalEarned,
               pendingReward: data.pendingReward,
               poolClaimable: data.poolClaimable,
+
+              // V2 Upgrade Vault Account Values
+              withdrawableBalance: backendData ? backendData.withdrawable_balance : 0,
+              upgradeVaultBalance: backendData ? backendData.upgrade_vault_balance : 0,
+              lifetimeRewards: backendData ? backendData.lifetime_rewards : 0,
+              lifetimeVaultDeposits: backendData ? backendData.lifetime_vault_deposits : 0,
+              lifetimeVaultUsed: backendData ? backendData.lifetime_vault_used : 0,
+              dailyUpgradeCount: backendData ? backendData.daily_upgrade_count : 0,
+
               poolQual: {
                 poolName: data.poolName,
                 totalDeposited: data.totalDeposited,
@@ -446,14 +490,20 @@ export const useGameStore = create(
         try {
           const { blockchain } = await import("../services/blockchain.js");
           const price = await blockchain._getNativeUsdPrice();
-          const rawStats = await blockchain.core.getConfig().catch(() => null);
+          const [rawStats, freeUsers, freeUpgraded] = await Promise.all([
+            blockchain.core.getConfig().catch(() => null),
+            blockchain.core.totalFreeUsers().catch(() => 0n),
+            blockchain.core.totalFreeUpgraded().catch(() => 0n)
+          ]);
           
           if (rawStats) {
             set({
               globalStats: {
                 total_users: Number(rawStats[1] || 0),
                 total_volume_bnb: 0, // contract doesn't track cumulative bnbVolume, handled on frontend via view calls
-                active_nodes: Number(rawStats[1] || 0)
+                active_nodes: Number(rawStats[1] || 0),
+                total_free_users: Number(freeUsers || 0),
+                total_free_upgraded: Number(freeUpgraded || 0)
               }
             });
           }
@@ -508,6 +558,36 @@ export const useGameStore = create(
         set({ globalHistory: [] });
       },
 
+      withdrawBalance: async () => {
+        const { walletAddress } = get();
+        if (!walletAddress) return false;
+        try {
+          const res = await axios.post("/api/users/withdraw", { walletAddress });
+          if (res.data && res.data.success) {
+            await get().fetchUserData();
+            await get().fetchVaultHistory();
+            return true;
+          }
+          return false;
+        } catch (err) {
+          console.warn("Withdrawal request failed:", err.message);
+          return false;
+        }
+      },
+
+      fetchVaultHistory: async () => {
+        const { walletAddress } = get();
+        if (!walletAddress) return;
+        try {
+          const res = await axios.get(`/api/users/vault/history/${walletAddress}`);
+          if (res.data && res.data.success) {
+            set({ vaultHistory: res.data.data || [] });
+          }
+        } catch (err) {
+          console.warn("Fetch vault history failed:", err.message);
+        }
+      },
+
       reset: () =>
         set({
           taps: 0,
@@ -520,7 +600,7 @@ export const useGameStore = create(
         }),
     }),
     {
-      name: "nfeglobal-game-state",
+      name: "aipcore-game-state",
       version: 2,
       partialize: (s) => ({
         walletAddress: s.walletAddress,

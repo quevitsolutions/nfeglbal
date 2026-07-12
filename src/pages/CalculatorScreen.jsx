@@ -4,7 +4,7 @@ import { useGameStore } from '../store/gameStore.js';
 import { useNativePrice } from '../hooks/useNativePrice.js';
 import { ethers } from 'ethers';
 import { CONTRACTS, RPC_NODES } from '../config/constants.js';
-import { NFEGLOBAL_ABI } from '../config/abi.js';
+import { AIPCORE_ABI } from '../config/abi.js';
 
 const TIER_USD_COSTS = [5, 5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480, 40960, 81920, 163840, 327680];
 
@@ -24,7 +24,7 @@ export default function CalculatorScreen() {
     const fetchContractCosts = async () => {
       try {
         const provider = new ethers.JsonRpcProvider(RPC_NODES[0]);
-        const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, provider);
+        const core = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, provider);
         const costsRaw = await core.getTierCosts().catch(() => null);
         if (costsRaw) {
           setTierCostsBnb(costsRaw.map(c => parseFloat(ethers.formatEther(c))));
@@ -95,7 +95,7 @@ export default function CalculatorScreen() {
   };
 
   return (
-    <div className="page page-calculator" style={{ paddingBottom: '120px' }}>
+    <div className="sub-page page-calculator" style={{ paddingBottom: '20px' }}>
       {/* Header */}
       <div style={{ textAlign: 'center', padding: '10px 0 24px' }}>
         <h2 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '6px' }}>NETWORK CALCULATOR</h2>

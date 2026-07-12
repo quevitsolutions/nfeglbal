@@ -5,7 +5,7 @@ import { useGameStore } from '../store/gameStore.js';
 export default function DynamicPortal() {
   const { isSyncing, isProcessing, processingLabel } = useGameStore();
   
-  const isActive = isSyncing || isProcessing;
+  const isActive = false;
   const label = isProcessing ? processingLabel : (isSyncing ? "Syncing Network..." : "");
 
   return (

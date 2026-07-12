@@ -1,10 +1,10 @@
 import { ethers } from "ethers";
 import { CONTRACTS, RPC_NODES } from "../src/config/constants.js";
-import { NFEGLOBAL_ABI } from "../contracts/abi.js";
+import { AIPCORE_ABI } from "../contracts/abi.js";
 
 async function main() {
   const provider = new ethers.JsonRpcProvider(RPC_NODES[0]);
-  const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, provider);
+  const core = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, provider);
   
   const nodeId = 55560;
   const toTier = 2;
@@ -18,7 +18,7 @@ async function main() {
     
     // Use callStatic / staticCall
     const result = await provider.call({
-      to: CONTRACTS.NFEGLOBAL,
+      to: CONTRACTS.AIPCORE,
       from: userAddress,
       data: core.interface.encodeFunctionData("unlockTier", [nodeId, toTier]),
       value: cost

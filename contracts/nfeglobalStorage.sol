@@ -126,6 +126,10 @@ abstract contract nfeglobalStorage is ReentrancyGuard {
     mapping(uint256 => uint256) public treasuryBalance;
     uint256 public totalTreasuryBalance;
     uint256 public totalPendingRewards;
+    mapping(uint256 => Infeglobal.AccountBalance) public accountBalances;
+    // Reserved for future qualification-engine upgrades.
+    // Not used by treasury-based progression.
+    mapping(uint256 => mapping(uint8 => uint256)) public tierVault;
     address public owner;
 
     // Configurable treasury queue batch processing size (appended at the end to preserve upgrade storage layout)
@@ -159,6 +163,9 @@ abstract contract nfeglobalStorage is ReentrancyGuard {
     // FounderPool and LeaderboardPool for V3 bonus ecosystem
     address public founderPool;
     address public leaderboardPool;
+
+    // Queue safety upgrade block mapping
+    mapping(uint256 => uint40) public lastUpgradeBlock;
 
     event FounderPoolUpdated(address indexed oldFP, address indexed newFP);
     event LeaderboardPoolUpdated(address indexed oldLP, address indexed newLP);
@@ -226,6 +233,11 @@ abstract contract nfeglobalStorage is ReentrancyGuard {
     event Tier18TreasuryReleased(
         uint indexed nodeId,
         uint amount
+    );
+    event UpgradeReady(
+        uint indexed nodeId,
+        uint tier,
+        uint treasury
     );
 
     function _checkOwner() internal view {

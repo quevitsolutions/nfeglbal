@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import NFEGlobalDAOScreen from './NFEGlobalDAOScreen.jsx';
-import NFEGlobalAcademyScreen from './NFEGlobalAcademyScreen.jsx';
+import AIPCoreDAOScreen from './AIPCoreDAOScreen.jsx';
+import AIPCoreAcademyScreen from './AIPCoreAcademyScreen.jsx';
 import TaskScreen from './TaskScreen.jsx';
 import EventsScreen from './EventsScreen.jsx';
-import NFEGlobalAIHostScreen from './NFEGlobalAIHostScreen.jsx';
+import AIPCoreAIHostScreen from './AIPCoreAIHostScreen.jsx';
 
 const ACADEMY_SUB_TABS = [
   { id: 'dao',      icon: '🏛️', label: 'Governance' },
@@ -21,7 +21,7 @@ export default function AcademyHubScreen() {
     <div className="hub-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {/* ═ SUB NAVIGATION BAR ═ */}
       <div className="hub-subnav-container" style={{
-        padding: '12px 16px',
+        padding: '12px 16px 12px',
         background: 'rgba(5, 8, 15, 0.6)',
         backdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
@@ -61,7 +61,7 @@ export default function AcademyHubScreen() {
       </div>
 
       {/* ═ SUB TAB CONTENT ═ */}
-      <div className="hub-content" style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+      <div className="hub-content" style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 100px' }}>
         <AnimatePresence mode="wait">
           <motion.div
             key={subTab}
@@ -71,11 +71,11 @@ export default function AcademyHubScreen() {
             transition={{ duration: 0.15 }}
             style={{ width: '100%' }}
           >
-            {subTab === 'dao'     && <NFEGlobalDAOScreen />}
-            {subTab === 'academy' && <NFEGlobalAcademyScreen />}
+            {subTab === 'dao'     && <AIPCoreDAOScreen />}
+            {subTab === 'academy' && <AIPCoreAcademyScreen />}
             {subTab === 'tasks'   && <TaskScreen />}
             {subTab === 'events'  && <EventsScreen />}
-            {subTab === 'aihost'  && <NFEGlobalAIHostScreen />}
+            {subTab === 'aihost'  && <AIPCoreAIHostScreen />}
           </motion.div>
         </AnimatePresence>
       </div>

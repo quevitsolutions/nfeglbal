@@ -55,7 +55,7 @@ async function main() {
     }
   }
 
-  const coreAddr = deployment.contracts.nfeglobal;
+  const coreAddr = deployment.contracts.aipcore;
   const poolAddr = deployment.contracts.RewardPool;
   const feeReceiver = process.env.FEE_RECEIVER_ADDRESS;
   const ownerAddr = process.env.OWNER_ADDRESS || deployment.deployer;
@@ -72,12 +72,12 @@ async function main() {
   console.log("");
 
   // Attach core and pool contracts
-  const core = await hre.ethers.getContractAt("nfeglobal", coreAddr);
+  const core = await hre.ethers.getContractAt("aipcore", coreAddr);
   const pool = await hre.ethers.getContractAt("RewardPool", poolAddr);
 
-  // 1. Deploy NFEGlobalViewsContract
-  process.stdout.write("1/7 Deploying NFEGlobalViewsContract... ");
-  const ViewsContractFactory = await hre.ethers.getContractFactory("NFEGlobalViewsContract");
+  // 1. Deploy AIPCoreViewsContract
+  process.stdout.write("1/7 Deploying AIPCoreViewsContract... ");
+  const ViewsContractFactory = await hre.ethers.getContractFactory("AIPCoreViewsContract");
   const viewsContract = await callWithRetry(ov => ViewsContractFactory.deploy(ov));
   await viewsContract.waitForDeployment();
   const viewsContractAddr = await viewsContract.getAddress();
@@ -231,8 +231,28 @@ async function main() {
   if (ownerAddr.toLowerCase() !== deployer.address.toLowerCase()) {
     console.log("\n👑 Transferring ownerships to final owner...");
 
+    process.stdout.write("  - aipcore Core... ");
+    tx = await callWithRetry(ov => core.transferOwnership(ownerAddr, ov));
+    await tx.wait();
+    console.log("✅");
+
+    process.stdout.write("  - RewardPool... ");
+    tx = await callWithRetry(ov => pool.transferOwnership(ownerAddr, ov));
+    await tx.wait();
+    console.log("✅");
+
     process.stdout.write("  - RewardPoolLeadership... ");
     tx = await callWithRetry(ov => leadership.transferOwnership(ownerAddr, ov));
+    await tx.wait();
+    console.log("✅");
+
+    process.stdout.write("  - FounderPool... ");
+    tx = await callWithRetry(ov => founderPool.transferOwnership(ownerAddr, ov));
+    await tx.wait();
+    console.log("✅");
+
+    process.stdout.write("  - LeaderboardPool... ");
+    tx = await callWithRetry(ov => leaderboardPool.transferOwnership(ownerAddr, ov));
     await tx.wait();
     console.log("✅");
 
@@ -253,7 +273,7 @@ async function main() {
   }
 
   // ── Save deployment info ──────────────────────────────────────────────────
-  deployment.contracts.NFEGlobalViewsContract = viewsContractAddr;
+  deployment.contracts.AIPCoreViewsContract = viewsContractAddr;
   deployment.contracts.RewardPoolLeadership = leadershipAddr;
   deployment.contracts.FounderPool = founderPoolAddr;
   deployment.contracts.LeaderboardPool = leaderboardPoolAddr;

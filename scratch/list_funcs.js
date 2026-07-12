@@ -1,5 +1,5 @@
 const fs = require('fs');
-const content = fs.readFileSync('hardhat/contracts/nfeglobal.sol', 'utf8');
+const content = fs.readFileSync('hardhat/contracts/aipcore.sol', 'utf8');
 const lines = content.split('\n');
 lines.forEach((line, index) => {
     if (line.includes('function ') && !line.includes('//')) {

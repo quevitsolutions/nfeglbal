@@ -19,8 +19,8 @@ const PHASES = [
     items: [
       { text: 'Virtual Lobby & Hall (Metaverse UI)', done: true },
       { text: 'AI Host avatar integration', done: true },
-      { text: 'NFEGlobal Academy — education platform', done: true },
-      { text: 'NFEGlobal DAO governance portal', done: false },
+      { text: 'AIPCore Academy — education platform', done: true },
+      { text: 'AIPCore DAO governance portal', done: false },
       { text: 'Telegram Mini-App launch', done: true },
       { text: 'Community live events system', done: false },
     ]
@@ -28,21 +28,21 @@ const PHASES = [
   {
     phase: 'Phase 3', label: 'Expansion', status: 'upcoming', color: '#FF6BFF',
     items: [
-      { text: 'NFEGlobal Token DEX listing', done: false },
+      { text: 'AIPCore Token DEX listing', done: false },
       { text: 'NFT identity & avatar system', done: false },
       { text: 'Cross-chain bridge (ETH / Polygon)', done: false },
       { text: 'Mobile native app (iOS & Android)', done: false },
-      { text: 'NFEGlobal Core DAO full governance', done: false },
+      { text: 'AIPCore Core DAO full governance', done: false },
       { text: 'Global Marketing & Partnership Drive', done: false },
     ]
   },
   {
     phase: 'Phase 4', label: 'Ecosystem', status: 'upcoming', color: '#FF9F43',
     items: [
-      { text: 'NFEGlobal Pay — merchant payment gateway', done: false },
+      { text: 'AIPCore Pay — merchant payment gateway', done: false },
       { text: 'AI-powered trading signals module', done: false },
       { text: 'Decentralized identity (DID) system', done: false },
-      { text: 'NFEGlobal Core API for third-party integration', done: false },
+      { text: 'AIPCore Core API for third-party integration', done: false },
       { text: 'Web3 social graph protocol', done: false },
       { text: 'Enterprise partnership programme', done: false },
     ]
@@ -70,7 +70,7 @@ export default function RoadmapPage() {
             <div className="section-label">🗺️ ROADMAP</div>
             <h1 className="section-title">Building the<br /><span style={{ color: 'var(--neon-cyan)' }}>Decentralized Future</span></h1>
             <p className="section-desc" style={{ margin: '0 auto' }}>
-              NFEGlobal Core's development roadmap: from smart contract foundation to a full AI-powered Web3 ecosystem.
+              AIPCore Core's development roadmap: from smart contract foundation to a full AI-powered Web3 ecosystem.
             </p>
           </motion.div>
         </div>

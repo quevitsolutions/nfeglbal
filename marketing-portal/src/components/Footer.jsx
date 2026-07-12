@@ -6,12 +6,12 @@ const FOOTER_LINKS = {
     { label: 'Features',   to: '/features' },
     { label: 'Earnings',   to: '/earnings' },
     { label: 'Roadmap',    to: '/roadmap' },
-    { label: 'Launch App', href: 'https://nfeglobal.online' },
+    { label: 'Launch App', href: 'https://aipcore.online' },
   ],
   'Community': [
-    { label: 'Telegram Channel', href: 'https://t.me/nfeglobal' },
-    { label: 'Telegram Group',   href: 'https://t.me/nfeglobalchat' },
-    { label: 'Twitter / X',      href: 'https://twitter.com/nfeglobal' },
+    { label: 'Telegram Channel', href: 'https://t.me/aipcore' },
+    { label: 'Telegram Group',   href: 'https://t.me/aipcorechat' },
+    { label: 'Twitter / X',      href: 'https://twitter.com/aipcore' },
   ],
   'Resources': [
     { label: 'Press Kit',     to: '/press' },
@@ -40,7 +40,7 @@ export default function Footer() {
                 fontWeight: 900, fontSize: 18, color: '#000'
               }}>A</div>
               <span style={{ fontWeight: 900, fontSize: 20, letterSpacing: -0.5 }}>
-                NFEGlobal <span style={{ color: 'var(--neon-lime)' }}>CORE</span>
+                AIPCore <span style={{ color: 'var(--neon-lime)' }}>CORE</span>
               </span>
             </div>
             <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.7, maxWidth: 280, fontWeight: 500, marginBottom: 24 }}>
@@ -50,9 +50,9 @@ export default function Footer() {
             {/* Social icons */}
             <div style={{ display: 'flex', gap: 12 }}>
               {[
-                { icon: <Send size={16} />, href: 'https://t.me/nfeglobal', label: 'Telegram' },
-                { icon: <Twitter size={16} />, href: 'https://twitter.com/nfeglobal', label: 'Twitter' },
-                { icon: <Globe size={16} />, href: 'https://nfeglobal.online', label: 'Website' },
+                { icon: <Send size={16} />, href: 'https://t.me/aipcore', label: 'Telegram' },
+                { icon: <Twitter size={16} />, href: 'https://twitter.com/aipcore', label: 'Twitter' },
+                { icon: <Globe size={16} />, href: 'https://aipcore.online', label: 'Website' },
               ].map(s => (
                 <a key={s.label} href={s.href} target="_blank" rel="noreferrer" aria-label={s.label}
                   style={{
@@ -108,7 +108,7 @@ export default function Footer() {
           flexWrap: 'wrap', gap: 12
         }}>
           <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>
-            © 2025 NFEGlobal Core Protocol. All rights reserved. Built on BNB Smart Chain.
+            © 2025 AIPCore Core Protocol. All rights reserved. Built on BNB Smart Chain.
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <span className="badge" style={{ background: 'rgba(203,255,1,0.08)', color: 'var(--neon-lime)', border: '1px solid rgba(203,255,1,0.2)' }}>

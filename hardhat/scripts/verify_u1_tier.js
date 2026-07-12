@@ -11,12 +11,12 @@ async function main() {
   await oracle.waitForDeployment();
   await oracle.setPrice(500n * 100000000n);
 
-  const ViewsFactory = await hre.ethers.getContractFactory("nfeglobalViews");
+  const ViewsFactory = await hre.ethers.getContractFactory("aipcoreViews");
   const views = await ViewsFactory.deploy();
   await views.waitForDeployment();
 
-  const CoreFactory = await hre.ethers.getContractFactory("nfeglobal", {
-    libraries: { nfeglobalViews: await views.getAddress() },
+  const CoreFactory = await hre.ethers.getContractFactory("aipcore", {
+    libraries: { aipcoreViews: await views.getAddress() },
   });
   const core = await CoreFactory.deploy(
     owner.address, owner.address, hre.ethers.ZeroAddress, owner.address, owner.address, owner.address

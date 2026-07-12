@@ -13,19 +13,19 @@ async function main() {
   const oracleAddress = await oracle.getAddress();
   console.log("BNBPriceOracle deployed to:", oracleAddress);
 
-  // 2. Deploy nfeglobalViews Library
-  console.log("Deploying nfeglobalViews Library...");
-  const nfeglobalViews = await hre.ethers.getContractFactory("nfeglobalViews");
-  const views = await nfeglobalViews.deploy();
+  // 2. Deploy aipcoreViews Library
+  console.log("Deploying aipcoreViews Library...");
+  const aipcoreViews = await hre.ethers.getContractFactory("aipcoreViews");
+  const views = await aipcoreViews.deploy();
   await views.waitForDeployment();
   const viewsAddress = await views.getAddress();
-  console.log("nfeglobalViews deployed to:", viewsAddress);
+  console.log("aipcoreViews deployed to:", viewsAddress);
 
-  // 3. Deploy nfeglobal (NFEGlobal) with nfeglobalViews linked
-  console.log("Deploying nfeglobal (NFEGlobal)...");
-  const nfeglobal = await hre.ethers.getContractFactory("nfeglobal", {
+  // 3. Deploy aipcore (AIPCore) with aipcoreViews linked
+  console.log("Deploying aipcore (AIPCore)...");
+  const aipcore = await hre.ethers.getContractFactory("aipcore", {
     libraries: {
-      nfeglobalViews: viewsAddress,
+      aipcoreViews: viewsAddress,
     },
   });
 
@@ -36,7 +36,7 @@ async function main() {
   const matrixAdmin = deployer.address;
 
   // Constructor requires 6 args: _firstUser, _feeReceiver, _rewardPool (address(0) initially), _owner, _oracleAdmin, _matrixAdmin
-  const core = await nfeglobal.deploy(
+  const core = await aipcore.deploy(
     firstUser,
     feeReceiver,
     hre.ethers.ZeroAddress, // Set RewardPool to zero initially
@@ -46,7 +46,7 @@ async function main() {
   );
   await core.waitForDeployment();
   const coreAddress = await core.getAddress();
-  console.log("nfeglobal deployed to:", coreAddress);
+  console.log("aipcore deployed to:", coreAddress);
 
   // 4. Deploy RewardPool
   console.log("Deploying RewardPool...");
@@ -62,13 +62,13 @@ async function main() {
   console.log("RewardPool deployed to:", poolAddress);
 
   // 5. Connect and Link Contracts
-  console.log("Linking RewardPool to nfeglobal...");
+  console.log("Linking RewardPool to aipcore...");
   // Call setAddr(1, poolAddress, 0)
   let tx = await core.setAddr(1, poolAddress, 0);
   await tx.wait();
   console.log("RewardPool linked successfully.");
 
-  console.log("Linking BNBPriceOracle to nfeglobal...");
+  console.log("Linking BNBPriceOracle to aipcore...");
   // Call setAddr(11, oracleAddress, 0)
   tx = await core.setAddr(11, oracleAddress, 0);
   await tx.wait();
@@ -76,8 +76,8 @@ async function main() {
 
   console.log("\n=================== DEPLOYMENT SUMMARY ===================");
   console.log("BNBPriceOracle:     ", oracleAddress);
-  console.log("nfeglobalViews Library:   ", viewsAddress);
-  console.log("nfeglobal (NFEGlobal):", coreAddress);
+  console.log("aipcoreViews Library:   ", viewsAddress);
+  console.log("aipcore (AIPCore):", coreAddress);
   console.log("RewardPool:         ", poolAddress);
   console.log("==========================================================\n");
 }

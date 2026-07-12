@@ -5,18 +5,18 @@ async function main() {
   console.log("Estimating deployment gas on network:", hre.network.name);
   console.log("Deployer address:", deployer.address);
 
-  // 1. nfeglobalViews
-  const ViewsFactory = await hre.ethers.getContractFactory("nfeglobalViews");
+  // 1. aipcoreViews
+  const ViewsFactory = await hre.ethers.getContractFactory("aipcoreViews");
   const viewsDeployTx = await ViewsFactory.getDeployTransaction();
   const viewsGas = await deployer.provider.estimateGas(viewsDeployTx);
-  console.log(`- nfeglobalViews: ${viewsGas.toString()} gas`);
+  console.log(`- aipcoreViews: ${viewsGas.toString()} gas`);
 
   // We mock a dummy views address to estimate Core deployment
   const mockViewsAddr = "0xeb5C38B2dD7F6c6F0641E605C7AE5a47AF9E31b7";
 
-  // 2. nfeglobal (Core Engine)
-  const CoreFactory = await hre.ethers.getContractFactory("nfeglobal", {
-    libraries: { nfeglobalViews: mockViewsAddr },
+  // 2. aipcore (Core Engine)
+  const CoreFactory = await hre.ethers.getContractFactory("aipcore", {
+    libraries: { aipcoreViews: mockViewsAddr },
   });
   const coreDeployTx = await CoreFactory.getDeployTransaction(
     deployer.address,       // _firstUser (Genesis)
@@ -27,7 +27,7 @@ async function main() {
     deployer.address        // _matrixAdmin
   );
   const coreGas = await deployer.provider.estimateGas(coreDeployTx);
-  console.log(`- nfeglobal Core: ${coreGas.toString()} gas`);
+  console.log(`- aipcore Core: ${coreGas.toString()} gas`);
 
   // We mock a dummy core address to estimate RewardPool & Governance
   const mockCoreAddr = "0xda0d24aAd1685F59614c1a347826fA1100aBd9F6";

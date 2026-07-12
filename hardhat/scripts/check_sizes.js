@@ -2,9 +2,9 @@ const hre = require("hardhat");
 
 async function main() {
   const contracts = [
-    { name: "nfeglobal", file: "nfeglobal.sol/nfeglobal.json" },
-    { name: "NFEGlobalViewsContract", file: "nfeglobalViews.sol/NFEGlobalViewsContract.json" },
-    { name: "nfeglobalViews (Library)", file: "nfeglobalViews.sol/nfeglobalViews.json" },
+    { name: "aipcore", file: "aipcore.sol/aipcore.json" },
+    { name: "AIPCoreViewsContract", file: "aipcoreViews.sol/AIPCoreViewsContract.json" },
+    { name: "aipcoreViews (Library)", file: "aipcoreViews.sol/aipcoreViews.json" },
     { name: "RewardPool", file: "RewardPool.sol/RewardPool.json" },
     { name: "BNBPriceOracle", file: "BNBPriceOracle.sol/BNBPriceOracle.json" }
   ];

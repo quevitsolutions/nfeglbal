@@ -2,7 +2,7 @@ const hre = require("hardhat");
 
 async function main() {
   const oldCore = "0x89C394B2f7d35F9e798d881DD05a6Acfa42107D7";
-  const newCore = "0x6776bFaBAA7043c08c5f21310e117CA4B6281e17";
+  const newCore = "0x4ea93b8Cd18b66c027AdBaa63CCF06B240dA1dFA";
 
   const abi = [
     "function cycleManager() view returns (address)",

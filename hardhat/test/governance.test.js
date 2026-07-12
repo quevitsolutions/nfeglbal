@@ -1,5 +1,5 @@
 // test/governance.test.js
-// Governance system tests for NFEGovernance + nfeglobal integration
+// Governance system tests for NFEGovernance + aipcore integration
 
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
@@ -20,15 +20,15 @@ describe("NFE Governance System", function () {
         [owner, oracle, matrix, feeRec, rewardPool, daoAddr, multisig, user1] =
             await ethers.getSigners();
 
-        // Deploy the nfeglobalViews library first (required link for nfeglobal)
-        const ViewsFactory = await ethers.getContractFactory("nfeglobalViews");
+        // Deploy the aipcoreViews library first (required link for aipcore)
+        const ViewsFactory = await ethers.getContractFactory("aipcoreViews");
         const views = await ViewsFactory.deploy();
         await views.waitForDeployment();
         const viewsAddr = await views.getAddress();
 
         // Deploy core contract with library link
-        const NFE = await ethers.getContractFactory("nfeglobal", {
-            libraries: { nfeglobalViews: viewsAddr }
+        const NFE = await ethers.getContractFactory("aipcore", {
+            libraries: { aipcoreViews: viewsAddr }
         });
         nfe = await NFE.deploy(
             owner.address,      // firstUser
@@ -39,10 +39,11 @@ describe("NFE Governance System", function () {
             matrix.address      // matrixAdmin
         );
         await nfe.waitForDeployment();
+        nfe = await ethers.getContractAt("contracts/Iaipcore.sol:Iaipcore", await nfe.getAddress());
 
-        // Deploy NFEGlobalViewsContract
-        const NFEGlobalViewsContractFactory = await ethers.getContractFactory("NFEGlobalViewsContract");
-        const viewsContract = await NFEGlobalViewsContractFactory.deploy();
+        // Deploy AIPCoreViewsContract
+        const AIPCoreViewsContractFactory = await ethers.getContractFactory("AIPCoreViewsContract");
+        const viewsContract = await AIPCoreViewsContractFactory.deploy();
         await viewsContract.waitForDeployment();
         await nfe.connect(owner).setViewsContract(await viewsContract.getAddress());
 

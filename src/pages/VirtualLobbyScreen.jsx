@@ -16,15 +16,15 @@ const SPONSORS = [
     swag: { claimed: false, item: '0.005 BNB Gas Voucher', claimedIcon: '🎫' }
   },
   {
-    id: 'nfeglobal-nodes',
-    name: 'NFEGlobal Nodes & Mining',
+    id: 'aipcore-nodes',
+    name: 'AIPCore Nodes & Mining',
     logo: '⬡',
     color: '#A3FF12',
     avatar: '🤖',
-    desc: 'Decentralized mining network powering NFEGlobal Core AI moderator workflows.',
+    desc: 'Decentralized mining network powering AIPCore Core AI moderator workflows.',
     boards: ['Active Node Rewards', 'Node Upgrades', 'Community Share Pool'],
     links: [{ label: 'View Node Dashboard', url: '#' }],
-    swag: { claimed: false, item: 'NFEGlobal Commemorative Badge NFT', claimedIcon: '🏅' }
+    swag: { claimed: false, item: 'AIPCore Commemorative Badge NFT', claimedIcon: '🏅' }
   },
   {
     id: 'meta-nfts',
@@ -46,7 +46,7 @@ const SPONSORS = [
     desc: 'Non-custodial smart contract wallet provider powering secure dApp logins.',
     boards: ['RainbowKit SDK Connectors', 'Secure BNB Vaults', 'DAO Multi-sig Integrations'],
     links: [{ label: 'Developer SDK Docs', url: 'https://rainbowkit.com' }],
-    swag: { claimed: false, item: '100 $NFEGLOBAL Promo Tokens', claimedIcon: '🪙' }
+    swag: { claimed: false, item: '100 $AIPCORE Promo Tokens', claimedIcon: '🪙' }
   }
 ];
 
@@ -56,7 +56,7 @@ export default function VirtualLobbyScreen({ onBack, onNavigate }) {
   const [selectedBooth, setSelectedBooth] = useState(null);
   const [swagClaimed, setSwagClaimed] = useState({});
   const [spatialChat, setSpatialChat] = useState([
-    { user: '🤖 Receptionist', msg: 'Welcome to NFEGlobal Core Virtual Event Center! How can I assist you today?', isAI: true },
+    { user: '🤖 Receptionist', msg: 'Welcome to AIPCore Core Virtual Event Center! How can I assist you today?', isAI: true },
     { user: '🦁 0x8f2...', msg: 'Heading into the Exhibit Hall to claim my BNB vouchers!' },
     { user: '🐯 0xa91...', msg: 'The Binance booth has some great developer resource boards.' }
   ]);
@@ -94,7 +94,7 @@ export default function VirtualLobbyScreen({ onBack, onNavigate }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', fontSize: 18, width: 34, height: 34, borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 900, color: '#fff' }}>NFEGlobal Core Event Center</div>
+            <div style={{ fontSize: 13, fontWeight: 900, color: '#fff' }}>AIPCore Core Event Center</div>
             <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>Virtual Lobby & Expo</div>
           </div>
         </div>
@@ -136,7 +136,7 @@ export default function VirtualLobbyScreen({ onBack, onNavigate }) {
               backgroundSize: '20px 20px',
             }} />
             <div style={{ position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)', background: 'rgba(163,255,18,0.15)', border: '1px solid #A3FF12', borderRadius: 20, padding: '4px 16px', fontSize: 12, fontWeight: 900, color: '#A3FF12', letterSpacing: 2 }}>
-              WELCOME TO NFEGlobal CONVENTION CENTER
+              WELCOME TO AIPCore CONVENTION CENTER
             </div>
 
             <div style={{ position: 'relative', zIndex: 2 }}>

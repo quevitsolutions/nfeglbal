@@ -1,4 +1,4 @@
-export const NFEGLOBAL_ABI = [
+export const AIPCORE_ABI = [
   "function createNode(uint256 _sponsor) external payable",
   "function createNodeWithSponsorAddress(address _sponsorAddress, uint256 _sponsorOfSponsor) external payable",
   "function unlockTier(uint256 _nodeId, uint256 _toTier) external payable",
@@ -8,6 +8,8 @@ export const NFEGLOBAL_ABI = [
   "function getPendingUpgradeRewards(uint256 nodeId) view returns (uint256)",
   "function missedRewardsByTier(uint256 nodeId, uint256 tier) view returns (uint256)",
   "function nodes(uint256 nodeId) view returns (address wallet, uint88 nodeId_, uint256 sponsor, uint256 matrixParent, uint40 joinedAt, uint256 tier, uint256 directNodes, uint256 totalMatrixNodes, uint256 totalContribution)",
+  "function getNodeContribution(uint256 nodeId) view returns (uint256)",
+  "function getNodeTier(uint256 nodeId) view returns (uint256)",
   "function getTierCost(uint256 _index) view returns (uint256)",
   "function getTierCosts() view returns (uint256[18])",
   "function nativePrice() view returns (uint256)",
@@ -17,12 +19,20 @@ export const NFEGLOBAL_ABI = [
   "function getNodeStats(uint256 _userId) view returns (uint256 tier, uint256 directCount, uint256 matrixCount, uint256 totalRewards, uint256 totalContribution, uint256 daysActive)",
   "function getIncome(uint256 _nodeId, uint256 _length) view returns (tuple(uint256 id, uint256 layer, uint256 amount, uint256 time, bool isMissed, uint256 rewardType, uint256 tier)[])",
   "function getIncomeBreakdown(uint256 _nodeId) view returns (uint256 total, uint256 referral, uint256 tier, uint256 binary, uint256 direct, uint256 lost, uint256 poolIncome)",
+  "function totalFreeUsers() view returns (uint256)",
+  "function totalFreeUpgraded() view returns (uint256)",
   "function owner() view returns (address)",
+  "function selfUpgrade() external",
+  "function isFreeRegistered(uint256 nodeId) view returns (bool)",
+  "function isTreasuryNode(uint256 nodeId) view returns (bool)",
+  "function accountBalances(uint256 nodeId) view returns (uint256 withdrawableBalance, uint256 upgradeVaultBalance, uint256 lifetimeRewards, uint256 lifetimeVaultDeposits, uint256 lifetimeVaultUsed, uint256 lifetimeAutoUpgrades, uint256 lifetimeManualUpgrades, uint256 totalTreasuryGenerated)",
+  "function _nextId() view returns (uint256)",
+  "function isFreeRegistered(uint256 nodeId) view returns (bool)",
   "event NodeCreated(address indexed node, uint256 indexed userId, uint256 indexed referrerId, uint256 uplineId)",
   "event TierUnlocked(address indexed node, uint256 indexed userId, uint256 packageId)",
 ];
 
-export const NFEGLOBAL_VIEWS_ABI = [
+export const AIPCORE_VIEWS_ABI = [
   "function getNodeStats(uint256 nodeId) view returns (uint256 totalEarned, uint256 teamSize, uint256 directRefs, uint256 level)",
   "function getIncomeBreakdown(uint256 nodeId) view returns (uint256 direct, uint256 matrix, uint256 pool, uint256 pending)",
 ];

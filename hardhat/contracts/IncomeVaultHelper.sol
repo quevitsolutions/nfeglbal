@@ -92,10 +92,14 @@ contract IncomeVaultHelper is ReentrancyGuard, Ownable {
         require(msg.value > 0, "Zero amount");
 
         uint256 tier = Infeglobal(core).getUserLevel(nodeId);
-        if (tier == 0) {
-            tier = 1; // Safeguard fallback if tier is 0
+        uint256 releaseDays;
+        if (tier <= 2) {
+            releaseDays = 5;
+        } else if (tier >= 18) {
+            releaseDays = 90;
+        } else {
+            releaseDays = (tier - 1) * 5;
         }
-        uint256 releaseDays = tier * 5;
 
         userDeposits[nodeId].push(VestingDeposit({
             amount: msg.value,

@@ -7,7 +7,7 @@ const MODULES = [
   {
     id: 'live',
     icon: '🎙️',
-    name: 'NFEGlobal Live',
+    name: 'AIPCore Live',
     tag: 'LIVE NOW',
     tagColor: '#FF4444',
     desc: 'AI-hosted webinars & live income masterclasses',
@@ -19,7 +19,7 @@ const MODULES = [
   {
     id: 'academy',
     icon: '🎓',
-    name: 'NFEGlobal Academy',
+    name: 'AIPCore Academy',
     tag: 'LEARN',
     tagColor: '#4FC3F7',
     desc: 'AI-powered passive income courses & certifications',
@@ -31,7 +31,7 @@ const MODULES = [
   {
     id: 'dao',
     icon: '🏛️',
-    name: 'NFEGlobal DAO Hall',
+    name: 'AIPCore DAO Hall',
     tag: 'VOTE',
     tagColor: '#A3FF12',
     desc: 'Community governance, treasury & proposal voting',
@@ -43,7 +43,7 @@ const MODULES = [
   {
     id: 'rewards',
     icon: '🏆',
-    name: 'NFEGlobal Rewards Arena',
+    name: 'AIPCore Rewards Arena',
     tag: 'EARN',
     tagColor: '#FFD700',
     desc: 'BNB rewards, NFT badges & referral commissions',
@@ -55,7 +55,7 @@ const MODULES = [
   {
     id: 'community',
     icon: '🌐',
-    name: 'NFEGlobal Community Hub',
+    name: 'AIPCore Community Hub',
     tag: 'CONNECT',
     tagColor: '#CE93D8',
     desc: 'Networking lounges, sponsor booths & DAO rooms',
@@ -67,7 +67,7 @@ const MODULES = [
   {
     id: 'ai-host',
     icon: '🤖',
-    name: 'NFEGlobal AI Host',
+    name: 'AIPCore AI Host',
     tag: 'AI POWERED',
     tagColor: '#80CBC4',
     desc: 'AI presenter, moderator & 24/7 support agent',
@@ -79,15 +79,15 @@ const MODULES = [
   {
     id: 'marketing-portal',
     icon: '🚀',
-    name: 'NFEGlobal Marketing Portal',
+    name: 'AIPCore Marketing Portal',
     tag: 'PROMO',
     tagColor: '#CBFF01',
     desc: 'Standalone external portal for marketing and referrals',
     gradient: 'linear-gradient(135deg, #1B3300 0%, #CBFF01 100%)',
     glow: 'rgba(203,255,1,0.3)',
-    stat: 'Live at promo.nfeglobal.online',
+    stat: 'Live at promo.aipcore.online',
     statIcon: '🌐',
-    href: 'https://promo.nfeglobal.online'
+    href: 'https://promo.aipcore.online'
   },
 ];
 
@@ -181,7 +181,7 @@ export default function MetaverseScreen({ onNavigate }) {
             <span style={{ background: 'rgba(163,255,18,0.1)', color: '#A3FF12', fontSize: 9, fontWeight: 900, padding: '3px 8px', borderRadius: 20, border: '1px solid rgba(163,255,18,0.2)' }}>METAVERSE</span>
           </div>
           <h1 style={{ fontSize: 26, fontWeight: 900, lineHeight: 1.1, marginBottom: 6 }}>
-            NFEGlobal Core<br />
+            AIPCore Core<br />
             <span style={{ color: '#A3FF12' }}>MetaVerse</span>
           </h1>
           <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5, maxWidth: 260 }}>
@@ -341,9 +341,9 @@ export default function MetaverseScreen({ onNavigate }) {
         }}>
         <div style={{ fontSize: 36 }}>🤖</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 900, color: '#80CBC4', marginBottom: 3 }}>NFEGlobal AI Host is Online</div>
+          <div style={{ fontSize: 13, fontWeight: 900, color: '#80CBC4', marginBottom: 3 }}>AIPCore AI Host is Online</div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>
-            "Welcome to NFEGlobal Core MetaVerse! Today's masterclass on passive BNB income starts in 45 minutes."
+            "Welcome to AIPCore Core MetaVerse! Today's masterclass on passive BNB income starts in 45 minutes."
           </div>
         </div>
       </motion.div>

@@ -555,10 +555,14 @@ contract NFEVestingVault is IVestingVault {
      */
     function _getVestingSeconds(uint256 nodeId) internal view returns (uint256) {
         // Try to get node tier from core
-        try ICoreEngine(core).getNodeContribution(nodeId) returns (uint256) {
-            // We don't have tier directly, so we use defaultVestingDays
-            // Tier-aware vesting is applied via vestingDaysPerTier set by owner
-            return defaultVestingDays * 1 days;
+        try ICoreEngine(core).getNodeTier(nodeId) returns (uint256 tier) {
+            if (tier <= 2) {
+                return 5 * 1 days;
+            }
+            if (tier >= 18) {
+                return 90 * 1 days;
+            }
+            return (tier - 1) * 5 * 1 days;
         } catch {
             return defaultVestingDays * 1 days;
         }

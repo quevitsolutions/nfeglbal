@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,30 +10,36 @@ import LoginScreen from './components/LoginScreen.jsx';
 import TopBar from './components/TopBar.jsx';
 import TabBar from './components/TabBar.jsx';
 import CoreHubScreen from './pages/CoreHubScreen.jsx';
-import V3RewardsScreen from './pages/V3RewardsScreen.jsx';
-import AcademyHubScreen from './pages/AcademyHubScreen.jsx';
+import RegistrationModal from './components/RegistrationModal.jsx';
+// V3RewardsScreen and AcademyHubScreen hidden during pre-launch
+// import V3RewardsScreen from './pages/V3RewardsScreen.jsx';
+// import AcademyHubScreen from './pages/AcademyHubScreen.jsx';
+import PreLaunchScreen from './pages/PreLaunchScreen.jsx';
+import UpgradeScreen from './pages/UpgradeScreen.jsx';
+import LeaderboardScreen from './pages/LeaderboardScreen.jsx';
+import ProfileScreen from './pages/ProfileScreen.jsx';
 import AdminScreen from './pages/AdminScreen.jsx';
-import DynamicPortal from './components/DynamicPortal.jsx';
+import ClaimScreen from './pages/ClaimScreen.jsx';
 
-// Sidebar nav definition (desktop)
+
 const NAV_ITEMS = [
-  { id: 'core',    icon: '📊', label: 'Core Platform' },
-  { id: 'v3',      icon: '💎', label: 'V3 Rewards' },
-  { id: 'academy', icon: '📚', label: 'Academy & Info' }
+  { id: 'core',        icon: '🎮', label: 'Platform Hub' },
+  { id: 'prelaunch',   icon: '⭐', label: 'Pre-Launch Earn' },
+  { id: 'claim',       icon: '💰', label: 'Claim' },
+  { id: 'leaderboard', icon: '🏆', label: 'Leaderboard' },
+  { id: 'upgrade',     icon: '🛍️', label: 'Node Tiers' },
+  { id: 'profile',     icon: '👤', label: 'Profile' }
 ];
 
-function DesktopSidebar({ activeTab, setActiveTab, nodeId, nodeTier, isAdmin }) {
-  const tabs = [...NAV_ITEMS];
-  if (isAdmin) {
-    tabs.push({ id: 'admin', icon: '⚡', label: 'Master Admin' });
-  }
+function DesktopSidebar({ activeTab, setActiveTab, nodeId, nodeTier }) {
+  const tabs = [...NAV_ITEMS, { id: 'admin', icon: '⚡', label: 'Master Admin' }];
 
   return (
     <aside className="desktop-sidebar">
       <div className="sidebar-logo">
-        <div style={{ width: 32, height: 32, background: 'var(--neon-lime)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: '#000' }}>N</div>
+        <div style={{ width: 32, height: 32, background: 'var(--neon-lime)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: '#000' }}>A</div>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 900 }}>NFEGLOBAL <span style={{ fontSize: 9, color: 'var(--neon-lime)', opacity: 0.7 }}>PRO</span></div>
+          <div style={{ fontSize: 15, fontWeight: 900 }}>AIPCORE <span style={{ fontSize: 9, color: 'var(--neon-lime)', opacity: 0.7 }}>PRO</span></div>
           {nodeId && <div style={{ fontSize: 9, color: '#A3FF12', fontWeight: 700 }}>NODE #{nodeId} · T{nodeTier}</div>}
         </div>
       </div>
@@ -56,14 +62,17 @@ const TOAST_STYLE = {
 };
 
 export default function App() {
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+
   const {
     activeTab, setActiveTab,
-    isConnected, hasNode,
+    isConnected, hasNode, isFreeActive,
     rechargeEnergy,
     showNodePopup, showDailyPopup, lastClaimDate,
     setShowDailyPopup, setReferrerId,
     nodeId, nodeTier, isAdmin,
-    sponsorWallet, isNewUser
+    sponsorWallet, isNewUser,
+    walletAddress
   } = useGameStore();
 
   const { connectWallet, disconnectWallet } = useContract();
@@ -72,6 +81,8 @@ export default function App() {
 
   // Real-time chain event listener — pushes DB updates + toast notifications
   useChainEvents();
+
+
 
   // Initialize and expand Telegram WebApp if available
   useEffect(() => {
@@ -85,6 +96,25 @@ export default function App() {
     }
   }, []);
 
+  // Popup logic for un-activated wallets (guest operators)
+  useEffect(() => {
+    if (isConnected) {
+      if (hasNode || isFreeActive) {
+        setShowRegisterModal(false);
+      } else {
+        const t = setTimeout(() => {
+          const s = useGameStore.getState();
+          if (!s.hasNode && !s.isFreeActive) {
+            setShowRegisterModal(true);
+          }
+        }, 1500);
+        return () => clearTimeout(t);
+      }
+    } else {
+      setShowRegisterModal(false);
+    }
+  }, [isConnected, hasNode, isFreeActive]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
@@ -92,7 +122,7 @@ export default function App() {
     if (ref && /^(0x[a-fA-F0-9]{40}|\d+)$/i.test(ref)) {
       setReferrerId(ref);
       // Persist to localStorage immediately — survives MetaMask redirect & page reload
-      try { localStorage.setItem('nfeglobal_ref', ref); } catch(e) {}
+      try { localStorage.setItem('aipcore_ref', ref); } catch(e) {}
     }
   }, [setReferrerId]);
 
@@ -103,7 +133,7 @@ export default function App() {
     if (sponsorWallet) {
       setTimeout(() => {
         toast(
-          `🤝 Referred by ${shortAddr(sponsorWallet)} — Welcome to NFEGlobal!`,
+          `🤝 Referred by ${shortAddr(sponsorWallet)} — Welcome to AIPCore!`,
           {
             duration: 6000,
             icon: '🔗',
@@ -120,7 +150,7 @@ export default function App() {
     } else if (isNewUser) {
       setTimeout(() => {
         toast(
-          '🚀 Welcome to NFEGlobal! Start mining and invite friends to earn more.',
+          '🚀 Welcome to AIPCore! Start mining and invite friends to earn more.',
           { duration: 5000, icon: '⬡', style: { background: 'rgba(203,255,1,0.1)', border: '1px solid rgba(203,255,1,0.3)', color: '#fff', fontWeight: 800, fontSize: 13 } }
         );
       }, 1500);
@@ -155,7 +185,7 @@ export default function App() {
     const { fetchReferralData, fetchUserData, walletAddress } = useGameStore.getState();
     if (!walletAddress) return;
 
-    if (activeTab === 'core' || activeTab === 'v3' || activeTab === 'academy') {
+    if (['core', 'prelaunch', 'leaderboard', 'upgrade', 'profile'].includes(activeTab)) {
       useGameStore.setState({ lastBackendSync: null });
       fetchUserData().catch(() => {});
       fetchReferralData().catch(() => {});
@@ -165,7 +195,6 @@ export default function App() {
   if (!isConnected) {
     return (
       <div className="app-container">
-        <DynamicPortal />
         <LoginScreen onConnect={connectWallet} />
         <Toaster position="top-center" toastOptions={{ style: TOAST_STYLE }} />
       </div>
@@ -176,8 +205,8 @@ export default function App() {
 
   return (
     <div className="app-container">
-      <DynamicPortal />
       <Toaster position="top-center" toastOptions={{ style: TOAST_STYLE }} />
+      <RegistrationModal isOpen={showRegisterModal} onClose={() => setShowRegisterModal(false)} />
 
       {/* Desktop sidebar (hidden on mobile/tablet via CSS) */}
       <DesktopSidebar
@@ -192,16 +221,58 @@ export default function App() {
       <TopBar onConnect={connectWallet} onDisconnect={disconnectWallet} />
 
       {/* Main content area */}
-      <main className="page" style={{
-        paddingBottom: 'calc(var(--tabbar-h) + 20px)',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-        flex: 1,
-        minHeight: 0,
-        overflowY: 'auto',
-        WebkitOverflowScrolling: 'touch'
-      }}>
+      <main className="page">
+        {/* GLOBAL PRE-LAUNCH VIRAL BANNER */}
+        {isConnected && (
+          <div style={{
+            background: 'linear-gradient(90deg, rgba(163,255,18,0.12), rgba(255,199,44,0.12))',
+            borderBottom: '1px solid rgba(163,255,18,0.15)',
+            padding: '8px 16px',
+            textAlign: 'center',
+            fontSize: '11px',
+            fontWeight: 800,
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            flexWrap: 'wrap',
+            zIndex: 10,
+            marginBottom: '16px'
+          }}>
+            <span>🚀 PRE-LAUNCH FREE REGISTRATION ACTIVE ($0 instead of $0.70)</span>
+            <button 
+              onClick={() => {
+                const refToken = nodeId || walletAddress;
+                const inviteLink = walletAddress ? `${window.location.origin}/?ref=${refToken}` : '';
+                if (inviteLink) {
+                  navigator.clipboard.writeText(inviteLink).then(() => {
+                    toast.success('Your Referral Link Copied! 🔗', {
+                      style: { background: '#1A1F26', color: '#A3FF12', border: '1px solid rgba(163,255,18,0.2)' }
+                    });
+                  });
+                }
+              }}
+              style={{
+                background: 'var(--neon-lime)',
+                color: '#000',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '4px 10px',
+                fontSize: '10px',
+                fontWeight: 900,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontFamily: 'Outfit'
+              }}
+            >
+              📋 COPY SHARE LINK
+            </button>
+          </div>
+        )}
+
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -209,14 +280,20 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 'min-content' }}
+            style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
           >
-            {activeTab === 'core'    && <CoreHubScreen />}
-            {activeTab === 'v3'      && <V3RewardsScreen />}
-            {activeTab === 'academy' && <AcademyHubScreen />}
-            {activeTab === 'admin'   && <AdminScreen />}
+            {activeTab === 'core'        && <CoreHubScreen />}
+            {activeTab === 'prelaunch'   && <PreLaunchScreen />}
+            {activeTab === 'claim'       && <ClaimScreen />}
+            {activeTab === 'leaderboard' && <LeaderboardScreen />}
+            {activeTab === 'upgrade'     && <UpgradeScreen />}
+            {activeTab === 'profile'     && <ProfileScreen />}
+            {activeTab === 'admin'       && <AdminScreen />}
           </motion.div>
         </AnimatePresence>
+
+        {/* Scroll Spacer to prevent tabbar cut-off */}
+        <div style={{ height: 'calc(var(--tabbar-h) + 24px)', flexShrink: 0 }} />
       </main>
       <TabBar />
     </div>

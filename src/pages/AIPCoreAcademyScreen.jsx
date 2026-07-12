@@ -48,7 +48,7 @@ const CERTIFICATES = [
 
 const LEVEL_COLORS = { Beginner: '#A3FF12', Intermediate: '#FFD700', Advanced: '#FF6B6B' };
 
-export default function NFEGlobalAcademyScreen({ onBack }) {
+export default function AIPCoreAcademyScreen({ onBack }) {
   const { hasNode, nodeTier } = useGameStore();
   const [activeCategory, setActiveCategory] = useState('All');
   const [expandedCourse, setExpandedCourse] = useState(null);
@@ -57,8 +57,8 @@ export default function NFEGlobalAcademyScreen({ onBack }) {
   const filtered = activeCategory === 'All' ? COURSES : COURSES.filter(c => c.category === activeCategory);
 
   const handleEnroll = (course) => {
-    if (!hasNode) return toast.error('🔒 Activate your node to access NFEGlobal Academy', { duration: 4000 });
-    toast.success(`🎓 Enrolled in "${course.title}"! Complete to earn ${course.reward.toLocaleString()} $NFEGLOBAL`, { duration: 5000 });
+    if (!hasNode) return toast.error('🔒 Activate your node to access AIPCore Academy', { duration: 4000 });
+    toast.success(`🎓 Enrolled in "${course.title}"! Complete to earn ${course.reward.toLocaleString()} $AIPCORE`, { duration: 5000 });
   };
 
   return (
@@ -67,7 +67,7 @@ export default function NFEGlobalAcademyScreen({ onBack }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
         <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', fontSize: 18, width: 36, height: 36, borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 900 }}>🎓 NFEGlobal Academy</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 900 }}>🎓 AIPCore Academy</h1>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 1 }}>AI-Powered Courses & NFT Certifications</div>
         </div>
       </div>
@@ -79,7 +79,7 @@ export default function NFEGlobalAcademyScreen({ onBack }) {
         border: '1px solid rgba(79,195,247,0.3)',
         display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, textAlign: 'center',
       }}>
-        {[['48', 'Courses'], ['12,840', 'Learners'], ['$NFEGLOBAL', 'Rewards']].map(([val, label]) => (
+        {[['48', 'Courses'], ['12,840', 'Learners'], ['$AIPCORE', 'Rewards']].map(([val, label]) => (
           <div key={label}>
             <div style={{ fontSize: 18, fontWeight: 900, color: '#4FC3F7' }}>{val}</div>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>{label}</div>
@@ -152,7 +152,7 @@ export default function NFEGlobalAcademyScreen({ onBack }) {
                 <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.3)', transform: expandedCourse === course.id ? 'rotate(90deg)' : 'none', transition: '0.2s' }}>›</span>
               </div>
               <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-                <span style={{ background: 'rgba(163,255,18,0.1)', color: '#A3FF12', fontSize: 10, fontWeight: 900, padding: '4px 10px', borderRadius: 8 }}>+{course.reward.toLocaleString()} $NFEGLOBAL</span>
+                <span style={{ background: 'rgba(163,255,18,0.1)', color: '#A3FF12', fontSize: 10, fontWeight: 900, padding: '4px 10px', borderRadius: 8 }}>+{course.reward.toLocaleString()} $AIPCORE</span>
                 {course.nft && <span style={{ background: 'rgba(255,215,0,0.1)', color: '#FFD700', fontSize: 10, fontWeight: 900, padding: '4px 10px', borderRadius: 8 }}>🏅 {course.nft}</span>}
               </div>
             </div>

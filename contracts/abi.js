@@ -1,4 +1,4 @@
-export const NFEGLOBAL_ABI = [
+export const AIPCORE_ABI = [
   "function createNode(uint256 _sponsor) external payable",
   "function createNodeWithSponsorAddress(address _sponsorAddress, uint256 _sponsorOfSponsor) external payable",
   "function unlockTier(uint256 _nodeId, uint256 _toTier) external payable",
@@ -19,11 +19,13 @@ export const NFEGLOBAL_ABI = [
   "function getIncomeBreakdown(uint256 _nodeId) view returns (uint256 total, uint256 referral, uint256 tier, uint256 binary, uint256 direct, uint256 lost, uint256 poolIncome)",
   "function owner() view returns (address)",
   "function isFreeRegistered(uint256 nodeId) view returns (bool)",
+  "function totalFreeUsers() view returns (uint256)",
+  "function totalFreeUpgraded() view returns (uint256)",
   "event NodeCreated(address indexed node, uint256 indexed userId, uint256 indexed referrerId, uint256 uplineId)",
   "event TierUnlocked(address indexed node, uint256 indexed userId, uint256 packageId)",
 ];
 
-export const NFEGLOBAL_VIEWS_ABI = [
+export const AIPCORE_VIEWS_ABI = [
   "function getNodeStats(uint256 nodeId) view returns (uint256 totalEarned, uint256 teamSize, uint256 directRefs, uint256 level)",
   "function getIncomeBreakdown(uint256 nodeId) view returns (uint256 direct, uint256 matrix, uint256 pool, uint256 pending)",
   "function getLevelWiseTeamStats(uint256 _nodeId) view returns (uint256[10] freeUsers, uint256[10] paidUsers, uint256[10] teamSize, uint256[10] treasuryGenerated, uint256[10] treasuryUsed, uint256[10] conversions, uint256[10] rewardsDistributed)",

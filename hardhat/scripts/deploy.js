@@ -1,17 +1,17 @@
 const hre = require("hardhat");
 
 // ── RESUME CONFIG ────────────────────────────────────────────────────────────
-// nfeglobalViews library is immutable — reuse across deployments to save gas.
+// aipcoreViews library is immutable — reuse across deployments to save gas.
 const EXISTING_VIEWS = {
   bscTestnet: "0xeb5C38B2dD7F6c6F0641E605C7AE5a47AF9E31b7",
-  bsc: "0xD6d38f4a5eeCe3E605f6eA7aA42f23c562270411", // Resuming deployment
+  bsc: "", // Fresh deploy
   polygon: "0xFE9F449E74AA28ef832eCb1917266C68Ab6BEC70", // Reuse deployed library
 };
 
 // core engine contract can also be reused if deployment failed mid-way.
 const EXISTING_CORE = {
   bscTestnet: "",
-  bsc: "0x4ea93b8Cd18b66c027AdBaa63CCF06B240dA1dFA", // Resuming core deployment
+  bsc: "", // Resuming core deployment
   polygon: "0xA0DE5adE595a43838d1a883D441ea5f0829d66b1",
 };
 
@@ -27,7 +27,7 @@ async function main() {
   const signers = await hre.ethers.getSigners();
   const deployer = signers[0];
   const network = hre.network.name;
-  console.log("\n🚀 Deploying NFEGLOBAL contracts to", network);
+  console.log("\n🚀 Deploying AIPCORE contracts to", network);
   console.log("Deployer:", deployer.address);
   const balance = await deployer.provider.getBalance(deployer.address);
   const symbol = network === "polygon" ? "POL" : "BNB";
@@ -77,7 +77,7 @@ async function main() {
   let oracleAdminAddr;
   let matrixAdminAddr;
 
-  if (network === "hardhat") {
+  if (network === "hardhat" || network === "localhost") {
     // For local testing, assign different accounts to each role
     genesisUserAddr = signers[1].address;
     feeReceiverAddr = signers[2].address;
@@ -113,7 +113,7 @@ async function main() {
 
   // ── STEP 1: Resolve Chainlink BNB/USD feed ────────────────────────────────
   let chainlinkFeed;
-  if (network === "hardhat") {
+  if (network === "hardhat" || network === "localhost") {
     process.stdout.write("1/3 Deploying mock BNBPriceOracle for local network... ");
     const MockOracleFactory = await hre.ethers.getContractFactory("BNBPriceOracle");
     const mockOracle = await callWithRetry(ov => MockOracleFactory.deploy(ov));
@@ -128,36 +128,36 @@ async function main() {
     console.log("1/3 Chainlink BNB/USD feed:", chainlinkFeed, `(${network})`);
   }
 
-  // ── STEP 2: nfeglobalViews library ────────────────────────────────────────
+  // ── STEP 2: aipcoreViews library ────────────────────────────────────────
   let viewsAddr;
   const existingViewsAddr = EXISTING_VIEWS[network];
   if (existingViewsAddr && existingViewsAddr !== "") {
     viewsAddr = existingViewsAddr;
-    console.log("2/3 nfeglobalViews     ♻️  (reusing existing):", viewsAddr);
+    console.log("2/3 aipcoreViews     ♻️  (reusing existing):", viewsAddr);
   } else {
-    process.stdout.write("2/3 Deploying nfeglobalViews... ");
-    const ViewsFactory = await hre.ethers.getContractFactory("nfeglobalViews");
+    process.stdout.write("2/3 Deploying aipcoreViews... ");
+    const ViewsFactory = await hre.ethers.getContractFactory("aipcoreViews");
     const views = await callWithRetry(ov => ViewsFactory.deploy(ov));
     await views.waitForDeployment();
     viewsAddr = await views.getAddress();
     console.log("✅", viewsAddr);
   }
 
-  // ── STEP 3: nfeglobal (Core Engine) ───────────────────────────────────────
+  // ── STEP 3: aipcore (Core Engine) ───────────────────────────────────────
   let core;
   let coreAddr;
   const existingCoreAddr = EXISTING_CORE[network];
   if (existingCoreAddr && existingCoreAddr !== "") {
     coreAddr = existingCoreAddr;
-    console.log("3/3 nfeglobal Core     ♻️  (reusing existing):", coreAddr);
-    const CoreFactory = await hre.ethers.getContractFactory("nfeglobal", {
-      libraries: { nfeglobalViews: viewsAddr },
+    console.log("3/3 aipcore Core     ♻️  (reusing existing):", coreAddr);
+    const CoreFactory = await hre.ethers.getContractFactory("aipcore", {
+      libraries: { aipcoreViews: viewsAddr },
     });
     core = CoreFactory.attach(coreAddr);
   } else {
-    process.stdout.write("3/3 Deploying nfeglobal Core... ");
-    const CoreFactory = await hre.ethers.getContractFactory("nfeglobal", {
-      libraries: { nfeglobalViews: viewsAddr },
+    process.stdout.write("3/3 Deploying aipcore Core... ");
+    const CoreFactory = await hre.ethers.getContractFactory("aipcore", {
+      libraries: { aipcoreViews: viewsAddr },
     });
     core = await callWithRetry(ov => CoreFactory.deploy(
       genesisUserAddr,        // _firstUser (Genesis)
@@ -177,7 +177,7 @@ async function main() {
   process.stdout.write("4/4 Deploying RewardPool... ");
   const PoolFactory = await hre.ethers.getContractFactory("RewardPool");
   const pool = await callWithRetry(ov => PoolFactory.deploy(
-    coreAddr,         // _engine = nfeglobal
+    coreAddr,         // _engine = aipcore
     deployer.address, // _owner (deployer initially to allow setup)
     55555,            // _genesisNodeId
     { ...ov, gasLimit: 6000000 }
@@ -186,7 +186,7 @@ async function main() {
   const poolAddr = await pool.getAddress();
   console.log("✅", poolAddr);
 
-  // ── STEP 5: Link RewardPool → nfeglobal ───────────────────────────────────
+  // ── STEP 5: Link RewardPool → aipcore ───────────────────────────────────
   process.stdout.write("\n🔗 Linking RewardPool... ");
   let tx = await callWithRetry(ov => core.setAddr(1, poolAddr, 0, ov));
   await tx.wait();
@@ -212,7 +212,7 @@ async function main() {
     console.log("✅");
   }
 
-  // ── STEP 6: Link Chainlink BNB/USD feed → nfeglobal ───────────────────────
+  // ── STEP 6: Link Chainlink BNB/USD feed → aipcore ───────────────────────
   process.stdout.write("🔗 Linking Chainlink BNB/USD feed... ");
   tx = await callWithRetry(ov => core.setAddr(11, chainlinkFeed, 0, ov));
   await tx.wait();
@@ -233,6 +233,9 @@ async function main() {
   console.log("✅");
 
   // ── STEP 7: Transfer Ownership to final Owner address ─────────────────────
+  // Commeted out here: Core and Pool ownership transfers are deferred to the end of deploy_v3_addons.js
+  // to allow the deployer EOA to execute linkage transactions during the addons setup.
+  /*
   if (ownerAddr.toLowerCase() !== deployer.address.toLowerCase()) {
     process.stdout.write("👑 Transferring core ownership to final owner... ");
     tx = await callWithRetry(ov => core.transferOwnership(ownerAddr, ov));
@@ -244,6 +247,7 @@ async function main() {
     await tx.wait();
     console.log("✅");
   }
+  */
 
   // ── FINAL BALANCE ──────────────────────────────────────────────────────────
   const finalBalance = await deployer.provider.getBalance(deployer.address);
@@ -254,8 +258,8 @@ async function main() {
   console.log("  ... DEPLOYMENT COMPLETE —", network.toUpperCase());
   console.log("============================================================");
   console.log("  Chainlink BNB/USD feed:", chainlinkFeed);
-  console.log("  nfeglobalViews Lib   : ", viewsAddr);
-  console.log("  nfeglobal Core       : ", coreAddr);
+  console.log("  aipcoreViews Lib   : ", viewsAddr);
+  console.log("  aipcore Core       : ", coreAddr);
   console.log("  RewardPool           : ", poolAddr);
   console.log("  NFEGovernance        : ", govAddr);
 
@@ -270,8 +274,8 @@ async function main() {
     deployer: deployer.address,
     contracts: {
       ChainlinkBNBUSD: chainlinkFeed,
-      nfeglobalViews: viewsAddr,
-      nfeglobal: coreAddr,
+      aipcoreViews: viewsAddr,
+      aipcore: coreAddr,
       RewardPool: poolAddr,
       NFEGovernance: govAddr,
     }

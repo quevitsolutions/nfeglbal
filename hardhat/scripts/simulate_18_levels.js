@@ -18,14 +18,14 @@ async function main() {
   const oracleAddr = await oracle.getAddress();
   console.log("BNBPriceOracle deployed to:", oracleAddr);
 
-  const ViewsFactory = await ethers.getContractFactory("nfeglobalViews");
+  const ViewsFactory = await ethers.getContractFactory("aipcoreViews");
   const views = await ViewsFactory.deploy();
   await views.waitForDeployment();
   const viewsAddr = await views.getAddress();
-  console.log("nfeglobalViews library deployed to:", viewsAddr);
+  console.log("aipcoreViews library deployed to:", viewsAddr);
 
-  const CoreFactory = await ethers.getContractFactory("nfeglobal", {
-    libraries: { nfeglobalViews: viewsAddr },
+  const CoreFactory = await ethers.getContractFactory("aipcore", {
+    libraries: { aipcoreViews: viewsAddr },
   });
   const core = await CoreFactory.deploy(
     deployer.address,       // _firstUser (Genesis)
@@ -36,15 +36,18 @@ async function main() {
     deployer.address        // _matrixAdmin
   );
   await core.waitForDeployment();
-  
-  // Deploy and link MigrationHelper
-  const HelperFactory = await (typeof hre !== 'undefined' ? hre.ethers : ethers).getContractFactory("MigrationHelper");
-  const helper = await HelperFactory.deploy();
-  await helper.waitForDeployment();
-  await core.setMigrationHelper(await helper.getAddress());
-
   const coreAddr = await core.getAddress();
-  console.log("nfeglobal Core deployed to:", coreAddr);
+  console.log("aipcore Core deployed to:", coreAddr);
+
+  // Deploy and link AIPCoreViewsContract
+  const ViewsContractFactory = await ethers.getContractFactory("AIPCoreViewsContract");
+  const viewsContract = await ViewsContractFactory.deploy();
+  await viewsContract.waitForDeployment();
+  await core.setViewsContract(await viewsContract.getAddress());
+  console.log("AIPCoreViewsContract deployed and linked.");
+
+  // Create core instance with full interface ABI (routes getTierCost etc. via fallback)
+  const coreWithViews = await ethers.getContractAt("contracts/Iaipcore.sol:Iaipcore", coreAddr);
 
   const PoolFactory = await ethers.getContractFactory("RewardPool");
   const pool = await PoolFactory.deploy(
@@ -87,7 +90,7 @@ async function main() {
   const nodeIds = [55555n]; // nodeIds[0] = Genesis
 
   const regFee = await core.getRegistrationFee();
-  const tier0Cost = await core.getTierCost(0);
+  const tier0Cost = await coreWithViews.getTierCost(0);
   console.log(`Registration fee: ${ethers.formatEther(regFee)} BNB`);
 
   // Register Level 1 to 17
@@ -126,7 +129,7 @@ async function main() {
   // 3. User 19 Upgrades
   // Let's measure upgrade from Tier 1 to Tier 2 (first upgrade)
   console.log("\n--- UPGRADING USER 19 FROM TIER 1 TO TIER 2 ---");
-  const tier2Cost = await core.getTierCost(1);
+  const tier2Cost = await coreWithViews.getTierCost(1);
   console.log(`Tier 2 Upgrade Cost: ${ethers.formatEther(tier2Cost)} BNB ($5 at $600/BNB)`);
   const upTx1 = await core.connect(user19).unlockTier(user19NodeId, 2, { value: tier2Cost });
   const upReceipt1 = await upTx1.wait();
@@ -137,7 +140,7 @@ async function main() {
   console.log("\n--- UPGRADING USER 19 FROM TIER 2 TO TIER 18 ONE BY ONE ---");
   for (let t = 3; t <= 18; t++) {
     console.log(`\n--- UPGRADING TO TIER ${t} ---`);
-    const tierCost = await core.getTierCost(t - 1);
+    const tierCost = await coreWithViews.getTierCost(t - 1);
     console.log(`Tier ${t} Upgrade Cost: ${ethers.formatEther(tierCost)} BNB`);
     const tx = await core.connect(user19).unlockTier(user19NodeId, t, { value: tierCost });
     const receipt = await tx.wait();
@@ -199,7 +202,7 @@ function printEvents(receipt) {
 let cachedInterface = null;
 function interfaceOfCore() {
   if (cachedInterface) return cachedInterface;
-  const artifact = require("../artifacts/contracts/nfeglobal.sol/nfeglobal.json");
+  const artifact = require("../artifacts/contracts/aipcore.sol/aipcore.json");
   cachedInterface = new ethers.Interface(artifact.abi);
   return cachedInterface;
 }

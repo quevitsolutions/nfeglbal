@@ -8,13 +8,13 @@
 const hre = require("hardhat");
 const { ethers } = hre;
 
-const NFEGLOBAL = "0x8078E36DCd2049526b799F779B8B48464fDcFEd7";
+const AIPCORE = "0x8078E36DCd2049526b799F779B8B48464fDcFEd7";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Deployer:", deployer.address, "Balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)), "BNB");
 
-  const core = await ethers.getContractAt("nfeglobal", NFEGLOBAL, deployer);
+  const core = await ethers.getContractAt("aipcore", AIPCORE, deployer);
   
   console.log("\n=== CURRENT CONTRACT STATE ===");
   const totalNodes = await core.totalNodes();

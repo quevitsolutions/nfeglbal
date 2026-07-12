@@ -5,22 +5,22 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import MetaverseScreen from './MetaverseScreen.jsx';
-import NFEGlobalLiveScreen from './NFEGlobalLiveScreen.jsx';
-import NFEGlobalAcademyScreen from './NFEGlobalAcademyScreen.jsx';
-import NFEGlobalDAOScreen from './NFEGlobalDAOScreen.jsx';
-import NFEGlobalRewardsScreen from './NFEGlobalRewardsScreen.jsx';
-import NFEGlobalCommunityScreen from './NFEGlobalCommunityScreen.jsx';
-import NFEGlobalAIHostScreen from './NFEGlobalAIHostScreen.jsx';
+import AIPCoreLiveScreen from './AIPCoreLiveScreen.jsx';
+import AIPCoreAcademyScreen from './AIPCoreAcademyScreen.jsx';
+import AIPCoreDAOScreen from './AIPCoreDAOScreen.jsx';
+import AIPCoreRewardsScreen from './AIPCoreRewardsScreen.jsx';
+import AIPCoreCommunityScreen from './AIPCoreCommunityScreen.jsx';
+import AIPCoreAIHostScreen from './AIPCoreAIHostScreen.jsx';
 import VirtualHallScreen from './VirtualHallScreen.jsx';
 import VirtualLobbyScreen from './VirtualLobbyScreen.jsx';
 
 const MODULE_COMPONENTS = {
-  live: NFEGlobalLiveScreen,
-  academy: NFEGlobalAcademyScreen,
-  dao: NFEGlobalDAOScreen,
-  rewards: NFEGlobalRewardsScreen,
-  community: NFEGlobalCommunityScreen,
-  'ai-host': NFEGlobalAIHostScreen,
+  live: AIPCoreLiveScreen,
+  academy: AIPCoreAcademyScreen,
+  dao: AIPCoreDAOScreen,
+  rewards: AIPCoreRewardsScreen,
+  community: AIPCoreCommunityScreen,
+  'ai-host': AIPCoreAIHostScreen,
 };
 
 export default function EventsScreen() {

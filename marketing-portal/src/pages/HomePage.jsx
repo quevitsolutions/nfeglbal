@@ -169,7 +169,7 @@ export default function HomePage() {
         <div className="container">
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
             style={{ textAlign: 'center', marginBottom: 60 }}>
-            <div className="section-label">◈ WHY NFEGlobal CORE</div>
+            <div className="section-label">◈ WHY AIPCore CORE</div>
             <h2 className="section-title">Built Different,<br />Built for <span className="text-lime">You</span></h2>
             <p className="section-desc" style={{ margin: '0 auto' }}>
               A protocol designed from the ground up to maximize community earnings 
@@ -268,13 +268,13 @@ export default function HomePage() {
                 Ready to Activate<br />Your Mining Node?
               </h2>
               <p style={{ fontSize: 17, color: 'var(--text-muted)', maxWidth: 520, margin: '0 auto 36px', lineHeight: 1.7 }}>
-                One activation unlocks all 4 income streams. Start earning passive BNB and mining $NFEGLOBAL tokens 24/7.
+                One activation unlocks all 4 income streams. Start earning passive BNB and mining $AIPCORE tokens 24/7.
               </p>
               <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
                 <Link to="/join" className="btn-primary" style={{ fontSize: 16, padding: '18px 44px' }}>
                   Get Started Now ⚡
                 </Link>
-                <a href="https://nfeglobal.online" target="_blank" rel="noreferrer" className="btn-outline" style={{ fontSize: 15 }}>
+                <a href="https://aipcore.online" target="_blank" rel="noreferrer" className="btn-outline" style={{ fontSize: 15 }}>
                   Open App <ExternalLink size={15} />
                 </a>
               </div>

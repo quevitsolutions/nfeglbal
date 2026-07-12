@@ -15,15 +15,15 @@ async function main() {
   console.log("Oracle deployed at:", oracleAddr, "($600 BNB)");
 
   // 2. Deploy Views Library
-  const ViewsFactory = await hre.ethers.getContractFactory("nfeglobalViews");
+  const ViewsFactory = await hre.ethers.getContractFactory("aipcoreViews");
   const views = await ViewsFactory.deploy();
   await views.waitForDeployment();
   const viewsAddr = await views.getAddress();
   console.log("Views Library deployed at:", viewsAddr);
 
-  // 3. Deploy Core Contract (nfeglobal)
-  const CoreFactory = await hre.ethers.getContractFactory("nfeglobal", {
-    libraries: { nfeglobalViews: viewsAddr },
+  // 3. Deploy Core Contract (aipcore)
+  const CoreFactory = await hre.ethers.getContractFactory("aipcore", {
+    libraries: { aipcoreViews: viewsAddr },
   });
   const core = await CoreFactory.deploy(
     owner.address, // firstUser
@@ -44,7 +44,7 @@ async function main() {
   await core.setPriceBounds(100n * 100000000n, 1000n * 100000000n); // set price bounds
   
   // Deploy and Link Standalone Views Contract
-  const StandaloneViewsFactory = await hre.ethers.getContractFactory("NFEGlobalViewsContract");
+  const StandaloneViewsFactory = await hre.ethers.getContractFactory("AIPCoreViewsContract");
   const standaloneViews = await StandaloneViewsFactory.deploy();
   await standaloneViews.waitForDeployment();
   const standaloneViewsAddr = await standaloneViews.getAddress();
@@ -107,7 +107,7 @@ async function main() {
   // Activate U3 manually to Tier 1.
   // U2 is sponsor (Tier 0). Direct sponsor reward of 10% (0.00083 BNB), matrix reward of 70% (0.00583 BNB),
   // and layer 1 reward of 1.5% (0.00012 BNB) should be generated.
-  // Since U2 is FREE (Tier 0), the rewards must route to U2's treasury balance inside NFEGlobal.
+  // Since U2 is FREE (Tier 0), the rewards must route to U2's treasury balance inside AIPCore.
   console.log(`Upgrading U3 manually to Tier 1. Paying: ${hre.ethers.formatEther(tierCost0)} BNB`);
   await core.connect(u3).unlockTier(u3Id, 1, { value: tierCost0 });
 
@@ -229,8 +229,8 @@ async function main() {
     process.exit(1);
   }
 
-  // Retrieve statistics via core fallback proxy using NFEGlobalViewsContract interface
-  const coreViews = await hre.ethers.getContractAt("NFEGlobalViewsContract", coreAddr);
+  // Retrieve statistics via core fallback proxy using AIPCoreViewsContract interface
+  const coreViews = await hre.ethers.getContractAt("AIPCoreViewsContract", coreAddr);
 
   const freeStats = await coreViews.getFreeStats();
   console.log(`Free Stats: totalFree=${freeStats[0]}, totalUpgraded=${freeStats[1]}, conversionRate=${freeStats[2]/100n}%`);

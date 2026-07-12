@@ -8,7 +8,7 @@ const _listeners = new Set();
 const notifyAll = (price) => _listeners.forEach(fn => fn(price));
 
 /**
- * Shared Native Token/USD price hook — reads from the on-chain NFEGlobal oracle.
+ * Shared Native Token/USD price hook — reads from the on-chain AIPCore oracle.
  * Single fetch per page load, shared across all mounted consumers.
  */
 export function useNativePrice() {

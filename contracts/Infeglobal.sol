@@ -66,6 +66,17 @@ interface Infeglobal {
         uint tier;
     }
 
+    struct AccountBalance {
+        uint256 withdrawableBalance;
+        uint256 upgradeVaultBalance;
+        uint256 lifetimeRewards;
+        uint256 lifetimeVaultDeposits;
+        uint256 lifetimeVaultUsed;
+        uint256 lifetimeAutoUpgrades;
+        uint256 lifetimeManualUpgrades;
+        uint256 totalTreasuryGenerated;
+    }
+
     struct FastDashboardData {
         uint256 totalFreeUsers;
         uint256 totalFreeUpgraded;
@@ -157,6 +168,11 @@ interface Infeglobal {
     event Tier18TreasuryReleased(
         uint indexed nodeId,
         uint amount
+    );
+    event UpgradeReady(
+        uint indexed nodeId,
+        uint tier,
+        uint treasury
     );
 
     // ── NODE REGISTRATION & UPGRADE ────────────────────────────────────────
@@ -266,6 +282,18 @@ interface Infeglobal {
 
     /// @notice Total pending rewards (pull payments) globally in the contract
     function totalPendingRewards() external view returns (uint);
+
+    /// @notice Personal Upgrade Vault and balance details for a Node ID
+    function accountBalances(uint256 nodeId) external view returns (
+        uint256 withdrawableBalance,
+        uint256 upgradeVaultBalance,
+        uint256 lifetimeRewards,
+        uint256 lifetimeVaultDeposits,
+        uint256 lifetimeVaultUsed,
+        uint256 lifetimeAutoUpgrades,
+        uint256 lifetimeManualUpgrades,
+        uint256 totalTreasuryGenerated
+    );
 
     // V2.1 Hardening Getters & Mappings
     function oracleCircuitBreaker() external view returns (bool);
@@ -458,6 +486,26 @@ interface Infeglobal {
 
     /// @notice Governor/Owner: set the income vault address.
     function setVault(address _vault) external;
+
+    // ── SYSTEM SETTERS ──────────────────────────────────────────────────────
+
+    /// @notice Owner: set the views contract address.
+    function setViewsContract(address _v) external;
+
+    /// @notice Governor: set the founder pool address.
+    function setFounderPool(address _fp) external;
+
+    /// @notice Governor: set the leaderboard pool address.
+    function setLeaderboardPool(address _lp) external;
+
+    /// @notice Public: deposit BNB directly into the caller's upgrade vault.
+    function depositToVault() external payable;
+
+    /// @notice Returns the registration fee in USD.
+    function registrationFeeUSD() external view returns (uint256);
+
+    /// @notice Returns the registration fee in BNB/native token.
+    function getRegistrationFee() external view returns (uint256);
 
     // ── ICE SYSTEM ─────────────────────────────────────────────────────────
 

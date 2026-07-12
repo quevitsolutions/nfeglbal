@@ -107,33 +107,9 @@ contract nfeglobal is nfeglobalStorage {
     receive() external payable {}
 
     
-    function nativePrice() public view returns (uint) {
-        return nativeTokenPrice;
-    }
-
-    
-    function bnbPrice() public view returns (uint) {
-        return nativeTokenPrice;
-    }
-
-    
-    function totalMissedRewards() public view returns (uint) {
-        return totalTreasuryBalance;
-    }
-
-    
-    function lastActivity(uint _nodeId) public view returns (uint) {
-        return lastTreasuryActivity[_nodeId];
-    }
 
 
-
-    
-    function treasury(uint _nodeId) public view returns (uint bnbAmount, uint usdValue) {
-        return (treasuryBalance[_nodeId], (treasuryBalance[_nodeId] * nativeTokenPrice) / 1e8);
-    }
-
-    function getTierCost(uint tier) public view returns (uint) {
+    function getTierCost(uint tier) internal view returns (uint) {
         return tierPriceUSD[tier] * 1e8 / nativeTokenPrice;
     }
 
@@ -200,14 +176,20 @@ contract nfeglobal is nfeglobalStorage {
 
     
     function withdraw() external nonReentrant {
-        uint amount = pendingReward[msg.sender];
-        require(amount > 0);
         uint nid = nodeId[msg.sender];
+        uint amount;
         if (nid != 0) {
+            amount = accountBalances[nid].withdrawableBalance;
+            accountBalances[nid].withdrawableBalance = 0;
+            pendingReward[msg.sender] = 0;
             lastTreasuryActivity[nid] = block.timestamp;
+        } else {
+            amount = pendingReward[msg.sender];
+            pendingReward[msg.sender] = 0;
         }
-        pendingReward[msg.sender] = 0; 
-        totalPendingRewards -= amount;
+        require(amount > 0);
+
+        totalPendingRewards = totalPendingRewards >= amount ? totalPendingRewards - amount : 0;
 
         if (incomeVault != address(0) && nid != 0 && nid != 55555) {
             (bool success, ) = incomeVault.call{value: amount, gas: 200000}(
@@ -224,10 +206,22 @@ contract nfeglobal is nfeglobalStorage {
         require(ok);
     }
 
-    
-    function getPendingUpgradeRewards(uint _nodeId) public view returns (uint) {
-        return treasuryBalance[_nodeId];
+    function depositToVault() external payable nonReentrant {
+        uint256 userId = nodeId[msg.sender];
+        require(userId != 0, "Node not registered");
+        require(msg.value > 0, "Amount must be greater than 0");
+
+        _creditTreasury(userId, msg.value);
+        _propagateTreasuryGenerated(userId, msg.value);
+
+        emit TreasuryCredited(userId, msg.value, accountBalances[userId].upgradeVaultBalance);
+
+        _enqueueIfEligible(userId);
+        _autoUpgradeBatch();
     }
+
+    
+
 
     function _routeToPool(address _pool, uint _amt) private {
         if(_amt > 0) {
@@ -239,7 +233,7 @@ contract nfeglobal is nfeglobalStorage {
     
     
     
-    function getNodeCurDay(uint _nodeId) public view returns(uint) {
+    function getNodeCurDay(uint _nodeId) internal view returns(uint) {
         return (block.timestamp - nodes[_nodeId].joinedAt) / 24 hours;
     }
 
@@ -343,26 +337,6 @@ contract nfeglobal is nfeglobalStorage {
     }
 
 
-    function _applyTreasuryDiscount(uint _nodeId, uint cost) private returns (uint) {
-        uint disc = treasuryBalance[_nodeId];
-        if (disc >= cost) {
-            treasuryBalance[_nodeId] -= cost;
-            totalTreasuryBalance = totalTreasuryBalance >= cost ? totalTreasuryBalance - cost : 0;
-            totalTreasuryUsed[_nodeId] += cost;
-            _propagateTreasuryUsed(_nodeId, cost);
-            emit TreasuryUsed(_nodeId, cost, treasuryBalance[_nodeId]);
-            return 0;
-        }
-        treasuryBalance[_nodeId] = 0;
-        totalTreasuryBalance = totalTreasuryBalance >= disc ? totalTreasuryBalance - disc : 0;
-        if (disc > 0) {
-            totalTreasuryUsed[_nodeId] += disc;
-            _propagateTreasuryUsed(_nodeId, disc);
-            emit TreasuryUsed(_nodeId, disc, 0);
-        }
-        return cost - disc;
-    }
-
     function _unlockTierCore(uint _nodeId, uint _toTier) private {
         bool isSuper = (_nodeId == defaultRefer);
         Infeglobal.Node storage node = nodes[_nodeId];
@@ -380,16 +354,17 @@ contract nfeglobal is nfeglobalStorage {
         require(_toTier <= 18);
 
         uint initialLvl = node.tier;
-        uint totalCostBNB;
-        for (uint i = initialLvl; i < _toTier; i++) {
-            totalCostBNB += getTierCost(i);
+        uint totalCostBNB = 0;
+
+        if (!isSuper) {
+            for (uint8 i = uint8(initialLvl); i < _toTier; i++) {
+                totalCostBNB += getTierCost(i);
+            }
         }
 
-        uint valueToSend = isSuper ? 0 : _applyTreasuryDiscount(_nodeId, totalCostBNB);
-
-        require(msg.value >= valueToSend);
-        if (msg.value > valueToSend) {
-            (bool refundOk, ) = payable(msg.sender).call{value: msg.value - valueToSend}("");
+        require(msg.value >= totalCostBNB);
+        if (msg.value > totalCostBNB) {
+            (bool refundOk, ) = payable(msg.sender).call{value: msg.value - totalCostBNB}("");
             require(refundOk);
         }
 
@@ -403,6 +378,7 @@ contract nfeglobal is nfeglobalStorage {
             nodes[node.sponsor].sponsorTierRanks[rankIdx] += 1;
             emit TierUnlocked(node.wallet, _nodeId, i + 1);
         }
+        accountBalances[_nodeId].lifetimeManualUpgrades += (_toTier - initialLvl);
 
         if (founderPool != address(0)) {
             try IFounderPool(founderPool).onNodeUpgrade(_nodeId, initialLvl, _toTier) {} catch {}
@@ -422,8 +398,7 @@ contract nfeglobal is nfeglobalStorage {
         }
 
         emit PoolCheckRequired(_nodeId, block.timestamp);
-        // C-01-gas: Only call registerNode if the node can possibly qualify (Bronze min = Tier 6).
-        // Avoids ~3k wasted gas on guaranteed reverts for every Tier 1-5 upgrade.
+        
         if (rewardPool != address(0) && nodes[_nodeId].tier >= 6) {
             try IRewardPool(rewardPool).registerNode(_nodeId) {} catch {}
         }
@@ -451,7 +426,7 @@ contract nfeglobal is nfeglobalStorage {
     function _executeTierDistribution(uint _nodeId, uint _tier, uint costI) private {
         
         uint toDist = costI * directPercent / baseDivider;
-        _routeReward(nodes[_nodeId].sponsor, toDist);
+        _routeReward(nodes[_nodeId].sponsor, toDist, 1);
         _recordReward(_nodeId, nodes[_nodeId].sponsor, _tier, toDist, 1, false, _tier + 1);
 
         
@@ -467,6 +442,26 @@ contract nfeglobal is nfeglobalStorage {
     
 
 
+    function _creditTreasury(uint nodeId, uint amount) private {
+        if (amount == 0) return;
+        treasuryBalance[nodeId] += amount;
+        accountBalances[nodeId].upgradeVaultBalance = treasuryBalance[nodeId];
+        accountBalances[nodeId].lifetimeVaultDeposits += amount;
+        accountBalances[nodeId].totalTreasuryGenerated += amount;
+        totalTreasuryBalance += amount;
+        lastTreasuryActivity[nodeId] = block.timestamp;
+    }
+
+    function _debitTreasury(uint nodeId, uint amount) private {
+        if (amount == 0) return;
+        uint bal = treasuryBalance[nodeId];
+        require(bal >= amount, "Debit exceeds balance");
+        treasuryBalance[nodeId] -= amount;
+        accountBalances[nodeId].upgradeVaultBalance = treasuryBalance[nodeId];
+        totalTreasuryBalance = totalTreasuryBalance >= amount ? totalTreasuryBalance - amount : 0;
+        lastTreasuryActivity[nodeId] = block.timestamp;
+    }
+
     function _enqueueIfEligible(uint nodeId_) private {
         if (nodeId_ == defaultRefer) return;
         if (inTreasuryQueue[nodeId_]) return;
@@ -481,41 +476,51 @@ contract nfeglobal is nfeglobalStorage {
             queuedTier[nodeId_] = nextTier;
             queuedCostBNB[nodeId_] = costSnapshot;
             emit TreasuryNodeQueued(nodeId_, nextTier);
+            emit UpgradeReady(nodeId_, nextTier + 1, treasuryBalance[nodeId_]);
         }
     }
 
-    
-    
-    
-    
     function _routeReward(
         uint256 recipientNodeId,
-        uint256 amount
+        uint256 amount,
+        uint8 requiredTier
     ) internal {
         if (nodes[recipientNodeId].nodeId != 0) {
-            if (nodes[recipientNodeId].tier == 0) {
-                treasuryBalance[recipientNodeId] += amount;
-                totalTreasuryBalance += amount;
-                _propagateTreasuryGenerated(recipientNodeId, amount);
-                lastTreasuryActivity[recipientNodeId] = block.timestamp;
-                emit TreasuryCredited(recipientNodeId, amount, treasuryBalance[recipientNodeId]);
-                _enqueueIfEligible(recipientNodeId);
-            } else {
+            if (nodes[recipientNodeId].tier >= requiredTier) {
+                accountBalances[recipientNodeId].lifetimeRewards += amount;
+                
                 if (incomeVault != address(0) && recipientNodeId != 55555) {
                     (bool success, ) = incomeVault.call{value: amount, gas: 200000}(
                         abi.encodeWithSignature("deposit(uint256)", recipientNodeId)
                     );
                     if (!success) {
-                        pendingReward[nodes[recipientNodeId].wallet] += amount;
+                        accountBalances[recipientNodeId].withdrawableBalance += amount;
+                        pendingReward[nodes[recipientNodeId].wallet] = accountBalances[recipientNodeId].withdrawableBalance;
                         totalPendingRewards += amount;
                         emit RewardPending(nodes[recipientNodeId].wallet, amount);
                     } else {
                         totalBNBDistributed += amount;
                     }
                 } else {
-                    _pushReward(nodes[recipientNodeId].wallet, amount);
+                    if (amount > 0) {
+                        address toWallet = nodes[recipientNodeId].wallet;
+                        (bool success, ) = payable(toWallet).call{value: amount, gas: TRANSFER_GAS_LIMIT}("");
+                        if (!success) {
+                            accountBalances[recipientNodeId].withdrawableBalance += amount;
+                            pendingReward[toWallet] = accountBalances[recipientNodeId].withdrawableBalance;
+                            totalPendingRewards += amount;
+                            emit RewardPending(toWallet, amount);
+                        } else {
+                            totalBNBDistributed += amount;
+                        }
+                    }
                 }
                 _propagateRewardsDistributed(recipientNodeId, amount);
+            } else {
+                _creditTreasury(recipientNodeId, amount);
+                _propagateTreasuryGenerated(recipientNodeId, amount);
+                emit TreasuryCredited(recipientNodeId, amount, treasuryBalance[recipientNodeId]);
+                _enqueueIfEligible(recipientNodeId);
             }
         } else {
             revert InvalidNode();
@@ -532,27 +537,16 @@ contract nfeglobal is nfeglobalStorage {
         bool _isQualified
     ) private {
         if (nodes[_toNode].nodeId != 0) {
-            if (nodes[_toNode].tier == 0) {
-                treasuryBalance[_toNode] += _amount;
-                totalTreasuryBalance += _amount;
-                _propagateTreasuryGenerated(_toNode, _amount);
-                lastTreasuryActivity[_toNode] = block.timestamp;
-                emit TreasuryCredited(_toNode, _amount, treasuryBalance[_toNode]);
-                _enqueueIfEligible(_toNode);
+            uint8 requiredTier = uint8(_tier + 1);
+            if (_isQualified || nodes[_toNode].tier >= 18) {
+                _routeReward(_toNode, _amount, requiredTier);
                 _recordReward(_fromNode, _toNode, _tier, _amount, _rewardType, false, _layerIndex);
             } else {
-                if (_isQualified || nodes[_toNode].tier >= 18) {
-                    _routeReward(_toNode, _amount);
-                    _recordReward(_fromNode, _toNode, _tier, _amount, _rewardType, false, _layerIndex);
-                } else {
-                    treasuryBalance[_toNode] += _amount;
-                    totalTreasuryBalance += _amount;
-                    _propagateTreasuryGenerated(_toNode, _amount);
-                    lastTreasuryActivity[_toNode] = block.timestamp;
-                    emit TreasuryCredited(_toNode, _amount, treasuryBalance[_toNode]);
-                    _enqueueIfEligible(_toNode);
-                    _recordReward(_fromNode, _toNode, _tier, _amount, _rewardType, true, _layerIndex);
-                }
+                _creditTreasury(_toNode, _amount);
+                _propagateTreasuryGenerated(_toNode, _amount);
+                emit TreasuryCredited(_toNode, _amount, treasuryBalance[_toNode]);
+                _recordReward(_fromNode, _toNode, _tier, _amount, _rewardType, true, _layerIndex);
+                _enqueueIfEligible(_toNode);
             }
         } else {
             revert InvalidNode();
@@ -844,6 +838,7 @@ contract nfeglobal is nfeglobalStorage {
         if (leaderboardPool != address(0)) {
             try ILeaderboardPool(leaderboardPool).recordPoints(nodes[_nodeId].sponsor, 5, 1) {} catch {}
         }
+        _autoUpgradeBatch();
     }
 
     /**
@@ -855,16 +850,12 @@ contract nfeglobal is nfeglobalStorage {
     function deductTreasury(uint256 _nodeId, uint256 amount) external {
         require(msg.sender == renewalEngine);
         require(amount > 0);
-        uint256 bal = treasuryBalance[_nodeId];
-        require(bal >= amount);
 
-        // CEI: effects first
-        treasuryBalance[_nodeId] -= amount;
-        totalTreasuryBalance = totalTreasuryBalance >= amount
-            ? totalTreasuryBalance - amount : 0;
+        _debitTreasury(_nodeId, amount);
+        accountBalances[_nodeId].lifetimeVaultUsed += amount;
+
         totalTreasuryUsed[_nodeId] += amount;
         _propagateTreasuryUsed(_nodeId, amount);
-        lastTreasuryActivity[_nodeId] = block.timestamp;
         emit TreasuryUsed(_nodeId, amount, treasuryBalance[_nodeId]);
     }
 
@@ -882,9 +873,7 @@ contract nfeglobal is nfeglobalStorage {
         uint bal = treasuryBalance[_nodeId];
         require(bal > 0);
 
-        // Clear balance before transfers (CEI pattern)
-        treasuryBalance[_nodeId] = 0;
-        totalTreasuryBalance = totalTreasuryBalance >= bal ? totalTreasuryBalance - bal : 0;
+        _debitTreasury(_nodeId, bal);
 
         uint rpAmt  = bal * dormancyRewardPoolBP / 10000;
         uint daoAmt = bal * dormancyDAOBP        / 10000;
@@ -970,24 +959,7 @@ contract nfeglobal is nfeglobalStorage {
 
 
 
-    /**
-     * @notice Returns only the wallet address for a node.
-     *         Used by RewardPool to avoid ABI mismatch: the Node struct contains
-     *         fixed-size arrays (sponsorTierRanks, matrixRewardReceiver) which make
-     *         the auto-generated nodes() getter return dynamically-encoded data,
-     *         incompatible with callers that only expect 9 static scalar return values.
-     */
-    function getNodeWallet(uint nodeId) external view returns (address) {
-        return nodes[nodeId].wallet;
-    }
 
-    /**
-     * @notice Returns only the totalContribution for a node.
-     *         Used by RewardPool cap calculations (same ABI mismatch reason as above).
-     */
-    function getNodeContribution(uint nodeId) external view returns (uint) {
-        return nodes[nodeId].totalContribution;
-    }
 
 
 
@@ -1071,46 +1043,54 @@ contract nfeglobal is nfeglobalStorage {
             return;
         }
 
-        if (treasuryBalance[nodeId_] >= costBNB) {
-            
-            treasuryBalance[nodeId_] -= costBNB;
-            totalTreasuryBalance = (totalTreasuryBalance >= costBNB) ? (totalTreasuryBalance - costBNB) : 0;
-            totalTreasuryUsed[nodeId_] += costBNB;
-            _propagateTreasuryUsed(nodeId_, costBNB);
-            emit TreasuryUsed(nodeId_, costBNB, treasuryBalance[nodeId_]);
-
-            
-            _executeTierDistribution(nodeId_, currentTier, costBNB);
-
-            
-            node.tier += 1;
-            node.totalContribution += costBNB;
-            _propagateUpgrade(nodeId_);
-
-            if (currentTier == 0 && isFreeRegistered[nodeId_]) {
-                isFreeRegistered[nodeId_] = false;
-                totalFreeUpgraded += 1;
-                _propagateConversion(nodeId_);
-                emit FreeNodeUpgraded(nodeId_, node.wallet);
-            }
-            
-            uint rankIdx = currentTier < 18 ? currentTier : 17;
-            nodes[node.sponsor].sponsorTierRanks[rankIdx] += 1;
-
-            emit TierUnlocked(node.wallet, nodeId_, currentTier + 1);
-            emit TreasuryUpgradeExecuted(nodeId_, currentTier, currentTier + 1, costBNB);
-            emit PoolCheckRequired(nodeId_, block.timestamp);
-            // C-01-gas: Only call registerNode if the node can possibly qualify (Bronze min = Tier 6).
-            if (rewardPool != address(0) && node.tier >= 6) {
-                try IRewardPool(rewardPool).registerNode(nodeId_) {} catch {}
-            }
-
-            
-            lastTreasuryActivity[nodeId_] = block.timestamp;
-
-            
-            _releaseTier18Treasury(nodeId_);
+        if (lastUpgradeBlock[nodeId_] >= block.number) {
+            inTreasuryQueue[nodeId_] = false;
+            delete queuedTier[nodeId_];
+            delete queuedCostBNB[nodeId_];
+            _enqueueIfEligible(nodeId_);
+            return;
         }
+        if (treasuryBalance[nodeId_] < costBNB) {
+            return;
+        }
+
+        lastUpgradeBlock[nodeId_] = uint40(block.number);
+
+        _debitTreasury(nodeId_, costBNB);
+        accountBalances[nodeId_].lifetimeVaultUsed += costBNB;
+        accountBalances[nodeId_].lifetimeAutoUpgrades++;
+
+        totalTreasuryUsed[nodeId_] += costBNB;
+        _propagateTreasuryUsed(nodeId_, costBNB);
+        emit TreasuryUsed(nodeId_, costBNB, treasuryBalance[nodeId_]);
+
+        _executeTierDistribution(nodeId_, currentTier, costBNB);
+
+        node.tier += 1;
+        node.totalContribution += costBNB;
+        _propagateUpgrade(nodeId_);
+
+        if (currentTier == 0 && isFreeRegistered[nodeId_]) {
+            isFreeRegistered[nodeId_] = false;
+            totalFreeUpgraded += 1;
+            _propagateConversion(nodeId_);
+            emit FreeNodeUpgraded(nodeId_, node.wallet);
+        }
+        
+        uint rankIdx = currentTier < 18 ? currentTier : 17;
+        if (node.sponsor != 0) {
+            nodes[node.sponsor].sponsorTierRanks[rankIdx] += 1;
+        }
+
+        emit TierUnlocked(node.wallet, nodeId_, currentTier + 1);
+        emit TreasuryUpgradeExecuted(nodeId_, currentTier, currentTier + 1, costBNB);
+        emit PoolCheckRequired(nodeId_, block.timestamp);
+        if (rewardPool != address(0) && node.tier >= 6) {
+            try IRewardPool(rewardPool).registerNode(nodeId_) {} catch {}
+        }
+
+        lastTreasuryActivity[nodeId_] = block.timestamp;
+        _releaseTier18Treasury(nodeId_);
     }
 
     function _autoUpgradeBatch() internal {
@@ -1131,7 +1111,6 @@ contract nfeglobal is nfeglobalStorage {
             uint8 currentTier = node.tier;
 
             if (queuedTier[nodeId_] != currentTier) {
-                
                 inTreasuryQueue[nodeId_] = false;
                 delete queuedTier[nodeId_];
                 delete queuedCostBNB[nodeId_];
@@ -1139,7 +1118,24 @@ contract nfeglobal is nfeglobalStorage {
                 continue;
             }
 
-            _processAutoUpgradeLoop(nodeId_);
+            if (lastUpgradeBlock[nodeId_] >= block.number) {
+                uint8 nextTier = node.tier;
+                if (nextTier < 18 && treasuryBalance[nodeId_] >= getTierCost(nextTier)) {
+                    queue[queueTail] = nodeId_;
+                    queueTail++;
+                } else {
+                    inTreasuryQueue[nodeId_] = false;
+                    delete queuedTier[nodeId_];
+                    delete queuedCostBNB[nodeId_];
+                }
+                continue;
+            }
+
+            uint cost = getTierCost(currentTier);
+
+            if (treasuryBalance[nodeId_] >= cost) {
+                _autoUpgradeTier(nodeId_, cost);
+            }
 
             inTreasuryQueue[nodeId_] = false;
             delete queuedTier[nodeId_];
@@ -1155,30 +1151,14 @@ contract nfeglobal is nfeglobalStorage {
         if (node.tier >= 18) {
             uint remaining = treasuryBalance[_nodeId];
             if (remaining > 0) {
-                treasuryBalance[_nodeId] = 0;
-                totalTreasuryBalance = (totalTreasuryBalance >= remaining) ? (totalTreasuryBalance - remaining) : 0;
-                _routeReward(_nodeId, remaining);
+                _debitTreasury(_nodeId, remaining);
+                accountBalances[_nodeId].withdrawableBalance += remaining;
+                accountBalances[_nodeId].lifetimeRewards += remaining;
+                pendingReward[node.wallet] += remaining;
+                totalPendingRewards += remaining;
                 emit Tier18TreasuryReleased(_nodeId, remaining);
             }
         }
-    }
-
-    function _processAutoUpgradeLoop(uint _nodeId) private {
-        Infeglobal.Node storage node = nodes[_nodeId];
-        if (node.tier >= 18) {
-            return;
-        }
-
-        uint cost = queuedCostBNB[_nodeId];
-        if (cost == 0) {
-            cost = getTierCost(node.tier);
-        }
-
-        if (treasuryBalance[_nodeId] < cost) {
-            return;
-        }
-
-        _autoUpgradeTier(_nodeId, cost);
     }
 
     

@@ -4,9 +4,12 @@ export default function TabBar() {
   const { activeTab, setActiveTab, hasNode } = useGameStore();
 
   const TABS = [
-    { id: 'core',    icon: '📊', label: 'Core' },
-    { id: 'v3',      icon: '💎', label: 'V3 Rewards' },
-    { id: 'academy', icon: '📚', label: 'Academy' }
+    { id: 'core',        icon: '⛏️',  label: 'Tap'     },
+    { id: 'prelaunch',   icon: '🚀',  label: 'Earn'    },
+    { id: 'claim',       icon: '💰',  label: 'Claim'   },
+    { id: 'leaderboard', icon: '🏆',  label: 'Leaders' },
+    { id: 'upgrade',     icon: '⬆️',  label: 'Upgrade' },
+    { id: 'profile',     icon: '👤',  label: 'Profile' },
   ];
 
   return (
@@ -24,4 +27,3 @@ export default function TabBar() {
     </nav>
   );
 }
-

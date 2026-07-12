@@ -43,7 +43,7 @@ async function main() {
   const contractName = "contracts/RewardPool.sol:RewardPool";
   
   // Dynamically encode constructor arguments
-  const engineAddress = deployment.contracts.nfeglobal;
+  const engineAddress = deployment.contracts.aipcore;
   const ownerAddress = deployment.deployer;
   const genesisNodeId = 55555;
   

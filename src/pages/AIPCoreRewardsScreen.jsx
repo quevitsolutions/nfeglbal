@@ -29,14 +29,14 @@ const LEADERBOARD = [
 
 const RARITY_COLOR = { Common: '#4FC3F7', Rare: '#A3FF12', Epic: '#CE93D8', Legendary: '#FFD700' };
 
-export default function NFEGlobalRewardsScreen({ onBack }) {
+export default function AIPCoreRewardsScreen({ onBack }) {
   const { hasNode, nodeTier, localReward, poolClaimable } = useGameStore();
   const [tab, setTab] = useState('overview');
   const [claimingBnb, setClaimingBnb] = useState(false);
   const [claimedAmount, setClaimedAmount] = useState(null);
 
   const [bnbReward] = useState(0.024);
-  const [nfeglobalReward] = useState(localReward || 0);
+  const [aipcoreReward] = useState(localReward || 0);
 
   const handleClaimBnb = async () => {
     if (!hasNode) return toast.error('🔒 Activate your node to claim BNB rewards', { duration: 4000 });
@@ -53,7 +53,7 @@ export default function NFEGlobalRewardsScreen({ onBack }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
         <button onClick={onBack} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', fontSize: 18, width: 36, height: 36, borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 900 }}>🏆 NFEGlobal Rewards Arena</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 900 }}>🏆 AIPCore Rewards Arena</h1>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 1 }}>BNB Rewards · NFT Badges · Referral Income</div>
         </div>
       </div>

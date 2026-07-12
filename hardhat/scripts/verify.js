@@ -12,11 +12,11 @@ async function main() {
   }
 
   const deployment = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
-  console.log(`\n🔍 Verifying NFEGlobal contracts on ${deployment.network.toUpperCase()}...\n`);
+  console.log(`\n🔍 Verifying AIPCore contracts on ${deployment.network.toUpperCase()}...\n`);
 
   const {
-    nfeglobalViews: viewsAddr,
-    nfeglobal: coreAddr,
+    aipcoreViews: viewsAddr,
+    aipcore: coreAddr,
     RewardPool: poolAddr,
     NFEGovernance: govAddr,
   } = deployment.contracts;
@@ -46,12 +46,12 @@ async function main() {
     }
   };
 
-  // 1. nfeglobalViews (library — no constructor args)
-  await tryVerify("nfeglobalViews", viewsAddr, []);
+  // 1. aipcoreViews (library — no constructor args)
+  await tryVerify("aipcoreViews", viewsAddr, []);
 
-  // 2. nfeglobal Core (linked library + 6 constructor args)
+  // 2. aipcore Core (linked library + 6 constructor args)
   await tryVerify(
-    "nfeglobal Core",
+    "aipcore Core",
     coreAddr,
     [
       genesisUser,               // _firstUser
@@ -61,7 +61,7 @@ async function main() {
       oracleAdmin,               // _oracleAdmin
       matrixAdmin,               // _matrixAdmin
     ],
-    { nfeglobalViews: viewsAddr }
+    { aipcoreViews: viewsAddr }
   );
 
   // 3. RewardPool
@@ -81,8 +81,8 @@ async function main() {
   console.log("\n============================================================");
   console.log("🎉 VERIFICATION COMPLETE —", deployment.network.toUpperCase());
   console.log("============================================================");
-  console.log(`  nfeglobalViews : ${explorerUrl}/address/${viewsAddr}#code`);
-  console.log(`  nfeglobal Core : ${explorerUrl}/address/${coreAddr}#code`);
+  console.log(`  aipcoreViews : ${explorerUrl}/address/${viewsAddr}#code`);
+  console.log(`  aipcore Core : ${explorerUrl}/address/${coreAddr}#code`);
   console.log(`  RewardPool     : ${explorerUrl}/address/${poolAddr}#code`);
   console.log(`  Governance     : ${explorerUrl}/address/${govAddr}#code`);
   console.log("============================================================\n");

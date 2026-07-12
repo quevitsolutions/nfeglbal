@@ -9,7 +9,7 @@ services:
         - VITE_PROJECT_ID=${VITE_PROJECT_ID}
         - VITE_BSC_MAINNET_RPC=${VITE_BSC_MAINNET_RPC}
         - VITE_ADMIN_WALLET=${VITE_ADMIN_WALLET}
-    container_name: nfeglobal-frontend
+    container_name: aipcore-frontend
     ports:
       - "80:80"
       - "443:443"
@@ -32,45 +32,61 @@ services:
   # Node.js API
   api:
     build:
-      context: ./server
+      context: ./server-nestjs
       dockerfile: Dockerfile
-    container_name: nfeglobal-api
+    container_name: aipcore-api
     environment:
       - PORT=3001
       - DB_HOST=db
       - DB_USER=postgres
-      - DB_PASSWORD=nfeglobal_pass
-      - DB_NAME=nfeglobal_game
+      - DB_PASSWORD=aipcore_pass
+      - DB_NAME=aipcore_game
+      - DATABASE_URL=postgresql://postgres:aipcore_pass@db:5432/aipcore_game?schema=public
       - VITE_ADMIN_WALLET=${VITE_ADMIN_WALLET}
       - VITE_RPC_URL=${VITE_RPC_URL}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - APP_URL=https://nfeglobal.online
+      - APP_URL=https://aipcore.online
       - GROQ_API_KEY=${GROQ_API_KEY}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+
+  # Redis Cache & Queue Manager
+  redis:
+    image: redis:7-alpine
+    container_name: aipcore-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: always
 
   # PostgreSQL Database
   db:
     image: postgres:16-alpine
-    container_name: nfeglobal-db
+    container_name: aipcore-db
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=nfeglobal_pass
-      - POSTGRES_DB=nfeglobal_game
+      - POSTGRES_PASSWORD=aipcore_pass
+      - POSTGRES_DB=aipcore_game
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
     volumes:
-      - nfeglobal_db_data:/var/lib/postgresql/data
+      - aipcore_db_data:/var/lib/postgresql/data
       - ./server/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: always
 
@@ -84,12 +100,12 @@ services:
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 volumes:
-  nfeglobal_db_data:
+  aipcore_db_data:
   certbot-etc:
   certbot-var:
 
 networks:
   default:
   marketing_net:
-    name: nfeglobal-marketing-net
+    name: aipcore-marketing-net
     external: true

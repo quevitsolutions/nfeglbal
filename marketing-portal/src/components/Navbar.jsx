@@ -56,7 +56,7 @@ export default function Navbar() {
               fontWeight: 900, fontSize: 16, color: '#000'
             }}>A</div>
             <span style={{ fontWeight: 900, fontSize: 18, letterSpacing: -0.5 }}>
-              NFEGlobal <span style={{ color: 'var(--neon-lime)' }}>CORE</span>
+              AIPCore <span style={{ color: 'var(--neon-lime)' }}>CORE</span>
             </span>
           </Link>
 
@@ -76,7 +76,7 @@ export default function Navbar() {
 
           {/* CTA */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: '0 0 auto' }}>
-            <a href="https://nfeglobal.online" target="_blank" rel="noreferrer"
+            <a href="https://aipcore.online" target="_blank" rel="noreferrer"
               className="btn-outline" style={{ padding: '9px 18px', fontSize: 13 }}>
               Launch App <ExternalLink size={13} />
             </a>
@@ -120,7 +120,7 @@ export default function Navbar() {
             ))}
             <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <Link to="/join" className="btn-primary" style={{ animation: 'none' }}>Join Now ⚡</Link>
-              <a href="https://nfeglobal.online" target="_blank" rel="noreferrer" className="btn-outline">
+              <a href="https://aipcore.online" target="_blank" rel="noreferrer" className="btn-outline">
                 Launch App <ExternalLink size={14} />
               </a>
             </div>

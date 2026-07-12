@@ -18,7 +18,7 @@ export default function MarketingScreen() {
           </div>
 
           <h1 style={{ fontSize: 'clamp(28px, 5vw, 42px)', fontWeight: 900, letterSpacing: -1, marginBottom: 16 }}>
-            NFEGlobal Core <span style={{ color: '#4FC3F7' }}>Marketing Hub</span>
+            AIPCore Core <span style={{ color: '#4FC3F7' }}>Marketing Hub</span>
           </h1>
           
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, marginBottom: 32 }}>
@@ -41,7 +41,7 @@ export default function MarketingScreen() {
           </div>
 
           <button
-            onClick={() => openLink('https://promo.nfeglobal.online')}
+            onClick={() => openLink('https://promo.aipcore.online')}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 10, background: '#fff', color: '#000',
               padding: '16px 32px', borderRadius: 20, fontSize: 16, fontWeight: 900,

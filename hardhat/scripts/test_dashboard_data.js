@@ -5,12 +5,12 @@ async function main() {
 
   // Replicate constants
   const CONTRACTS = {
-    NFEGLOBAL:     "0x4ea93b8Cd18b66c027AdBaa63CCF06B240dA1dFA",
-    NFEGLOBALVIEW: "0x4ea93b8Cd18b66c027AdBaa63CCF06B240dA1dFA",
+    AIPCORE:     "0x4ea93b8Cd18b66c027AdBaa63CCF06B240dA1dFA",
+    AIPCOREVIEW: "0x4ea93b8Cd18b66c027AdBaa63CCF06B240dA1dFA",
     REWARDPOOL:    "0x8c9eD734447ae7a54ba4466373a399668E1DE9A4",
   };
 
-  const NFEGLOBAL_ABI = [
+  const AIPCORE_ABI = [
     "function nodeId(address user) view returns (uint256)",
     "function nodes(uint256 nodeId) view returns (address wallet, uint88 nodeId_, uint256 sponsor, uint256 matrixParent, uint40 joinedAt, uint256 tier, uint256 directNodes, uint256 totalMatrixNodes, uint256 totalContribution)",
     "function isFreeRegistered(uint256 nodeId) view returns (bool)",
@@ -19,7 +19,7 @@ async function main() {
     "function getNodeStats(uint256 _userId) view returns (uint256 tier, uint256 directCount, uint256 matrixCount, uint256 totalRewards, uint256 totalContribution, uint256 daysActive)"
   ];
 
-  const NFEGLOBAL_VIEWS_ABI = [
+  const AIPCORE_VIEWS_ABI = [
     "function getNodeStats(uint256 nodeId) view returns (uint256 totalEarned, uint256 teamSize, uint256 directRefs, uint256 level)",
     "function getIncomeBreakdown(uint256 nodeId) view returns (uint256 direct, uint256 matrix, uint256 pool, uint256 pending)"
   ];
@@ -32,8 +32,8 @@ async function main() {
 
   const provider = new ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
 
-  const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, provider);
-  const view = new ethers.Contract(CONTRACTS.NFEGLOBALVIEW, NFEGLOBAL_VIEWS_ABI, provider);
+  const core = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, provider);
+  const view = new ethers.Contract(CONTRACTS.AIPCOREVIEW, AIPCORE_VIEWS_ABI, provider);
   const pool = new ethers.Contract(CONTRACTS.REWARDPOOL, REWARDPOOL_ABI, provider);
 
   console.log("Starting query...");

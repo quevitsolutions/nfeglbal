@@ -2,7 +2,7 @@ const axios = require("axios");
 
 async function main() {
   const apiKey = "6RDAKJA74DPRFCMA4Z2FUDM9TVQ7M88KT1";
-  const address = "0xbd076cC53AbaeC543EF6caC34050cf8290D3D1C5"; // verified nfeglobal
+  const address = "0xbd076cC53AbaeC543EF6caC34050cf8290D3D1C5"; // verified aipcore
   
   // Use V2 API to be safe, or try both
   const urlV2 = `https://api.etherscan.io/v2/api?chainid=97&module=contract&action=getsourcecode&address=${address}&apikey=${apiKey}`;

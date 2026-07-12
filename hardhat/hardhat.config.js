@@ -36,7 +36,7 @@ module.exports = {
     ],
     // Keep revert strings for the local hardhat network so tests can match reason strings
     overrides: {
-      "contracts/nfeglobal.sol": { 
+      "contracts/aipcore.sol": { 
         version: "0.8.26", 
         settings: { 
           optimizer: { 
@@ -54,7 +54,7 @@ module.exports = {
           evmVersion: "shanghai" 
         } 
       },
-      "contracts/nfeglobalStorage.sol": { 
+      "contracts/aipcoreStorage.sol": { 
         version: "0.8.26", 
         settings: { 
           optimizer: { 
@@ -113,6 +113,7 @@ module.exports = {
       url: "https://bsc-dataseed.binance.org/",
       chainId: 56,
       accounts: [PRIVATE_KEY.startsWith("0x") ? PRIVATE_KEY : `0x${PRIVATE_KEY}`],
+      gasPrice: 50000000, // 0.05 Gwei (user requirement: try 0.05 first)
     },
     polygon: {
       url: "https://polygon-bor-rpc.publicnode.com",

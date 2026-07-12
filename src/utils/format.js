@@ -16,8 +16,8 @@ export const formatBNB = (wei, symbol = "BNB") => {
 };
 
 export const getRefLink = (userId) =>
-  `https://t.me/NFEGlobalBot?start=ref_${userId}`;
+  `https://t.me/AIPCoreBot?start=ref_${userId}`;
 
 export const getWebAppRefLink = (userId) =>
-  `https://t.me/NFEGlobalBot/app?startapp=ref_${userId}`;
+  `https://t.me/AIPCoreBot/app?startapp=ref_${userId}`;
 

@@ -12,17 +12,17 @@ async function main() {
   }
 
   const deployment = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
-  console.log(`\n🔍 Verifying NFEGlobal V3 Addons on ${deployment.network.toUpperCase()}...\n`);
+  console.log(`\n🔍 Verifying AIPCore V3 Addons on ${deployment.network.toUpperCase()}...\n`);
 
   const {
-    NFEGlobalViewsContract: viewsContractAddr,
+    AIPCoreViewsContract: viewsContractAddr,
     RewardPoolLeadership: leadershipAddr,
     FounderPool: founderPoolAddr,
     LeaderboardPool: leaderboardPoolAddr,
     NFEVestingVault: vaultAddr,
     NFECycleManager: cycleManagerAddr,
     NFERenewalEngine: renewalEngineAddr,
-    nfeglobal: coreAddr,
+    aipcore: coreAddr,
     RewardPool: poolAddr,
   } = deployment.contracts;
 
@@ -47,9 +47,9 @@ async function main() {
     }
   };
 
-  // 1. NFEGlobalViewsContract
+  // 1. AIPCoreViewsContract
   if (viewsContractAddr) {
-    await tryVerify("NFEGlobalViewsContract", viewsContractAddr, []);
+    await tryVerify("AIPCoreViewsContract", viewsContractAddr, []);
   }
 
   // 2. RewardPoolLeadership

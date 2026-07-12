@@ -9,7 +9,7 @@ if (!projectId) {
 }
 
 export const config = getDefaultConfig({
-  appName: 'NFEGlobal Hub',
+  appName: 'AIPCore Hub',
   projectId: projectId || 'ad615b7c3d0dc4e3aee306104d15c745', // Legacy fallback only
   chains: [bsc],
   transports: {

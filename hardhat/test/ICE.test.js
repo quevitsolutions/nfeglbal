@@ -9,7 +9,7 @@ async function timeTravel(seconds) {
     await ethers.provider.send("evm_mine");
 }
 
-describe("NFEGlobal ICE System", function () {
+describe("AIPCore ICE System", function () {
     let nfe, rewardPoolContract, vestingVault, cycleManager, renewalEngine, views;
     let owner, oracle, matrix, feeRec, user1, user2, user3, keeper;
 
@@ -38,14 +38,14 @@ describe("NFEGlobal ICE System", function () {
     beforeEach(async function () {
         [owner, oracle, matrix, feeRec, user1, user2, user3, keeper] = await ethers.getSigners();
 
-        // 1. Deploy nfeglobalViews library
-        const ViewsFactory = await ethers.getContractFactory("nfeglobalViews");
+        // 1. Deploy aipcoreViews library
+        const ViewsFactory = await ethers.getContractFactory("aipcoreViews");
         views = await ViewsFactory.deploy();
         await views.waitForDeployment();
 
-        // 2. Deploy nfeglobal Core
-        const NFE = await ethers.getContractFactory("nfeglobal", {
-            libraries: { nfeglobalViews: await views.getAddress() }
+        // 2. Deploy aipcore Core
+        const NFE = await ethers.getContractFactory("aipcore", {
+            libraries: { aipcoreViews: await views.getAddress() }
         });
         nfe = await NFE.deploy(
             owner.address,
@@ -56,10 +56,11 @@ describe("NFEGlobal ICE System", function () {
             matrix.address
         );
         await nfe.waitForDeployment();
+        nfe = await ethers.getContractAt("contracts/Iaipcore.sol:Iaipcore", await nfe.getAddress());
 
-        // 2.5 Deploy NFEGlobalViewsContract
-        const NFEGlobalViewsContractFactory = await ethers.getContractFactory("NFEGlobalViewsContract");
-        const viewsContract = await NFEGlobalViewsContractFactory.deploy();
+        // 2.5 Deploy AIPCoreViewsContract
+        const AIPCoreViewsContractFactory = await ethers.getContractFactory("AIPCoreViewsContract");
+        const viewsContract = await AIPCoreViewsContractFactory.deploy();
         await viewsContract.waitForDeployment();
         await nfe.connect(owner).setViewsContract(await viewsContract.getAddress());
 
@@ -440,6 +441,9 @@ describe("NFEGlobal ICE System", function () {
 
             const nodeId5 = await registerNode(user5, nodeId3);
             await unlockTier(user5, nodeId5, 4);
+
+            // Deposit to vault to ensure nodeId3 has enough treasury balance for renewal under the auto-upgrade model
+            await nfe.connect(user3).depositToVault({ value: ethers.parseEther("0.05") });
 
             const treasury = await nfe.treasuryBalance(nodeId3);
             const cost = await renewalEngine.getRenewalCost();

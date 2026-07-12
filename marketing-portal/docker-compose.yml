@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════
-#  NFEGlobal CORE — MARKETING PORTAL — docker-compose.yml
+#  AIPCore CORE — MARKETING PORTAL — docker-compose.yml
 #
 #  ⚡ STANDALONE — Fully independent from the main core app stack.
 #     Does NOT share networks, volumes or containers with the core.
@@ -21,10 +21,10 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - VITE_APP_URL=${VITE_APP_URL:-https://nfeglobal.online}
-        - VITE_API_URL=${VITE_API_URL:-https://nfeglobal.online/api}
-    image: nfeglobal-marketing:latest
-    container_name: nfeglobal-marketing
+        - VITE_APP_URL=${VITE_APP_URL:-https://aipcore.online}
+        - VITE_API_URL=${VITE_API_URL:-https://aipcore.online/api}
+    image: aipcore-marketing:latest
+    container_name: aipcore-marketing
     ports:
       - "${MARKETING_HTTP_PORT:-8080}:80"
     volumes:
@@ -42,10 +42,10 @@ services:
           memory: 256M
           cpus: "0.5"
     labels:
-      - "com.nfeglobal.service=marketing-portal"
-      - "com.nfeglobal.version=1.0.0"
+      - "com.aipcore.service=marketing-portal"
+      - "com.aipcore.version=1.0.0"
 
 networks:
   default:
-    name: nfeglobal-marketing-net
+    name: aipcore-marketing-net
     driver: bridge

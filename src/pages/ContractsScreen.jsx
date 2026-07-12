@@ -4,7 +4,7 @@ import { useGameStore } from '../store/gameStore.js';
 import { getEthersSigner } from '../utils/ethers-adapter.js';
 import { ethers } from 'ethers';
 import { config } from '../config/wagmi.js';
-import { NFEGLOBAL_ABI } from '../../contracts/abi.js';
+import { AIPCORE_ABI } from '../../contracts/abi.js';
 import { api } from '../services/api.js';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,8 +27,8 @@ const NODE_TIERS = [
 ];
 
 const CONTRACTS_LIST = [
-  { label: 'NFEGLOBAL ENGINE', address: CONTRACTS.NFEGLOBAL, desc: 'Core node logic, matrix positioning & rewards distribution' },
-  { label: 'NFEGLOBALVIEW HELPER', address: CONTRACTS.NFEGLOBALVIEW, desc: 'On-chain data aggregation and dashboard helper' },
+  { label: 'AIPCORE ENGINE', address: CONTRACTS.AIPCORE, desc: 'Core node logic, matrix positioning & rewards distribution' },
+  { label: 'AIPCOREVIEW HELPER', address: CONTRACTS.AIPCOREVIEW, desc: 'On-chain data aggregation and dashboard helper' },
   { label: 'REWARD POOL', address: CONTRACTS.REWARDPOOL, desc: 'Global staking & dynamic global reward pool contract' }
 ];
 
@@ -49,7 +49,7 @@ export default function ContractsScreen() {
       const signer = await getEthersSigner(config);
       if (!signer) { toast.error('Please connect your wallet first'); setRegistering(false); return; }
 
-      const contract = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, signer);
+      const contract = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, signer);
 
       // Resolve sponsor node ID from referrerId (may be a wallet address or already a node ID)
       let sponsorNodeId = 1n;
@@ -93,7 +93,7 @@ export default function ContractsScreen() {
       // Parse NodeCreated event to get the new node ID
       let newNodeId = 0;
       try {
-        const iface = new ethers.Interface(NFEGLOBAL_ABI);
+        const iface = new ethers.Interface(AIPCORE_ABI);
         for (const log of receipt.logs) {
           try {
             const parsed = iface.parseLog({ topics: [...log.topics], data: log.data });
@@ -119,7 +119,7 @@ export default function ContractsScreen() {
         await api.confirmNode(walletAddress, newNodeId, 1, receipt.hash);
       }
 
-      toast.success('🚀 Node registered! Welcome to NFEGlobal.', { id: 'register', duration: 5000 });
+      toast.success('🚀 Node registered! Welcome to AIPCore.', { id: 'register', duration: 5000 });
 
       // Refresh store from updated DB — fast, no reload
       useGameStore.setState({ lastBackendSync: null });
@@ -162,7 +162,7 @@ export default function ContractsScreen() {
             letterSpacing: 2, color: '#C084FC', marginBottom: 24
           }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#00D2FF', boxShadow: '0 0 8px #00D2FF' }} />
-            NFEGLOBAL PROTOCOL
+            AIPCORE PROTOCOL
           </div>
 
           <h1 style={{
@@ -317,7 +317,7 @@ export default function ContractsScreen() {
           <p style={{ fontSize: 12, color: '#4FC3F7', marginBottom: 20 }}>
             Connect with thousands of other node operators in our official Telegram group to share strategies and earn together.
           </p>
-          <a href="https://t.me/NFEGlobalOfficial" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+          <a href="https://t.me/AIPCoreOfficial" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
             <button style={{
               background: '#fff', color: '#000', border: 'none', borderRadius: 12,
               padding: '12px 24px', fontSize: 13, fontWeight: 900, cursor: 'pointer',

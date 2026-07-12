@@ -15,17 +15,17 @@ async function main() {
   console.log("Oracle deployed at:", oracleAddr, "($600 BNB)");
 
   // 2. Deploy Views Library
-  const ViewsFactory = await hre.ethers.getContractFactory("nfeglobalViews");
+  const ViewsFactory = await hre.ethers.getContractFactory("aipcoreViews");
   const views = await ViewsFactory.deploy();
   await views.waitForDeployment();
   const viewsAddr = await views.getAddress();
   console.log("Views Library deployed at:", viewsAddr);
 
   // 3. Deploy Core Contract
-  const CoreFactory = await hre.ethers.getContractFactory("nfeglobal", {
-    libraries: { nfeglobalViews: viewsAddr },
+  const CoreFactory = await hre.ethers.getContractFactory("aipcore", {
+    libraries: { aipcoreViews: viewsAddr },
   });
-  const core = await CoreFactory.deploy(
+  let core = await CoreFactory.deploy(
     owner.address, // firstUser
     owner.address, // feeReceiver
     hre.ethers.ZeroAddress, // rewardPool
@@ -36,11 +36,21 @@ async function main() {
   await core.waitForDeployment();
   const coreAddr = await core.getAddress();
   console.log("Core deployed at:", coreAddr);
+  core = await hre.ethers.getContractAt("contracts/Iaipcore.sol:Iaipcore", coreAddr);
+
+  // 4. Deploy Views Contract
+  const ViewsContractFactory = await hre.ethers.getContractFactory("AIPCoreViewsContract");
+  const viewsContract = await ViewsContractFactory.deploy();
+  await viewsContract.waitForDeployment();
+  const viewsContractAddr = await viewsContract.getAddress();
+  console.log("Views Contract deployed at:", viewsContractAddr);
 
   // Configure Core Contract
   console.log("Configuring Core Contract connections...");
   await core.setAddr(11, oracleAddr, 0); // set Oracle
-  await core.setPriceBounds(100n * 100000000n, 1000n * 100000000n); // set price bounds
+  await core.setViewsContract(viewsContractAddr); // set views contract for staticcall routing
+  await core.setPriceBounds(100n * 100000000n, 20000n * 100000000n); // set price bounds
+  await core.setAutoBatch(20); // set autoBatch to 20 to prevent queue blockages
   console.log("Core configured successfully.");
 
   // Define solvency verification function
@@ -310,20 +320,23 @@ async function main() {
   await core.connect(u7).createNode(u1Id, { value: regFee });
   const u7Id = await core.nodeId(u7.address);
 
-  // Register U8 under U7 and upgrade U8 to Tier 18
+  // Register U8 under U7 and upgrade U8 to Tier 18 tier-by-tier
   await core.connect(u8).createNode(u7Id, { value: regFee });
   const u8Id = await core.nodeId(u8.address);
-  const costTier18 = await core.getUpgradeCost(0, 18);
-  await core.connect(u8).unlockTier(u8Id, 18, { value: costTier18 });
+  for (let t = 1; t <= 18; t++) {
+    const cost = await core.getUpgradeCost(t - 1, 1);
+    await core.connect(u8).unlockTier(u8Id, t, { value: cost });
+    console.log(`  - U8 successfully upgraded to Tier ${t}`);
+  }
 
   const u7BalBefore = await core.treasuryBalance(u7Id);
   console.log(`U7 treasury balance before tier 18 upgrade: ${hre.ethers.formatEther(u7BalBefore)} BNB`);
 
-  // Step price up from $100 to $5000 to minimize U7's BNB upgrade cost
-  console.log("Stepping price up from $100 to $5000...");
+  // Step price up from $100 to $15000 to minimize U7's BNB upgrade cost
+  console.log("Stepping price up from $100 to $15000...");
   currentPrice = 100;
-  while (currentPrice < 5000) {
-    currentPrice = Math.min(5000, Math.floor(currentPrice * 1.45)); // 45% rise
+  while (currentPrice < 15000) {
+    currentPrice = Math.min(15000, Math.floor(currentPrice * 1.45)); // 45% rise
     await oracle.setPrice(BigInt(currentPrice) * 100000000n);
     await hre.network.provider.send("evm_increaseTime", [10]);
     await hre.network.provider.send("evm_mine");
@@ -331,15 +344,35 @@ async function main() {
   }
   console.log(`Price successfully set to $${await core.nativeTokenPrice() / 100000000n}`);
 
-  const u7Level = await core.getUserLevel(u7Id);
-  const totalCost18 = await core.getUpgradeCost(u7Level, 18 - Number(u7Level));
+  const u7LevelStart = await core.getUserLevel(u7Id);
+  const totalCost18 = await core.getUpgradeCost(u7LevelStart, 18 - Number(u7LevelStart));
   console.log(`Total upgrade cost to Tier 18: ${hre.ethers.formatEther(totalCost18)} BNB`);
 
   const walletBefore = await hre.ethers.provider.getBalance(u7.address);
   
-  // U7 upgrades to Tier 18 (level 18)
-  const tx = await core.connect(u7).unlockTier(u7Id, 18, { value: 0n }); // Funded completely from treasury
-  const receipt = await tx.wait();
+  // Trigger U7's queue re-enqueuing by depositing 1 wei under the new price
+  console.log("Triggering U7 queue re-enqueuing via a micro-deposit...");
+  await core.connect(u7).depositToVault({ value: 1n });
+
+  // U7 upgrades to Tier 18 (level 18) via the treasury auto-upgrade queue
+  console.log("Processing treasury queue to auto-upgrade U7 to Tier 18...");
+  let u7Level = u7LevelStart;
+  while (u7Level < 18n) {
+    await hre.network.provider.send("evm_mine");
+    await core.processTreasuryQueue();
+    const newLvl = await core.getUserLevel(u7Id);
+    if (newLvl === u7Level) {
+      console.log(`U7 stuck at level ${newLvl}. Treasury balance: ${hre.ethers.formatEther(await core.treasuryBalance(u7Id))} BNB`);
+      break;
+    }
+    u7Level = newLvl;
+    console.log(`  - U7 auto-upgraded to Tier ${u7Level}`);
+  }
+
+  // Withdraw remaining treasury release
+  console.log("U7 claiming released treasury from vault...");
+  const withdrawTx = await core.connect(u7).withdraw();
+  const receipt = await withdrawTx.wait();
   const gasUsed = receipt.gasUsed * receipt.gasPrice;
 
   const u7BalAfter = await core.treasuryBalance(u7Id);
@@ -356,6 +389,9 @@ async function main() {
     process.exit(1);
   }
   await verifySolvency("After Test 11");
+
+  console.log("Resetting autoBatch to 1 for Test 12 queue checks...");
+  await core.setAutoBatch(1);
 
   console.log("\n=== TEST 12: Automated Queue Enqueueing via Missed Rewards ===");
   await core.connect(u10).createNode(u1Id, { value: regFee });
@@ -393,8 +429,8 @@ async function main() {
   console.log(`U10 tier after processing: ${u10TierAfter}`);
   console.log(`U10 in queue after processing: ${u10InQueueFinal}`);
 
-  if (u10TierAfter === 2n && u10InQueueFinal) {
-    console.log("✅ Test 12 Passed: Node upgraded by 1 tier (to 2) and correctly re-enqueued!");
+  if (u10TierAfter === 3n && u10InQueueFinal && u10TierBefore === 2n) {
+    console.log("✅ Test 12 Passed: Node upgraded by 1 tier (to 3) and correctly re-enqueued!");
   } else {
     console.log("❌ Test 12 Failed: Automated queue processing failed.");
     process.exit(1);

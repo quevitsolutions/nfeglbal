@@ -11,14 +11,14 @@ async function main() {
   const oracleAddr = await oracle.getAddress();
 
   console.log("Deploying views library...");
-  const ViewsFactory = await ethers.getContractFactory("nfeglobalViews");
+  const ViewsFactory = await ethers.getContractFactory("aipcoreViews");
   const views = await ViewsFactory.deploy();
   await views.waitForDeployment();
   const viewsAddr = await views.getAddress();
 
   console.log("Deploying core contract...");
-  const CoreFactory = await ethers.getContractFactory("nfeglobal", {
-    libraries: { nfeglobalViews: viewsAddr },
+  const CoreFactory = await ethers.getContractFactory("aipcore", {
+    libraries: { aipcoreViews: viewsAddr },
   });
   const core = await CoreFactory.deploy(
     owner.address, owner.address, ethers.ZeroAddress,

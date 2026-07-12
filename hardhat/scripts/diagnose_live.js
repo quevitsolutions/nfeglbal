@@ -15,7 +15,7 @@ const { ethers } = hre;
 
 const DEPLOYMENT = {
   BNBPriceOracle: "0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526", // Real Chainlink BNB/USD
-  nfeglobal: "0x5eF34F466e083cC5d0C9B76A94A19a65B2a0dCB1",
+  aipcore: "0x5eF34F466e083cC5d0C9B76A94A19a65B2a0dCB1",
   rewardPool: "0xd7a11c03F40D8A74Dc58a8441498f05a210D027A",
 };
 
@@ -25,8 +25,8 @@ async function main() {
   console.log("Balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)), "BNB");
 
   const core = await ethers.getContractAt(
-    "nfeglobal",
-    DEPLOYMENT.nfeglobal,
+    "aipcore",
+    DEPLOYMENT.aipcore,
     deployer
   );
   
@@ -121,7 +121,7 @@ async function main() {
 
   // 6. Contract balance invariant check
   console.log("\n=== CONTRACT BALANCE CHECK ===");
-  const balance = await ethers.provider.getBalance(DEPLOYMENT.nfeglobal);
+  const balance = await ethers.provider.getBalance(DEPLOYMENT.aipcore);
   const missed = await core.totalMissedRewards();
   const pending = await core.totalPendingRewards();
   console.log("Contract balance:", ethers.formatEther(balance), "BNB");
@@ -164,13 +164,13 @@ async function main() {
     const genesisPool = await rewardPool.nodePool(55555);
     console.log("Genesis pool tier:", genesisPool.toString());
     
-    // Check if nfeglobal is an authorized caller in RewardPool
-    const isEngine = await rewardPool.authorizedCallers(DEPLOYMENT.nfeglobal);
-    console.log("nfeglobal is authorized caller in RewardPool:", isEngine);
+    // Check if aipcore is an authorized caller in RewardPool
+    const isEngine = await rewardPool.authorizedCallers(DEPLOYMENT.aipcore);
+    console.log("aipcore is authorized caller in RewardPool:", isEngine);
     if (!isEngine) {
-      console.log("⚠️  WARNING: nfeglobal is NOT an authorized caller in RewardPool!");
-      console.log("   This means registerNode() calls from nfeglobal will be REJECTED!");
-      console.log("   HOWEVER: nfeglobal does NOT call registerNode() internally — it only emits PoolCheckRequired event.");
+      console.log("⚠️  WARNING: aipcore is NOT an authorized caller in RewardPool!");
+      console.log("   This means registerNode() calls from aipcore will be REJECTED!");
+      console.log("   HOWEVER: aipcore does NOT call registerNode() internally — it only emits PoolCheckRequired event.");
       console.log("   This is NOT a blocking issue for createNode().");
     }
   } catch(e) {

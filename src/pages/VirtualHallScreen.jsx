@@ -49,7 +49,7 @@ const SLIDES = [
   {
     title: 'The Future of\nAI-Powered Communities',
     sub: 'Connecting People, Intelligence\nand Opportunities in Web3',
-    url: 'nfeglobal.online',
+    url: 'aipcore.online',
     bullets: [
       { icon: '🤖', text: 'AI Avatar Interaction' },
       { icon: '🔐', text: 'Decentralized Identity' },
@@ -59,8 +59,8 @@ const SLIDES = [
   },
   {
     title: 'Node Activation &\nRewards Ecosystem',
-    sub: 'Fueling decentralized computational\nworkflows with $NFEGLOBAL',
-    url: 'nfeglobal.online/nodes',
+    sub: 'Fueling decentralized computational\nworkflows with $AIPCORE',
+    url: 'aipcore.online/nodes',
     bullets: [
       { icon: '⛏️', text: 'Computational Mining Pools' },
       { icon: '💰', text: 'Passive BNB Distribution' },
@@ -80,15 +80,15 @@ const MAP_ZONES = [
 
 const AGENDA = [
   { time: '10:00 AM', title: 'Opening Remarks & Vision Keynote',         desc: 'Setting the stage for decentralized intelligence.' },
-  { time: '10:30 AM', title: 'Unveiling NFEGlobal AI Host Core Integration',   desc: 'Deep dive into LLM automation via on-chain mining nodes.' },
+  { time: '10:30 AM', title: 'Unveiling AIPCore AI Host Core Integration',   desc: 'Deep dive into LLM automation via on-chain mining nodes.' },
   { time: '11:15 AM', title: 'Sustainable BNB Passive Income',           desc: 'Panel debate on high-efficiency yield systems.' },
   { time: '12:00 PM', title: 'Community DAO Governance Roundtable',      desc: 'Decentralized voting mechanisms and proposal frameworks.' },
 ];
 
 const SPEAKERS = [
-  { name: 'Dr. Alexis Vance', role: 'Lead AI Scientist, NFEGlobal Core',  bio: 'Pioneering decentralization of NLP and deep learning on EVM.', emoji: '🧑‍💻' },
+  { name: 'Dr. Alexis Vance', role: 'Lead AI Scientist, AIPCore Core',  bio: 'Pioneering decentralization of NLP and deep learning on EVM.', emoji: '🧑‍💻' },
   { name: 'Emma Blockchain',  role: 'Founder, Web3 Growth',          bio: 'Advising top decentralized communities on sustainable mining.', emoji: '👩‍💼' },
-  { name: 'NFEGlobal AI Host',      role: 'Autonomous Synthesized Presenter', bio: '24/7 fully synthetic presenter generating live knowledge.', emoji: '🤖' },
+  { name: 'AIPCore AI Host',      role: 'Autonomous Synthesized Presenter', bio: '24/7 fully synthetic presenter generating live knowledge.', emoji: '🤖' },
 ];
 
 const fmtNum = (n) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n;
@@ -162,9 +162,9 @@ function AIHostAvatar({ size = 120 }) {
       <path d="M36 47 L40 62 L44 47" fill="#152040" />
       <path d="M36 47 L28 60 L36 70 L40 62" fill="#1a2a4a" />
       <path d="M44 47 L52 60 L44 70 L40 62" fill="#1a2a4a" />
-      {/* NFEGlobal logo on chest */}
+      {/* AIPCore logo on chest */}
       <circle cx="40" cy="78" r="8" fill="none" stroke="#4FC3F7" strokeWidth="1.5" />
-      <text x="40" y="81" textAnchor="middle" fontSize="7" fill="#4FC3F7" fontWeight="bold">NFEGlobal</text>
+      <text x="40" y="81" textAnchor="middle" fontSize="7" fill="#4FC3F7" fontWeight="bold">AIPCore</text>
       {/* Arms */}
       <rect x="4" y="48" width="15" height="35" rx="6" fill="#0d1a2e" />
       <rect x="61" y="48" width="15" height="35" rx="6" fill="#0d1a2e" />
@@ -177,8 +177,8 @@ function AIHostAvatar({ size = 120 }) {
   );
 }
 
-/* ─── NFEGlobal Logo SVG ────────────────────────────────────────── */
-function NFEGlobalLogo({ size = 80 }) {
+/* ─── AIPCore Logo SVG ────────────────────────────────────────── */
+function AIPCoreLogo({ size = 80 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="40" cy="40" r="38" fill="none" stroke="#4FC3F7" strokeWidth="1.5" opacity="0.6" />
@@ -336,7 +336,7 @@ export default function VirtualHallScreen({ onBack, event }) {
       { user: 'CryptoNinja',  msg: 'This AI host is incredible 🔥', color: '#A3FF12', emoji: '🥷' },
       { user: 'QuantumNode',  msg: 'Node rewards just hit! 💰',      color: '#4FC3F7', emoji: '⚡' },
       { user: 'MoonMiner',    msg: 'Best summit in Web3 history 🚀',  color: '#b060ff', emoji: '🌕' },
-      { user: 'BlockBoss',    msg: 'NFEGlobal is the future 🌐',           color: '#ff9800', emoji: '💎' },
+      { user: 'BlockBoss',    msg: 'AIPCore is the future 🌐',           color: '#ff9800', emoji: '💎' },
     ];
     let i = 0;
     const iv = setInterval(() => {
@@ -355,7 +355,7 @@ export default function VirtualHallScreen({ onBack, event }) {
     setChatInput('');
     setTimeout(() => {
       setMessages(prev => [...prev, {
-        user: '🤖 NFEGlobal AI Host', msg: 'Thanks for engaging! Raise your hand if you have a live question.',
+        user: '🤖 AIPCore AI Host', msg: 'Thanks for engaging! Raise your hand if you have a live question.',
         color: '#4FC3F7', emoji: '🤖', isAI: true
       }]);
     }, 2200);
@@ -416,7 +416,7 @@ export default function VirtualHallScreen({ onBack, event }) {
             fontSize: 17, fontWeight: 900, color: '#000', flexShrink: 0,
           }}>A</div>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 900, color: '#fff', lineHeight: 1.2, letterSpacing: 0.5 }}>NFEGlobal CORE</div>
+            <div style={{ fontSize: 12, fontWeight: 900, color: '#fff', lineHeight: 1.2, letterSpacing: 0.5 }}>AIPCore CORE</div>
             <div style={{ fontSize: 7.5, color: '#4FC3F7', fontWeight: 700, letterSpacing: 1.8 }}>AI · WEB3 · COMMUNITY</div>
           </div>
         </div>
@@ -500,7 +500,7 @@ export default function VirtualHallScreen({ onBack, event }) {
             </div>
 
             <div style={{ fontSize: 13, fontWeight: 900, color: '#fff', lineHeight: 1.3, marginBottom: 4 }}>
-              NFEGlobal CORE GLOBAL SUMMIT
+              AIPCore CORE GLOBAL SUMMIT
             </div>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', lineHeight: 1.45, marginBottom: 10 }}>
               The Future of AI, Web3 and Decentralized Communities
@@ -585,7 +585,7 @@ export default function VirtualHallScreen({ onBack, event }) {
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 10, fontWeight: 900, color: '#fff' }}>NFEGlobal Core Arena</div>
+                <div style={{ fontSize: 10, fontWeight: 900, color: '#fff' }}>AIPCore Core Arena</div>
                 <div style={{ fontSize: 8, color: '#A3FF12', marginTop: 2 }}>Concentric Zone A</div>
               </div>
             </div>
@@ -646,7 +646,7 @@ export default function VirtualHallScreen({ onBack, event }) {
               fontSize: 22, fontWeight: 900, letterSpacing: 3,
               background: 'linear-gradient(90deg,#4FC3F7,#fff,#4FC3F7)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            }}>NFEGlobal CORE</div>
+            }}>AIPCore CORE</div>
             <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', fontWeight: 800, letterSpacing: 3 }}>
               BUILDING THE DECENTRALIZED FUTURE
             </div>
@@ -707,7 +707,7 @@ export default function VirtualHallScreen({ onBack, event }) {
               </AnimatePresence>
             </div>
 
-            {/* ── NFEGlobal LOGO CIRCLE (right side of screen) ── */}
+            {/* ── AIPCore LOGO CIRCLE (right side of screen) ── */}
             <div style={{
               position: 'absolute', top: '8%', right: '10%',
               zIndex: 5, animation: 'logoPulse 4s infinite',
@@ -733,7 +733,7 @@ export default function VirtualHallScreen({ onBack, event }) {
                   width: 5, height: 5, borderRadius: '50%', background: '#b060ff',
                 }} />
               </div>
-              <NFEGlobalLogo size={90} />
+              <AIPCoreLogo size={90} />
             </div>
 
             {/* ── AI HOST AVATAR on stage ── */}
@@ -751,7 +751,7 @@ export default function VirtualHallScreen({ onBack, event }) {
               }} />
               <AIHostAvatar size={110} />
 
-              {/* NFEGlobal CORE AI HOST badge */}
+              {/* AIPCore CORE AI HOST badge */}
               <div style={{
                 marginTop: 6, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
                 border: '1px solid rgba(79,195,247,0.5)', borderRadius: 10,
@@ -759,7 +759,7 @@ export default function VirtualHallScreen({ onBack, event }) {
                 boxShadow: '0 0 20px rgba(79,195,247,0.2)',
               }}>
                 <div style={{ fontSize: 9, fontWeight: 900, color: '#4FC3F7', letterSpacing: 1.5 }}>
-                  NFEGlobal CORE AI HOST
+                  AIPCore CORE AI HOST
                 </div>
                 {/* Waveform */}
                 <div style={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'center', height: 14, marginTop: 4 }}>
@@ -1164,8 +1164,8 @@ export default function VirtualHallScreen({ onBack, event }) {
 
                 {(overlay === 'schedule' || overlay === 'about') && (
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
-                    <p><strong style={{ color: '#4FC3F7' }}>NFEGlobal Core Global Summit</strong> is a groundbreaking Web3 and AI event streaming globally across decentralized channels.</p>
-                    <p style={{ marginTop: 10 }}>Main stages cycle active presentation slides with synchronized multi-region audio feeds powered by the NFEGlobal AI Host system.</p>
+                    <p><strong style={{ color: '#4FC3F7' }}>AIPCore Core Global Summit</strong> is a groundbreaking Web3 and AI event streaming globally across decentralized channels.</p>
+                    <p style={{ marginTop: 10 }}>Main stages cycle active presentation slides with synchronized multi-region audio feeds powered by the AIPCore AI Host system.</p>
                     <p style={{ marginTop: 10 }}>After closing remarks, join lounge spaces for decentralized networking and physical location matching.</p>
                   </div>
                 )}
@@ -1176,8 +1176,8 @@ export default function VirtualHallScreen({ onBack, event }) {
                     <p style={{ marginTop: 10 }}>Reach out via global chat or ping the <strong style={{ color: '#A3FF12' }}>🤖 AI Host</strong> directly to reset node integrations.</p>
                     <div style={{ marginTop: 16, background: 'rgba(163,255,18,0.07)', border: '1px solid rgba(163,255,18,0.2)', borderRadius: 10, padding: 12 }}>
                       <div style={{ fontSize: 10, fontWeight: 900, color: '#A3FF12' }}>Support Channels</div>
-                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>📧 support@nfeglobal.online</div>
-                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>💬 Telegram: @NFEGlobalSupport</div>
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>📧 support@aipcore.online</div>
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>💬 Telegram: @AIPCoreSupport</div>
                     </div>
                   </div>
                 )}

@@ -15,14 +15,14 @@ describe("RewardPool Leadership Engine Integration", function () {
     beforeEach(async function () {
         [owner, oracle, matrix, feeRec, userSponsor, otherUser, ...referralNodes] = await ethers.getSigners();
 
-        // 1. Deploy nfeglobalViews library
-        const ViewsFactory = await ethers.getContractFactory("nfeglobalViews");
+        // 1. Deploy aipcoreViews library
+        const ViewsFactory = await ethers.getContractFactory("aipcoreViews");
         views = await ViewsFactory.deploy();
         await views.waitForDeployment();
 
-        // 2. Deploy nfeglobal Core
-        const NFE = await ethers.getContractFactory("nfeglobal", {
-            libraries: { nfeglobalViews: await views.getAddress() }
+        // 2. Deploy aipcore Core
+        const NFE = await ethers.getContractFactory("aipcore", {
+            libraries: { aipcoreViews: await views.getAddress() }
         });
         nfe = await NFE.deploy(
             owner.address,      // firstUser (Node 55555)
@@ -33,10 +33,11 @@ describe("RewardPool Leadership Engine Integration", function () {
             matrix.address      // matrixAdmin
         );
         await nfe.waitForDeployment();
+        nfe = await ethers.getContractAt("contracts/Iaipcore.sol:Iaipcore", await nfe.getAddress());
 
-        // 2.5 Deploy NFEGlobalViewsContract
-        const NFEGlobalViewsContractFactory = await ethers.getContractFactory("NFEGlobalViewsContract");
-        const viewsContract = await NFEGlobalViewsContractFactory.deploy();
+        // 2.5 Deploy AIPCoreViewsContract
+        const AIPCoreViewsContractFactory = await ethers.getContractFactory("AIPCoreViewsContract");
+        const viewsContract = await AIPCoreViewsContractFactory.deploy();
         await viewsContract.waitForDeployment();
         await nfe.connect(owner).setViewsContract(await viewsContract.getAddress());
 

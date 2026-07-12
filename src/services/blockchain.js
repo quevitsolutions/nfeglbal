@@ -1,8 +1,8 @@
 import { ethers } from "ethers";
 import { CONTRACTS, RPC_NODES } from "../config/constants.js";
 import {
-  NFEGLOBAL_ABI,
-  NFEGLOBAL_VIEWS_ABI,
+  AIPCORE_ABI,
+  AIPCORE_VIEWS_ABI,
   REWARDPOOL_ABI,
 } from "../../contracts/abi.js";
 import { api } from "./api.js"; // zero-RPC post-tx DB confirm
@@ -15,32 +15,33 @@ import { config } from "../config/wagmi.js";
 import { getEthersProvider, getEthersSigner } from "../utils/ethers-adapter.js";
 
 /**
- * NFEGlobal Blockchain Service (Ethers v6) - 4-source Tier Waterfall
+ * AIPCore Blockchain Service (Ethers v6) - 4-source Tier Waterfall
  *   Sources (priority order):
- *   1. NFEGLOBALVIEW  getNodeStats(nId)[3]  → 'level'  (independent view contract)
- *   2. NFEGLOBAL  getNodeStats(nId)[0]  → 'tier'   (core stats)
- *   3. NFEGLOBAL  nodes(nId)[5]        → struct tier field (raw)
+ *   1. AIPCOREVIEW  getNodeStats(nId)[3]  → 'level'  (independent view contract)
+ *   2. AIPCORE  getNodeStats(nId)[0]  → 'tier'   (core stats)
+ *   3. AIPCORE  nodes(nId)[5]        → struct tier field (raw)
  *   4. REWARDPOOL getPoolViewHelper(nId)[8] → nfeTier
  */
 class BlockchainService {
   constructor() {
-    this.staticProvider = new ethers.JsonRpcProvider(RPC_NODES[0]);
-    this.core = new ethers.Contract(
-      CONTRACTS.NFEGLOBAL,
-      NFEGLOBAL_ABI,
+    const providers = RPC_NODES.map(url => new ethers.JsonRpcProvider(url, undefined, { staticNetwork: true }));
+    this.staticProvider = new ethers.FallbackProvider(providers);
+    this._core = new ethers.Contract(
+      CONTRACTS.AIPCORE,
+      AIPCORE_ABI,
       this.staticProvider,
     );
-    this.view = new ethers.Contract(
-      CONTRACTS.NFEGLOBALVIEW,
-      NFEGLOBAL_VIEWS_ABI,
+    this._view = new ethers.Contract(
+      CONTRACTS.AIPCOREVIEW,
+      AIPCORE_VIEWS_ABI,
       this.staticProvider,
     );
-    this.pool = new ethers.Contract(
+    this._pool = new ethers.Contract(
       CONTRACTS.REWARDPOOL,
       REWARDPOOL_ABI,
       this.staticProvider,
     );
-    this.multicall = new ethers.Contract(
+    this._multicall = new ethers.Contract(
       MULTICALL_ADDRESS,
       MULTICALL_ABI,
       this.staticProvider
@@ -49,6 +50,22 @@ class BlockchainService {
 
   _getProvider() {
     return getEthersProvider(config) || this.staticProvider;
+  }
+
+  get core() {
+    return this._core.connect(this._getProvider());
+  }
+
+  get view() {
+    return this._view.connect(this._getProvider());
+  }
+
+  get pool() {
+    return this._pool.connect(this._getProvider());
+  }
+
+  get multicall() {
+    return this._multicall.connect(this._getProvider());
   }
 
   async getOwner() {
@@ -64,21 +81,21 @@ class BlockchainService {
       // All calls are isolated — one failure cannot break others
       const [viewStats, coreStats, nodeRaw, isActive, pending, poolData, viewBreakdown, poolClaimableData, capInfo, isFreeActive] =
         await Promise.all([
-          this.view.getNodeStats(nId).catch(() => null),         // NFEGLOBALVIEW  → [totalEarned, teamSize, directRefs, level]
-          this.core.getNodeStats(nId).catch(() => null),         // NFEGLOBAL  → [tier, directCount, matrixCount, ...]
+          this.view.getNodeStats(nId).catch(() => null),         // AIPCOREVIEW  → [totalEarned, teamSize, directRefs, level]
+          this.core.getNodeStats(nId).catch(() => null),         // AIPCORE  → [tier, directCount, matrixCount, ...]
           this.core.nodes(nId).catch(() => null),                // raw struct → index 5 = tier
-          this.core.isNodeActive(nId).catch(() => false),
-          this.core.pendingReward(address).catch(() => 0n),      // NFEGLOBAL pending (by wallet)
+          true,                                                  // active (since nId > 0, the node exists and is registered)
+          this.core.pendingReward(address).catch(() => 0n),      // AIPCORE pending (by wallet)
           this.pool.getPoolViewHelper(nId).catch(() => null),    // full pool view
-          this.view.getIncomeBreakdown(nId).catch(() => null),   // NFEGLOBALVIEW → [direct,matrix,pool,pending] ← pool income
+          this.view.getIncomeBreakdown(nId).catch(() => null),   // AIPCOREVIEW → [direct,matrix,pool,pending] ← pool income
           this.pool.getClaimable(nId).catch(() => null),         // REWARDPOOL → [fromCurrentPool,fromExited,total]
           this.pool.getCapInfo(nId).catch(() => null),           // REWARDPOOL → [capMult,deposited,lifetimeCap,claimed,remaining]
           this.core.isFreeRegistered(nId).catch(() => false),
         ]);
 
       // ── 4-source tier waterfall ──
-      const t1 = viewStats ? Number(viewStats[3]) : 0; // NFEGLOBALVIEW  level   (index 3)
-      const t2 = coreStats ? Number(coreStats[0]) : 0; // NFEGLOBAL  tier    (index 0)
+      const t1 = viewStats ? Number(viewStats[3]) : 0; // AIPCOREVIEW  level   (index 3)
+      const t2 = coreStats ? Number(coreStats[0]) : 0; // AIPCORE  tier    (index 0)
       const t3 = nodeRaw ? Number(nodeRaw[5]) : 0; // nodes()  tier    (index 5)
       const t4 = poolData ? Number(poolData[8]) : 0; // pool     nfeTier (index 8)
 
@@ -87,7 +104,7 @@ class BlockchainService {
         : (t1 > 0 ? t1 : t2 > 0 ? t2 : t3 > 0 ? t3 : t4 > 0 ? t4 : 1);
 
       console.debug(
-        `[Tier] nId=${Number(nId)} NFEGLOBALVIEW=${t1} CoreStats=${t2} nodes[5]=${t3} pool.nfeTier=${t4} isFree=${isFreeActive} → FINAL=${tier}`,
+        `[Tier] nId=${Number(nId)} AIPCOREVIEW=${t1} CoreStats=${t2} nodes[5]=${t3} pool.nfeTier=${t4} isFree=${isFreeActive} → FINAL=${tier}`,
       );
 
       // ── directRefs / teamSize: prefer coreStats, fallback viewStats ──
@@ -105,8 +122,8 @@ class BlockchainService {
         ? ethers.formatEther(coreStats[3] || 0n)
         : "0";
 
-      // ── pendingReward: prefer NFEGLOBALVIEW breakdown[3] → fallback NFEGLOBAL pendingReward ──
-      // NFEGLOBALVIEW gives per-node pending; NFEGLOBAL pendingReward(address) can be 0 if already claimed on-chain
+      // ── pendingReward: prefer AIPCOREVIEW breakdown[3] → fallback AIPCORE pendingReward ──
+      // AIPCOREVIEW gives per-node pending; AIPCORE pendingReward(address) can be 0 if already claimed on-chain
       const pendingFromView = viewBreakdown ? viewBreakdown[3] : null;
       const finalPending = (pendingFromView && BigInt(pendingFromView) > 0n)
         ? BigInt(pendingFromView)
@@ -119,8 +136,8 @@ class BlockchainService {
         ? BigInt(poolClaimTotal)
         : (poolData?.[2] || 0n);
 
-      // ── totalPoolEarned: NFEGLOBALVIEW getIncomeBreakdown()[2] = pool income (most accurate) ──
-      // Falls back to getPoolViewHelper[3] if NFEGLOBALVIEW unavailable
+      // ── totalPoolEarned: AIPCOREVIEW getIncomeBreakdown()[2] = pool income (most accurate) ──
+      // Falls back to getPoolViewHelper[3] if AIPCOREVIEW unavailable
       const poolEarned = viewBreakdown && BigInt(viewBreakdown[2] || 0n) > 0n
         ? viewBreakdown[2]
         : (poolData?.[3] || 0n);
@@ -172,7 +189,7 @@ class BlockchainService {
       return this._nativePrice;
     }
 
-    // Primary: On-chain oracle from NFEGlobal contract (8 decimal uint, e.g. 60000000000 = $600)
+    // Primary: On-chain oracle from AIPCore contract (8 decimal uint, e.g. 60000000000 = $600)
     try {
       const raw = await this.core.nativePrice();
       const price = Number(raw) / 1e8;
@@ -253,7 +270,7 @@ class BlockchainService {
         });
     } catch (err) {
       console.warn(
-        "fetchTeamHistoryOnChain failed (NFEGlobal contract might not support getIncome if very old):",
+        "fetchTeamHistoryOnChain failed (AIPCore contract might not support getIncome if very old):",
         err.message,
       );
       return null; // Signals failure so we can fallback to API
@@ -266,7 +283,7 @@ class BlockchainService {
     const signer = await getEthersSigner(config);
     if (!signer) throw new Error("Wallet not connected");
     const walletAddress = await signer.getAddress();
-    const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, signer);
+    const core = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, signer);
 
     // SELF-HEAL: If DB missed the registration, the contract will revert with no reason.
     // Check on-chain first to gracefully recover and sync.
@@ -299,7 +316,7 @@ class BlockchainService {
     // Parse NodeCreated event to get the assigned nodeId
     let nid = 0;
     try {
-      const iface = new ethers.Interface(NFEGLOBAL_ABI);
+      const iface = new ethers.Interface(AIPCORE_ABI);
       for (const log of receipt.logs) {
         try {
           const parsed = iface.parseLog({ topics: [...log.topics], data: log.data });
@@ -335,7 +352,7 @@ class BlockchainService {
     const signer = await getEthersSigner(config);
     if (!signer) throw new Error("Wallet not connected");
     const walletAddress = await signer.getAddress();
-    const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, signer);
+    const core = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, signer);
 
     // Self-heal: if already registered, return existing
     const existingNodeId = await core.nodeId(walletAddress).catch(() => 0n);
@@ -368,7 +385,7 @@ class BlockchainService {
 
     let nid = 0;
     try {
-      const iface = new ethers.Interface(NFEGLOBAL_ABI);
+      const iface = new ethers.Interface(AIPCORE_ABI);
       for (const log of receipt.logs) {
         try {
           const parsed = iface.parseLog({ topics: [...log.topics], data: log.data });
@@ -403,8 +420,8 @@ class BlockchainService {
     if (!signer) throw new Error("Wallet not connected");
     return (
       await new ethers.Contract(
-        CONTRACTS.NFEGLOBAL,
-        NFEGLOBAL_ABI,
+        CONTRACTS.AIPCORE,
+        AIPCORE_ABI,
         signer,
       ).withdraw()
     ).wait();
@@ -438,7 +455,7 @@ class BlockchainService {
     const signer = await getEthersSigner(config);
     if (!signer) throw new Error("Wallet not connected");
     const walletAddress = await signer.getAddress();
-    const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, signer);
+    const core = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, signer);
     
     // Fetch all tier costs and select the correct one (fallback to calculate if RPC fails)
     let cost;
@@ -474,7 +491,7 @@ class BlockchainService {
     // packageId = the new tier index (1-based)
     let confirmedTier = toTier; // fallback to what we requested
     try {
-      const iface = new ethers.Interface(NFEGLOBAL_ABI);
+      const iface = new ethers.Interface(AIPCORE_ABI);
       for (const log of receipt.logs) {
         try {
           const parsed = iface.parseLog({ topics: [...log.topics], data: log.data });
@@ -499,7 +516,7 @@ class BlockchainService {
   async getReferralCounts(nodeId) {
     try {
       const calls = Array.from({ length: 18 }, (_, i) => ({
-        target: CONTRACTS.NFEGLOBAL,
+        target: CONTRACTS.AIPCORE,
         callData: this.core.interface.encodeFunctionData("getTeamSize", [nodeId, i])
       }));
 
@@ -554,11 +571,11 @@ class BlockchainService {
       // Contract uses 0-indexed layers (Layer 0 = Level 1, Layer 17 = Level 18)
       // Split into two multicall batches to avoid block-gas / payload limits
       const batch1 = Array.from({ length: 9 }, (_, i) => ({
-        target: CONTRACTS.NFEGLOBAL,
+        target: CONTRACTS.AIPCORE,
         callData: this.core.interface.encodeFunctionData("getMatrixUsers", [nodeId, i, 0, 50])
       }));
       const batch2 = Array.from({ length: 9 }, (_, i) => ({
-        target: CONTRACTS.NFEGLOBAL,
+        target: CONTRACTS.AIPCORE,
         callData: this.core.interface.encodeFunctionData("getMatrixUsers", [nodeId, i + 9, 0, 50])
       }));
 
@@ -621,7 +638,7 @@ class BlockchainService {
     // Enrich with per-member stats (directs + sub-team) via a single multicall batch
     try {
       const calls = basic.map(m => ({
-        target: CONTRACTS.NFEGLOBAL,
+        target: CONTRACTS.AIPCORE,
         callData: this.core.interface.encodeFunctionData("getNodeStats", [m.nodeId])
       }));
       const [, returnData] = await this.multicall.aggregate(calls);
@@ -656,7 +673,7 @@ class BlockchainService {
   async setTargetedUser(wallet, status) {
     const signer = await getEthersSigner(config);
     if (!signer) throw new Error("Wallet not connected");
-    const coreWithSigner = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, signer);
+    const coreWithSigner = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, signer);
     const tx = await coreWithSigner.setTargetedUser(wallet, status);
     return await tx.wait();
   }
@@ -744,7 +761,7 @@ class BlockchainService {
   async addTreasuryNode(nodeId) {
     const signer = await getEthersSigner(config);
     if (!signer) throw new Error("Wallet not connected");
-    const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, signer);
+    const core = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, signer);
     const tx = await core.addTreasuryNode(nodeId, { gasLimit: 300000 });
     return await tx.wait();
   }
@@ -755,7 +772,7 @@ class BlockchainService {
   async removeTreasuryNode(nodeId) {
     const signer = await getEthersSigner(config);
     if (!signer) throw new Error("Wallet not connected");
-    const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, signer);
+    const core = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, signer);
     const tx = await core.removeTreasuryNode(nodeId, { gasLimit: 300000 });
     return await tx.wait();
   }
@@ -767,14 +784,14 @@ class BlockchainService {
   async treasuryUnlockTier(nodeId) {
     const signer = await getEthersSigner(config);
     if (!signer) throw new Error("Wallet not connected");
-    const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, signer);
+    const core = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, signer);
     const tx = await core.treasuryUnlockTier(nodeId, { gasLimit: 500000 });
     const receipt = await tx.wait();
 
     // Parse confirmed tier from event
     let confirmedTier = 0;
     try {
-      const iface = new ethers.Interface(NFEGLOBAL_ABI);
+      const iface = new ethers.Interface(AIPCORE_ABI);
       for (const log of receipt.logs) {
         try {
           const parsed = iface.parseLog({ topics: [...log.topics], data: log.data });
@@ -805,7 +822,7 @@ class BlockchainService {
     const signer = await getEthersSigner(config);
     if (!signer) throw new Error("Wallet not connected");
     const walletAddress = await signer.getAddress();
-    const core = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, signer);
+    const core = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, signer);
     
     // Fetch next tier cost
     const nodeId = await core.nodeId(walletAddress);
@@ -846,7 +863,7 @@ class BlockchainService {
     
     let confirmedTier = currentTier + 1;
     try {
-      const iface = new ethers.Interface(NFEGLOBAL_ABI);
+      const iface = new ethers.Interface(AIPCORE_ABI);
       for (const log of receipt.logs) {
         try {
           const parsed = iface.parseLog({ topics: [...log.topics], data: log.data });

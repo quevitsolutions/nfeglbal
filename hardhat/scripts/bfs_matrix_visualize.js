@@ -66,10 +66,10 @@ async function main() {
   // ─── DEPLOY ────────────────────────────────────────────────────────────────
   const oracle = await (await ethers.getContractFactory("BNBPriceOracle")).deploy();
   await oracle.waitForDeployment();
-  const views = await (await ethers.getContractFactory("nfeglobalViews")).deploy();
+  const views = await (await ethers.getContractFactory("aipcoreViews")).deploy();
   await views.waitForDeployment();
-  const core = await (await ethers.getContractFactory("nfeglobal", {
-    libraries: { nfeglobalViews: await views.getAddress() },
+  const core = await (await ethers.getContractFactory("aipcore", {
+    libraries: { aipcoreViews: await views.getAddress() },
   })).deploy(owner.address, owner.address, ethers.ZeroAddress, owner.address, owner.address, owner.address);
   await core.waitForDeployment();
   
@@ -86,7 +86,7 @@ async function main() {
   const GENESIS = 55555;
 
   console.log("\n╔══════════════════════════════════════════════════════════╗");
-  console.log("║     BFS PRECOMPUTE MATRIX TREE — NFEGLOBAL CONTRACT     ║");
+  console.log("║     BFS PRECOMPUTE MATRIX TREE — AIPCORE CONTRACT     ║");
   console.log("╚══════════════════════════════════════════════════════════╝");
   console.log(`\n  Genesis NodeId: ${GENESIS}`);
   console.log(`  Registration fee: ${ethers.formatEther(fee)} BNB`);

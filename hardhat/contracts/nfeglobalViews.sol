@@ -598,6 +598,12 @@ interface ICoreForViews {
     function networkTree(uint, uint, uint) external view returns (uint);
     // rewardHistory(nodeId, index)
     function rewardHistory(uint, uint) external view returns (uint, uint, uint, uint, bool, uint, uint);
+
+    // Added view-redirection fields
+    function totalTreasuryBalance() external view returns (uint);
+    function lastTreasuryActivity(uint) external view returns (uint);
+    function accountBalances(uint) external view returns (uint, uint, uint, uint, uint, uint, uint, uint);
+    function registrationFeeUSD() external view returns (uint);
 }
 
 contract NFEGlobalViewsContract {
@@ -611,6 +617,61 @@ contract NFEGlobalViewsContract {
             } catch {}
         } catch {}
         return poolIncome;
+    }
+
+    // --- Added views redirected from core to save space ---
+    function nativePrice() external view returns (uint) {
+        return ICoreForViews(msg.sender).nativeTokenPrice();
+    }
+
+    function bnbPrice() external view returns (uint) {
+        return ICoreForViews(msg.sender).nativeTokenPrice();
+    }
+
+    function totalMissedRewards() external view returns (uint) {
+        return ICoreForViews(msg.sender).totalTreasuryBalance();
+    }
+
+    function lastActivity(uint _nodeId) external view returns (uint) {
+        return ICoreForViews(msg.sender).lastTreasuryActivity(_nodeId);
+    }
+
+    function treasury(uint _nodeId) external view returns (uint bnbAmount, uint usdValue) {
+        (, uint256 vaultBal, , , , , , ) = ICoreForViews(msg.sender).accountBalances(_nodeId);
+        uint price = ICoreForViews(msg.sender).nativeTokenPrice();
+        return (vaultBal, (vaultBal * price) / 1e8);
+    }
+
+    function getRegistrationFee() external view returns (uint256) {
+        uint256 feeUsd = ICoreForViews(msg.sender).registrationFeeUSD();
+        uint256 price = ICoreForViews(msg.sender).nativeTokenPrice();
+        require(price > 0);
+        return (feeUsd * 1e8) / price;
+    }
+    function getPendingUpgradeRewards(uint _nodeId) external view returns (uint) {
+        (, uint256 upgradeVaultBalance, , , , , , ) = ICoreForViews(msg.sender).accountBalances(_nodeId);
+        return upgradeVaultBalance;
+    }
+
+    function getNodeWallet(uint nodeId) external view returns (address) {
+        (address wallet,,,,,,,,) = ICoreForViews(msg.sender).nodes(nodeId);
+        return wallet;
+    }
+
+    function getNodeContribution(uint nodeId) external view returns (uint) {
+        (,,,,,,,,uint totalContribution) = ICoreForViews(msg.sender).nodes(nodeId);
+        return totalContribution;
+    }
+
+    function getNodeTier(uint nodeId) external view returns (uint) {
+        (,,,,,uint8 tier,,,) = ICoreForViews(msg.sender).nodes(nodeId);
+        return tier;
+    }
+
+    function getTierCost(uint tier) external view returns (uint) {
+        uint price = ICoreForViews(msg.sender).nativeTokenPrice();
+        if (price == 0) price = 1e15;
+        return (ICoreForViews(msg.sender).tierPriceUSD(tier) * 1e8) / price;
     }
 
     function getNodeStats(uint256 _userId) external view returns (

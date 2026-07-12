@@ -4,7 +4,7 @@ const { ethers } = require("hardhat");
 async function main() {
   const coreAddr = "0x89C394B2f7d35F9e798d881DD05a6Acfa42107D7";
   
-  // ABI for NFEGlobalViewsContract (4 return values)
+  // ABI for AIPCoreViewsContract (4 return values)
   const viewsAbi = [
     "function getNodeStats(uint256 _userId) external view returns (uint256 totalEarned, uint256 teamSize, uint256 directRefs, uint256 level)"
   ];

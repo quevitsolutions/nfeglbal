@@ -14,15 +14,15 @@ async function main() {
   console.log("Oracle deployed at:", oracleAddr, "($600 BNB)");
 
   // 2. Deploy Views Library
-  const ViewsFactory = await hre.ethers.getContractFactory("nfeglobalViews");
+  const ViewsFactory = await hre.ethers.getContractFactory("aipcoreViews");
   const views = await ViewsFactory.deploy();
   await views.waitForDeployment();
   const viewsAddr = await views.getAddress();
   console.log("Views Library deployed at:", viewsAddr);
 
   // 3. Deploy Core Contract
-  const CoreFactory = await hre.ethers.getContractFactory("nfeglobal", {
-    libraries: { nfeglobalViews: viewsAddr },
+  const CoreFactory = await hre.ethers.getContractFactory("aipcore", {
+    libraries: { aipcoreViews: viewsAddr },
   });
   const core = await CoreFactory.deploy(
     owner.address, // firstUser

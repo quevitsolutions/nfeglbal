@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { getEthersSigner } from '../utils/ethers-adapter.js';
 import { ethers } from 'ethers';
 import { config } from '../config/wagmi.js';
-import { NFEGLOBAL_ABI } from '../../contracts/abi.js';
+import { AIPCORE_ABI } from '../../contracts/abi.js';
 import { CONTRACTS } from '../config/constants.js';
 import { openLink } from '../utils/openLink.js';
 import { useNativePrice, useNativeTokenSymbol } from '../hooks/useNativePrice.js';
@@ -16,7 +16,7 @@ const MAX_SESSION = 86400000; // 24h
 // ── Inline Income Calculator ────────────────────────────────────────────────────
 const LVL_USD_E = [5,5,10,20,40,80,160,320,640,1280,2560,5120,10240,20480,40960,81920,163840,327680];
 const TC_E = ['#A3FF12','#B4FF3A','#FFD700','#FFC107','#FF9800','#FF7043','#FF5252','#E91E63','#AB47BC','#7E57C2','#5C6BC0','#42A5F5','#26C6DA','#26A69A','#66BB6A','#8BC34A','#CDDC39','#FF6B35'];
-const NFEGlobal_E = [100,200,200,300,300,300,500,500,500,800,800,800,1200,1200,1200,2000,2000,2500];
+const AIPCore_E = [100,200,200,300,300,300,500,500,500,800,800,800,1200,1200,1200,2000,2000,2500];
 function fmtE(n){ if(n>=1e9)return(n/1e9).toFixed(2)+'B'; if(n>=1e6)return(n/1e6).toFixed(2)+'M'; if(n>=1e3)return(n/1e3).toFixed(1)+'K'; return n.toFixed?n.toFixed(2):n; }
 
 function IncomeCalcPanel({ nodeTier }) {
@@ -121,7 +121,7 @@ function IncomeCalcPanel({ nodeTier }) {
       {showTiers && (
         <div style={{ background: '#030712', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
           <div className="tma-comp-grid" style={{ padding: '7px 10px', background: '#1f2937', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-            {[`LVL`,`COST $`,`${nativeSymbol}~`,`NFEGlobal/hr`,`L1 EARN $`].map(h => <span key={h} style={{ fontSize: 7, fontWeight: 900, color: '#d1d5db' }}>{h}</span>)}
+            {[`LVL`,`COST $`,`${nativeSymbol}~`,`AIPCore/hr`,`L1 EARN $`].map(h => <span key={h} style={{ fontSize: 7, fontWeight: 900, color: '#d1d5db' }}>{h}</span>)}
           </div>
           <div style={{ maxHeight: 250, overflowY: 'auto' }}>
             {LVL_USD_E.map((costUsd, i) => {
@@ -133,7 +133,7 @@ function IncomeCalcPanel({ nodeTier }) {
                   <span style={{ fontSize: 9, fontWeight: 900, color, background: `${color}25`, borderRadius: 4, padding: '2px 4px', textAlign: 'center' }}>L{i+1}</span>
                   <span style={{ fontSize: 9, color: '#FFB74D', fontWeight: 800 }}>${costUsd}</span>
                   <span style={{ fontSize: 9, color: '#FFD700', fontWeight: 900 }}>{costNative}</span>
-                  <span style={{ fontSize: 9, color: '#4FC3F7', fontWeight: 900 }}>{NFEGlobal_E[i]}</span>
+                  <span style={{ fontSize: 9, color: '#4FC3F7', fontWeight: 900 }}>{AIPCore_E[i]}</span>
                   <span style={{ fontSize: 9, color: '#A3FF12', fontWeight: 950 }}>${l1Earn.toFixed(2)}</span>
                 </div>
               );
@@ -188,7 +188,7 @@ function RegistrationGate({ setActiveTab }) {
     try {
       const signer = await getEthersSigner(config);
       if (!signer) { toast.error('Connect wallet first'); setRegistering(false); return; }
-      const contract = new ethers.Contract(CONTRACTS.NFEGLOBAL, NFEGLOBAL_ABI, signer);
+      const contract = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, signer);
       let sponsorNodeId = 1n;
       if (referrerId) {
         try { const ref = await contract.nodeId(referrerId); if (Number(ref) > 0) sponsorNodeId = ref; } catch { }
@@ -243,7 +243,7 @@ function RegistrationGate({ setActiveTab }) {
       <div>
         <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 8 }}>Node Not Activated</h2>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, maxWidth: 300, margin: '0 auto' }}>
-          You need an active NFEGlobal node to mine coins. Register on-chain to start earning passive income.
+          You need an active AIPCore node to mine coins. Register on-chain to start earning passive income.
         </p>
       </div>
 
@@ -329,7 +329,7 @@ function ActivationAlert({ onAction, daysLeft }) {
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 10, fontWeight: 900, color: isCritical ? '#FF5252' : '#FF7043', letterSpacing: 1 }}>{urgencyStyles.title}</div>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', marginTop: 2, lineHeight: 1.4 }}>
-          {isCritical ? 'ACTIVATE NOW' : 'Activate Master Node'} to <span style={{ color: '#FF7043' }}>SAVE</span> {Math.floor(daysLeft)} days of $NFEGLOBAL & unlock <span style={{ color: 'var(--neon-lime)' }}>10X SPEED</span> 🚀
+          {isCritical ? 'ACTIVATE NOW' : 'Activate Master Node'} to <span style={{ color: '#FF7043' }}>SAVE</span> {Math.floor(daysLeft)} days of $AIPCORE & unlock <span style={{ color: 'var(--neon-lime)' }}>10X SPEED</span> 🚀
         </div>
       </div>
       <div style={{ 
@@ -371,7 +371,7 @@ export default function EarnScreen() {
   const [isBonusClaiming, setIsBonusClaiming] = useState(false);
   const [displayReward, setDisplayReward] = useState(localReward);
   const [claimedTasks, setClaimedTasks] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('nfeglobal-tasks') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('aipcore-tasks') || '[]'); } catch { return []; }
   });
   const [visibleDays, setVisibleDays] = useState(3);
   const [liveRewards, setLiveRewards] = useState([]);
@@ -587,7 +587,7 @@ export default function EarnScreen() {
     try {
       const ok = await claimMined();
       if (ok) {
-        toast.success(`🥚 +${Math.floor(totalMined).toLocaleString()} $NFEGLOBAL claimed!`, { 
+        toast.success(`🥚 +${Math.floor(totalMined).toLocaleString()} $AIPCORE claimed!`, { 
           duration: 3000,
           style: {
             background: 'var(--bg-card)',
@@ -602,7 +602,7 @@ export default function EarnScreen() {
         
         if (!hasNode) {
           setTimeout(() => {
-            toast(`Activate an NFEGlobal Node to earn real ${nativeSymbol}, 10x more coins, and massive pool rewards!`, {
+            toast(`Activate an AIPCore Node to earn real ${nativeSymbol}, 10x more coins, and massive pool rewards!`, {
               icon: '💎',
               duration: 6000,
               style: { border: '1px solid var(--neon-lime)' }
@@ -626,7 +626,7 @@ export default function EarnScreen() {
     openLink(task.url);
     const updated = [...claimedTasks, task.id];
     setClaimedTasks(updated);
-    localStorage.setItem('nfeglobal-tasks', JSON.stringify(updated));
+    localStorage.setItem('aipcore-tasks', JSON.stringify(updated));
     addLocalReward(task.reward);
   };
 
@@ -639,11 +639,11 @@ export default function EarnScreen() {
     if (!shouldShowBanner) return;
     
     const todayStr = new Date().toDateString();
-    const lastAlert = localStorage.getItem('nfeglobal-last-urgency-toast');
+    const lastAlert = localStorage.getItem('aipcore-last-urgency-toast');
     
     if (lastAlert !== todayStr) {
       setTimeout(() => {
-        toast.error(`⚠️ Node trial expires in ${Math.floor(daysLeft)} days! Activate now to secure your $NFEGLOBAL.`, {
+        toast.error(`⚠️ Node trial expires in ${Math.floor(daysLeft)} days! Activate now to secure your $AIPCORE.`, {
           duration: 6000,
           position: 'top-center',
           icon: daysLeft <= 3 ? '🔥' : '⚠️',
@@ -655,7 +655,7 @@ export default function EarnScreen() {
             fontSize: '13px'
           }
         });
-        localStorage.setItem('nfeglobal-last-urgency-toast', todayStr);
+        localStorage.setItem('aipcore-last-urgency-toast', todayStr);
       }, 3000);
     }
   }, [shouldShowBanner, daysLeft]);
@@ -665,7 +665,7 @@ export default function EarnScreen() {
     if (!initialLoaded || isExpired || totalMined <= 0) return;
     if (!isCapWarning && !isCapCritical && !isCapReached) return;
 
-    const sessionKey = 'nfeglobal-cap-toast-session';
+    const sessionKey = 'aipcore-cap-toast-session';
     if (sessionStorage.getItem(sessionKey)) return; // Already shown this session
     sessionStorage.setItem(sessionKey, '1');
 
@@ -676,7 +676,7 @@ export default function EarnScreen() {
           style: { background: '#1A0000', border: '1px solid #FF3D00', fontWeight: 900, fontSize: '13px' }
         });
       } else if (isCapCritical) {
-        toast.error(`⏰ Under 2 hours left! Claim your ${Math.floor(totalMined).toLocaleString()} $NFEGLOBAL before cap resets!`, {
+        toast.error(`⏰ Under 2 hours left! Claim your ${Math.floor(totalMined).toLocaleString()} $AIPCORE before cap resets!`, {
           duration: 7000, position: 'top-center',
           style: { background: '#1A0000', border: '1px solid #FF5722', fontWeight: 900, fontSize: '13px' }
         });
@@ -778,14 +778,14 @@ export default function EarnScreen() {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <span style={{ fontSize: '9px', fontWeight: 900, color: '#4FC3F7', letterSpacing: '0.5px', display: 'block' }}>SPEED</span>
-                    <span style={{ fontSize: '12px', fontWeight: 900, color: '#fff', marginTop: 2, display: 'block' }}>+{ratePerHour} NFEGlobal/HR</span>
+                    <span style={{ fontSize: '12px', fontWeight: 900, color: '#fff', marginTop: 2, display: 'block' }}>+{ratePerHour} AIPCore/HR</span>
                   </div>
                 </div>
 
                 <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: 12, padding: '8px', border: '1px solid rgba(255, 255, 255, 0.03)', textAlign: 'center', marginBottom: 8 }}>
                   <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 800 }}>ACCUMULATED PASSIVE REWARDS</span>
                   <div style={{ fontSize: '22px', fontWeight: 950, color: 'var(--neon-lime)', marginTop: 2, textShadow: '0 0 15px rgba(163, 255, 18, 0.4)' }}>
-                    +{totalMined.toFixed(4)} $NFEGLOBAL
+                    +{totalMined.toFixed(4)} $AIPCORE
                   </div>
                   {isCapReached ? (
                     <span style={{ fontSize: '8px', color: '#FF3B30', fontWeight: 900, letterSpacing: 0.5 }}>⚠️ MAX LIMIT REACHED (CLAIM NOW)</span>
@@ -920,7 +920,7 @@ export default function EarnScreen() {
           {/* ── Footer Stats & Energy Controls ── */}
           <div style={{ flexShrink: 0, padding: '8px 0 4px', background: 'linear-gradient(to top, rgba(5, 8, 15, 0.3) 70%, transparent)' }}>
 
-            {/* ── Total $NFEGLOBAL Balance Strip (above claim buttons) ── */}
+            {/* ── Total $AIPCORE Balance Strip (above claim buttons) ── */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -934,10 +934,10 @@ export default function EarnScreen() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 16 }}>💰</span>
                 <div>
-                  <div style={{ fontSize: 8, fontWeight: 900, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, textTransform: 'uppercase' }}>Total $NFEGLOBAL Balance</div>
+                  <div style={{ fontSize: 8, fontWeight: 900, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, textTransform: 'uppercase' }}>Total $AIPCORE Balance</div>
                   <div style={{ fontSize: 18, fontWeight: 950, color: 'var(--neon-lime)', lineHeight: 1.1 }}>
                     {Math.floor(localReward).toLocaleString()}
-                    <span style={{ fontSize: 10, fontWeight: 900, color: 'rgba(163,255,18,0.6)', marginLeft: 3 }}>$NFEGLOBAL</span>
+                    <span style={{ fontSize: 10, fontWeight: 900, color: 'rgba(163,255,18,0.6)', marginLeft: 3 }}>$AIPCORE</span>
                   </div>
                 </div>
               </div>
@@ -945,7 +945,7 @@ export default function EarnScreen() {
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 8, fontWeight: 900, color: 'rgba(255,255,255,0.35)', letterSpacing: 0.8 }}>PENDING</div>
                   <div style={{ fontSize: 13, fontWeight: 950, color: '#A3FF12' }}>+{totalMined.toFixed(4)}</div>
-                  <div style={{ fontSize: 8, color: '#4FC3F7', fontWeight: 700 }}>$NFEGLOBAL unclaimed</div>
+                  <div style={{ fontSize: 8, color: '#4FC3F7', fontWeight: 700 }}>$AIPCORE unclaimed</div>
                 </div>
               )}
             </div>
@@ -960,7 +960,7 @@ export default function EarnScreen() {
                   </span>
                 </div>
                 <span style={{ fontSize: 9, fontWeight: 900, color: 'var(--neon-lime)', letterSpacing: 0.5 }}>
-                  {hasNode ? '3X BOOST ACTIVE' : `SPEED: ${effectiveRate} $NFEGLOBAL/HR`}
+                  {hasNode ? '3X BOOST ACTIVE' : `SPEED: ${effectiveRate} $AIPCORE/HR`}
                 </span>
               </div>
               <div className="tma-energy-bar">
@@ -1007,7 +1007,7 @@ export default function EarnScreen() {
                         {isClaiming ? '⏳' : 'CLAIM'}
                       </span>
                       <span style={{ fontSize: 9, fontWeight: 900, color: (totalMined > 0 && !isExpired) ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.1)' }}>
-                        +{totalMined.toFixed(2)} $NFEGLOBAL
+                        +{totalMined.toFixed(2)} $AIPCORE
                       </span>
                     </div>
                   </button>
@@ -1270,7 +1270,7 @@ export default function EarnScreen() {
               
               <h2 style={{ fontSize: 24, fontWeight: 900, color: '#fff', marginBottom: 8, letterSpacing: -0.5 }}>Welcome Bonus!</h2>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5, marginBottom: 24 }}>
-                Welcome to NFEGlobal! Here is a special starter gift to kickstart your mining journey.
+                Welcome to AIPCore! Here is a special starter gift to kickstart your mining journey.
               </p>
               
               <div style={{ 
@@ -1279,7 +1279,7 @@ export default function EarnScreen() {
               }}>
                 <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--neon-lime)', letterSpacing: 1.5, marginBottom: 4 }}>YOU RECEIVE</div>
                 <div style={{ fontSize: 36, fontWeight: 950, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <span style={{ color: '#FFD700' }}>$NFEGLOBAL</span> 100
+                  <span style={{ color: '#FFD700' }}>$AIPCORE</span> 100
                 </div>
               </div>
 
@@ -1291,7 +1291,7 @@ export default function EarnScreen() {
                   try {
                     const res = await claimSignupBonusAction();
                     if (res?.success) {
-                      toast.success('100 $NFEGLOBAL Bonus Claimed! 🚀', { duration: 4000 });
+                      toast.success('100 $AIPCORE Bonus Claimed! 🚀', { duration: 4000 });
                     }
                   } catch (err) {
                     toast.error(err.message || 'Failed to claim bonus');

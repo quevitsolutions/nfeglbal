@@ -26,21 +26,21 @@ function patchArtifact(targetPath, sourceAbi) {
 }
 
 function main() {
-  const infeglobalPath = path.join(__dirname, "../artifacts/contracts/Infeglobal.sol/Infeglobal.json");
+  const iaipcorePath = path.join(__dirname, "../artifacts/contracts/Iaipcore.sol/Iaipcore.json");
   
-  if (!fs.existsSync(infeglobalPath)) {
-    console.error(`Source Infeglobal artifact not found at ${infeglobalPath}. Ensure you compiled first.`);
+  if (!fs.existsSync(iaipcorePath)) {
+    console.error(`Source Iaipcore artifact not found at ${iaipcorePath}. Ensure you compiled first.`);
     process.exit(1);
   }
 
-  const sourceArtifact = JSON.parse(fs.readFileSync(infeglobalPath, "utf8"));
+  const sourceArtifact = JSON.parse(fs.readFileSync(iaipcorePath, "utf8"));
   const sourceAbi = sourceArtifact.abi;
 
-  const nfeglobalPath = path.join(__dirname, "../artifacts/contracts/nfeglobal.sol/nfeglobal.json");
-  const nfeglobalMockPath = path.join(__dirname, "../artifacts/contracts/nfeglobalMock.sol/nfeglobalMock.json");
+  const aipcorePath = path.join(__dirname, "../artifacts/contracts/aipcore.sol/aipcore.json");
+  const aipcoreMockPath = path.join(__dirname, "../artifacts/contracts/aipcoreMock.sol/aipcoreMock.json");
 
-  patchArtifact(nfeglobalPath, sourceAbi);
-  patchArtifact(nfeglobalMockPath, sourceAbi);
+  patchArtifact(aipcorePath, sourceAbi);
+  patchArtifact(aipcoreMockPath, sourceAbi);
 }
 
 main();

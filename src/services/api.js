@@ -1,5 +1,5 @@
 /**
- * NFEGlobal API Service (Mocked/Decoupled)
+ * AIPCore API Service (Mocked/Decoupled)
  * Completely decoupled from PostgreSQL database / REST server.
  * All operations now occur directly on-chain.
  */

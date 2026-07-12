@@ -21,14 +21,14 @@ async function main() {
   await oracle.setPrice(600n * 100000000n); // $600 BNB price
 
   // Deploy Views
-  const ViewsFactory = await ethers.getContractFactory("nfeglobalViews");
+  const ViewsFactory = await ethers.getContractFactory("aipcoreViews");
   const views = await ViewsFactory.deploy();
   await views.waitForDeployment();
   const viewsAddr = await views.getAddress();
 
   // Deploy Core
-  const CoreFactory = await ethers.getContractFactory("nfeglobal", {
-    libraries: { nfeglobalViews: viewsAddr },
+  const CoreFactory = await ethers.getContractFactory("aipcore", {
+    libraries: { aipcoreViews: viewsAddr },
   });
   const core = await CoreFactory.deploy(
     owner.address,

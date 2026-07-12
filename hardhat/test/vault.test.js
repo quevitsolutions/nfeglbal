@@ -15,14 +15,14 @@ describe("NFE V3 IncomeVaultHelper Integration", function () {
     beforeEach(async function () {
         [owner, oracle, matrix, feeRec, user1, user2, user3] = await ethers.getSigners();
 
-        // 1. Deploy nfeglobalViews library
-        const ViewsFactory = await ethers.getContractFactory("nfeglobalViews");
+        // 1. Deploy aipcoreViews library
+        const ViewsFactory = await ethers.getContractFactory("aipcoreViews");
         views = await ViewsFactory.deploy();
         await views.waitForDeployment();
 
-        // 2. Deploy nfeglobal Core
-        const NFE = await ethers.getContractFactory("nfeglobal", {
-            libraries: { nfeglobalViews: await views.getAddress() }
+        // 2. Deploy aipcore Core
+        const NFE = await ethers.getContractFactory("aipcore", {
+            libraries: { aipcoreViews: await views.getAddress() }
         });
         nfe = await NFE.deploy(
             owner.address,      // firstUser (Node 55555)
@@ -33,10 +33,11 @@ describe("NFE V3 IncomeVaultHelper Integration", function () {
             matrix.address      // matrixAdmin
         );
         await nfe.waitForDeployment();
+        nfe = await ethers.getContractAt("contracts/Iaipcore.sol:Iaipcore", await nfe.getAddress());
 
-        // 2.5 Deploy NFEGlobalViewsContract
-        const NFEGlobalViewsContractFactory = await ethers.getContractFactory("NFEGlobalViewsContract");
-        const viewsContract = await NFEGlobalViewsContractFactory.deploy();
+        // 2.5 Deploy AIPCoreViewsContract
+        const AIPCoreViewsContractFactory = await ethers.getContractFactory("AIPCoreViewsContract");
+        const viewsContract = await AIPCoreViewsContractFactory.deploy();
         await viewsContract.waitForDeployment();
         await nfe.connect(owner).setViewsContract(await viewsContract.getAddress());
 
@@ -123,12 +124,12 @@ describe("NFE V3 IncomeVaultHelper Integration", function () {
     });
 
     describe("Vesting Schedule & Linear Release", function () {
-        it("calculates correct vesting schedule based on tier (Tier * 5 days)", async function () {
+        it("calculates correct vesting schedule based on tier", async function () {
             const regFee = await nfe.getRegistrationFee();
             await nfe.connect(user1).createNode(55555, { value: regFee });
             const user1NodeId = await nfe.nodeId(user1.address);
             
-            // Unlock Tier 3 for user1 (Tier 3 -> 15 days release)
+            // Unlock Tier 3 for user1 (Tier 3 -> 10 days release)
             const t3Cost = await nfe.getUpgradeCost(0, 3);
             await nfe.connect(user1).unlockTier(user1NodeId, 3, { value: t3Cost });
             
@@ -146,7 +147,7 @@ describe("NFE V3 IncomeVaultHelper Integration", function () {
             let totalAmt = 0n;
             for (let i = 0n; i < count; i++) {
                 const dep = await vault.getDepositInfo(user1NodeId, i);
-                expect(dep.releaseDays).to.equal(15n); // Tier 3 * 5 days = 15 days
+                expect(dep.releaseDays).to.equal(10n); // Tier 3 -> (3-1)*5 = 10 days
                 totalAmt += dep.amount;
             }
             
@@ -154,14 +155,14 @@ describe("NFE V3 IncomeVaultHelper Integration", function () {
             // Initially, claimable should be 0 (since elapsed time is near 0)
             expect(await vault.getClaimable(user1NodeId)).to.equal(0n);
             
-            // Travel 7.5 days (halfway through vesting)
-            await timeTravel(7.5 * 24 * 3600);
+            // Travel 5 days (halfway through vesting)
+            await timeTravel(5n * 24n * 3600n);
             
             const claimableHalf = await vault.getClaimable(user1NodeId);
             expect(claimableHalf).to.be.closeTo(totalAmt / 2n, ethers.parseEther("0.001"));
             
-            // Travel to the end of vesting (15 days total)
-            await timeTravel(7.5 * 24 * 3600);
+            // Travel to the end of vesting (10 days total)
+            await timeTravel(5n * 24n * 3600n);
             expect(await vault.getClaimable(user1NodeId)).to.equal(totalAmt);
         });
     });

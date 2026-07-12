@@ -1,8 +1,8 @@
 {
-  "name": "nfeglobal-contracts",
+  "name": "aipcore-contracts",
   "version": "1.0.0",
   "private": true,
-  "description": "NFEGLOBAL Smart Contract compilation and deployment",
+  "description": "AIPCORE Smart Contract compilation and deployment",
   "scripts": {
     "compile": "hardhat compile",
     "deploy:testnet": "hardhat run scripts/deploy.js --network bscTestnet",

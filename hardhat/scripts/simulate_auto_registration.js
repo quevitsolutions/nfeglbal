@@ -12,13 +12,13 @@ async function main() {
   await oracle.waitForDeployment();
   console.log(`- BNBPriceOracle deployed to: ${await oracle.getAddress()}`);
 
-  const ViewsFactory = await hre.ethers.getContractFactory("nfeglobalViews");
+  const ViewsFactory = await hre.ethers.getContractFactory("aipcoreViews");
   const views = await ViewsFactory.deploy();
   await views.waitForDeployment();
-  console.log(`- nfeglobalViews library deployed to: ${await views.getAddress()}`);
+  console.log(`- aipcoreViews library deployed to: ${await views.getAddress()}`);
 
-  const CoreFactory = await hre.ethers.getContractFactory("nfeglobal", {
-    libraries: { nfeglobalViews: await views.getAddress() },
+  const CoreFactory = await hre.ethers.getContractFactory("aipcore", {
+    libraries: { aipcoreViews: await views.getAddress() },
   });
   const signers = await hre.ethers.getSigners();
   const owner = signers[0];
@@ -33,7 +33,7 @@ async function main() {
     owner.address
   );
   await core.waitForDeployment();
-  console.log(`- nfeglobal Core deployed to: ${await core.getAddress()}`);
+  console.log(`- aipcore Core deployed to: ${await core.getAddress()}`);
 
   const PoolFactory = await hre.ethers.getContractFactory("RewardPool");
   const pool = await PoolFactory.deploy(

@@ -23,11 +23,11 @@ async function deploy(owner) {
   const oracle = await (await ethers.getContractFactory("BNBPriceOracle")).deploy();
   await oracle.waitForDeployment();
 
-  const views = await (await ethers.getContractFactory("nfeglobalViews")).deploy();
+  const views = await (await ethers.getContractFactory("aipcoreViews")).deploy();
   await views.waitForDeployment();
 
-  const core = await (await ethers.getContractFactory("nfeglobal", {
-    libraries: { nfeglobalViews: await views.getAddress() },
+  const core = await (await ethers.getContractFactory("aipcore", {
+    libraries: { aipcoreViews: await views.getAddress() },
   })).deploy(owner.address, owner.address, ethers.ZeroAddress, owner.address, owner.address, owner.address);
   await core.waitForDeployment();
   

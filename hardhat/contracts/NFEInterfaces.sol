@@ -73,6 +73,9 @@ interface ICoreEngine {
     /// @notice Get total contribution of a node.
     function getNodeContribution(uint256 nodeId) external view returns (uint256);
 
+    /// @notice Get the active tier of a node (0 to 18).
+    function getNodeTier(uint256 nodeId) external view returns (uint256);
+
     /// @notice Get nodeId for an address.
     function nodeId(address wallet) external view returns (uint256);
 

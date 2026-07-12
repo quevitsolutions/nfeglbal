@@ -3,7 +3,7 @@ const { ethers } = hre;
 
 async function main() {
   const contractAddress = "0x8f21F8458D19743932540a2E62FFd20AEc89cb72";
-  const Core = await ethers.getContractAt("nfeglobal", contractAddress);
+  const Core = await ethers.getContractAt("aipcore", contractAddress);
   
   const totalNodes = await Core.totalNodes();
   const owner = await Core.owner();

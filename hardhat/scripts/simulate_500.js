@@ -19,15 +19,15 @@ async function main() {
   console.log(`- BNBPriceOracle: ${oracleAddr}`);
 
   // Deploy Views Library
-  const ViewsFactory = await ethers.getContractFactory("nfeglobalViews");
+  const ViewsFactory = await ethers.getContractFactory("aipcoreViews");
   const views = await ViewsFactory.deploy();
   await views.waitForDeployment();
   const viewsAddr = await views.getAddress();
   console.log(`- Views Library: ${viewsAddr}`);
 
   // Deploy Core Contract
-  const CoreFactory = await ethers.getContractFactory("nfeglobal", {
-    libraries: { nfeglobalViews: viewsAddr },
+  const CoreFactory = await ethers.getContractFactory("aipcore", {
+    libraries: { aipcoreViews: viewsAddr },
   });
   const core = await CoreFactory.deploy(
     owner.address, // firstUser (Genesis)
@@ -41,9 +41,9 @@ async function main() {
   const coreAddr = await core.getAddress();
   console.log(`- Core Contract: ${coreAddr}`);
 
-  // Deploy NFEGlobalViewsContract and link it in Core
-  const NFEGlobalViewsContractFactory = await ethers.getContractFactory("NFEGlobalViewsContract");
-  const viewsContract = await NFEGlobalViewsContractFactory.deploy();
+  // Deploy AIPCoreViewsContract and link it in Core
+  const AIPCoreViewsContractFactory = await ethers.getContractFactory("AIPCoreViewsContract");
+  const viewsContract = await AIPCoreViewsContractFactory.deploy();
   await viewsContract.waitForDeployment();
   await core.setViewsContract(await viewsContract.getAddress());
   console.log(`- Views Contract: ${await viewsContract.getAddress()}`);

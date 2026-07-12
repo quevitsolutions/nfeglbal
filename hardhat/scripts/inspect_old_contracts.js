@@ -8,7 +8,7 @@ async function main() {
   const oldViewAddr = "0x1883cEd2948f7213424ac9D1fd3E50d4aee9E29A";
   
   console.log("Checking Old Core viewsContract...");
-  const oldCore = await ethers.getContractAt("nfeglobal", oldCoreAddr);
+  const oldCore = await ethers.getContractAt("aipcore", oldCoreAddr);
   try {
     const oldViewsContract = await oldCore.viewsContract();
     console.log("Old Core viewsContract is set to:", oldViewsContract);

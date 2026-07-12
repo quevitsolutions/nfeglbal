@@ -17,14 +17,14 @@ async function main() {
   const oracleAddr = await oracle.getAddress();
   console.log(`- Mock Price Oracle: ${oracleAddr}`);
 
-  const ViewsFactory = await ethers.getContractFactory("nfeglobalViews");
+  const ViewsFactory = await ethers.getContractFactory("aipcoreViews");
   const views = await ViewsFactory.deploy();
   await views.waitForDeployment();
   const viewsAddr = await views.getAddress();
   console.log(`- Views Library: ${viewsAddr}`);
 
-  const CoreFactory = await ethers.getContractFactory("nfeglobal", {
-    libraries: { nfeglobalViews: viewsAddr },
+  const CoreFactory = await ethers.getContractFactory("aipcore", {
+    libraries: { aipcoreViews: viewsAddr },
   });
   const core = await CoreFactory.deploy(
     owner.address, owner.address, ethers.ZeroAddress,
@@ -33,6 +33,15 @@ async function main() {
   await core.waitForDeployment();
   const coreAddr = await core.getAddress();
   console.log(`- Core Contract: ${coreAddr}`);
+
+  // Deploy and link AIPCoreViewsContract
+  const ViewsContractFactory = await ethers.getContractFactory("AIPCoreViewsContract");
+  const viewsContract = await ViewsContractFactory.deploy();
+  await viewsContract.waitForDeployment();
+  await core.setViewsContract(await viewsContract.getAddress());
+
+  // Create core instance with full interface ABI (routes getTierCost via fallback)
+  const coreWithViews = await ethers.getContractAt("contracts/Iaipcore.sol:Iaipcore", coreAddr);
 
   const PoolFactory = await ethers.getContractFactory("RewardPool");
   const pool = await PoolFactory.deploy(coreAddr, owner.address, 55555n);
@@ -170,7 +179,7 @@ async function main() {
     const wallet = new ethers.Wallet(pkey, ethers.provider);
 
     // Fund wallet and get cost fresh each iteration (price may drift)
-    const cost = await core.getTierCost(0);
+    const cost = await coreWithViews.getTierCost(0);
     await ethers.provider.send("hardhat_setBalance", [wallet.address, tenBnbHex]);
 
     // Let Hardhat auto-estimate gas — block limit is 100M, no artificial cap

@@ -574,7 +574,7 @@ export default function TeamScreen() {
 
   if (!isConnected) {
     return (
-      <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="sub-page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingBottom: '20px' }}>
         <h2 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '8px' }}>MY NETWORK</h2>
         <p style={{ color: '#FFFFFF', fontSize: '13px', fontWeight: 600 }}>Please connect your wallet to view your team.</p>
       </div>
@@ -586,7 +586,7 @@ export default function TeamScreen() {
   const maxCapacity = (level) => Math.pow(2, level);
 
   return (
-    <div className="page page-team" style={{ paddingBottom: '100px' }}>
+    <div className="sub-page page-team" style={{ paddingBottom: '20px' }}>
       <div style={{ textAlign: 'center', padding: '10px 0 24px' }}>
         <h2 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '6px' }}>MY NETWORK</h2>
         <div style={{
