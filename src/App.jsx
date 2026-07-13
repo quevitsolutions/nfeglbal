@@ -24,6 +24,7 @@ import ClaimScreen from './pages/ClaimScreen.jsx';
 
 const NAV_ITEMS = [
   { id: 'prelaunch',   icon: '🚀', label: 'Pre-Launch Earn' },
+  { id: 'core',        icon: '🎮', label: 'Platform Hub' },
   { id: 'claim',       icon: '💰', label: 'Claim' },
   { id: 'leaderboard', icon: '🏆', label: 'Leaderboard' },
   { id: 'upgrade',     icon: '🛍️', label: 'Node Tiers' },
@@ -184,7 +185,7 @@ export default function App() {
     const { fetchReferralData, fetchUserData, walletAddress } = useGameStore.getState();
     if (!walletAddress) return;
 
-    if (['prelaunch', 'leaderboard', 'upgrade', 'profile'].includes(activeTab)) {
+    if (['core', 'prelaunch', 'leaderboard', 'upgrade', 'profile'].includes(activeTab)) {
       useGameStore.setState({ lastBackendSync: null });
       fetchUserData().catch(() => {});
       fetchReferralData().catch(() => {});
@@ -232,6 +233,7 @@ export default function App() {
             transition={{ duration: 0.18, ease: 'easeOut' }}
             style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
           >
+            {activeTab === 'core'        && <CoreHubScreen />}
             {activeTab === 'prelaunch'   && <PreLaunchScreen />}
             {activeTab === 'claim'       && <ClaimScreen />}
             {activeTab === 'leaderboard' && <LeaderboardScreen />}

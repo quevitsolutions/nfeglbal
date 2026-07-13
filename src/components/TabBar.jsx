@@ -5,6 +5,7 @@ export default function TabBar() {
 
   const TABS = [
     { id: 'prelaunch',   icon: '🚀',  label: 'Earn'    },
+    { id: 'core',        icon: '⛏️',  label: 'Tap'     },
     { id: 'claim',       icon: '💰',  label: 'Claim'   },
     { id: 'leaderboard', icon: '🏆',  label: 'Leaders' },
     { id: 'upgrade',     icon: '⬆️',  label: 'Upgrade' },
