@@ -82,6 +82,9 @@ function MiniCountdown() {
   );
 }
 
+const TIER_USD_COSTS = [5, 5, 10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480, 40960, 81920, 163840, 327680];
+const LVL_VESTING_DAYS = [5, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 90];
+
 // ── MAIN COMPONENT ──────────────────────────────────────────────────────────
 export default function PreLaunchScreen() {
   const { walletAddress, nodeId, directRefs, teamSize, globalStats, isConnected } = useGameStore();
@@ -125,6 +128,22 @@ export default function PreLaunchScreen() {
     }
     return { levels, totalFree, totalPaid, totalTeam: totalFree + totalPaid };
   }, [levelStats, levelCounts]);
+
+  const { totalAccumulatedEarn, totalPerDayEarn } = useMemo(() => {
+    let totalAcc = 0;
+    let totalPer = 0;
+    freeStats.levels.forEach(lv => {
+      const total = lv.free + lv.paid;
+      const costUsd = TIER_USD_COSTS[lv.level - 1] || 5;
+      const earnPer = costUsd * 0.70;
+      const accumulatedEarn = total * earnPer;
+      const vDays = LVL_VESTING_DAYS[lv.level - 1] || 5;
+      const perDayEarn = accumulatedEarn / vDays;
+      totalAcc += accumulatedEarn;
+      totalPer += perDayEarn;
+    });
+    return { totalAccumulatedEarn: totalAcc, totalPerDayEarn: totalPer };
+  }, [freeStats]);
 
   const directFreeCount = freeStats.levels[0]?.free || 0;
   const GOAL = 10;
@@ -513,7 +532,7 @@ export default function PreLaunchScreen() {
             ) : (
               <>
                 {/* Summary bar */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px', padding: '10px 14px', background: 'rgba(32,34,37,0.4)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', padding: '10px 14px', background: 'rgba(32,34,37,0.4)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
                   <div>
                     <div style={{ fontSize: '8px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', letterSpacing: '1px' }}>TOTAL FREE</div>
                     <div style={{ fontSize: '16px', fontWeight: 950, color: '#A12CFF' }}>{freeStats.totalFree}</div>
@@ -530,6 +549,18 @@ export default function PreLaunchScreen() {
                   </div>
                 </div>
 
+                {/* Earning Projection Summary Bar */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px', padding: '10px 14px', background: 'linear-gradient(135deg, rgba(163,255,18,0.06) 0%, rgba(255,200,50,0.03) 100%)', borderRadius: '12px', border: '1px solid rgba(163,255,18,0.15)' }}>
+                  <div>
+                    <div style={{ fontSize: '8px', fontWeight: 900, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px' }}>ESTIMATED TOTAL YIELD</div>
+                    <div style={{ fontSize: '15px', fontWeight: 955, color: '#A3FF12', marginTop: '2px' }}>${totalAccumulatedEarn.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '8px', fontWeight: 900, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px' }}>ESTIMATED DAILY PAYOUT</div>
+                    <div style={{ fontSize: '15px', fontWeight: 955, color: '#FFC72C', marginTop: '2px' }}>${totalPerDayEarn.toFixed(2)}/day</div>
+                  </div>
+                </div>
+
                 {/* Level rows */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {freeStats.levels.map(lv => {
@@ -537,6 +568,12 @@ export default function PreLaunchScreen() {
                     const freePct = total > 0 ? (lv.free / total) * 100 : 0;
                     const paidPct = total > 0 ? (lv.paid / total) * 100 : 0;
                     const hasMembers = total > 0;
+
+                    const costUsd = TIER_USD_COSTS[lv.level - 1] || 5;
+                    const earnPer = costUsd * 0.70;
+                    const accumulatedEarn = total * earnPer;
+                    const vDays = LVL_VESTING_DAYS[lv.level - 1] || 5;
+                    const perDayEarn = accumulatedEarn / vDays;
 
                     return (
                       <div key={lv.level} style={{
@@ -566,10 +603,20 @@ export default function PreLaunchScreen() {
                           </span>
                         </div>
                         {total > 0 && (
-                          <div style={{ width: '100%', height: '6px', borderRadius: '3px', display: 'flex', overflow: 'hidden', background: 'rgba(255,255,255,0.04)' }}>
-                            <div style={{ width: `${paidPct}%`, height: '100%', background: '#A3FF12', transition: 'width 0.5s' }} />
-                            <div style={{ width: `${freePct}%`, height: '100%', background: '#A12CFF', transition: 'width 0.5s' }} />
-                          </div>
+                          <>
+                            <div style={{ width: '100%', height: '6px', borderRadius: '3px', display: 'flex', overflow: 'hidden', background: 'rgba(255,255,255,0.04)', marginBottom: '8px' }}>
+                              <div style={{ width: `${paidPct}%`, height: '100%', background: '#A3FF12', transition: 'width 0.5s' }} />
+                              <div style={{ width: `${freePct}%`, height: '100%', background: '#A12CFF', transition: 'width 0.5s' }} />
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.15)', padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                              <span style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.5px' }}>
+                                💰 EST. YIELD:
+                              </span>
+                              <span style={{ fontSize: '10px', fontWeight: 900, color: '#A3FF12', fontFamily: 'monospace' }}>
+                                ${accumulatedEarn.toFixed(2)} total (${perDayEarn.toFixed(2)}/day for {vDays}d)
+                              </span>
+                            </div>
+                          </>
                         )}
                       </div>
                     );
