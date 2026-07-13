@@ -58,7 +58,7 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <div style={{ padding: '0 16px 40px', fontFamily: 'Outfit, sans-serif', color: '#fff' }}>
+    <div style={{ padding: '0 16px', paddingBottom: 'calc(var(--tabbar-h, 80px) + 24px)', fontFamily: 'Outfit, sans-serif', color: '#fff' }}>
       
       {/* Profile Header Card */}
       <div style={{

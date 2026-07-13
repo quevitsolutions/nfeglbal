@@ -11,7 +11,7 @@ export default function LeaderboardScreen() {
   useEffect(() => {
     const fetchLeaderboard = async () => {
       try {
-        const res = await axios.get('/api/users/leaderboard');
+        const res = await axios.get('/api/leaderboard');
         console.log("Leaderboard API response:", res.data);
         setLeaders(res.data);
       } catch (err) {
