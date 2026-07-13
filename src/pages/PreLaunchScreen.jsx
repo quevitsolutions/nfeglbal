@@ -5,6 +5,7 @@ import { useGameStore } from '../store/gameStore.js';
 import { useContract } from '../hooks/useContract.js';
 import toast from 'react-hot-toast';
 import EbookModal from '../components/EbookModal.jsx';
+import IncomeCalcMini from '../components/IncomeCalcMini.jsx';
 
 // ── READY-MADE PROMOTION TEMPLATES ──────────────────────────────────────────
 const PROMO_TEMPLATES = [
@@ -87,7 +88,7 @@ const LVL_VESTING_DAYS = [5, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 
 
 // ── MAIN COMPONENT ──────────────────────────────────────────────────────────
 export default function PreLaunchScreen() {
-  const { walletAddress, nodeId, directRefs, teamSize, globalStats, isConnected } = useGameStore();
+  const { walletAddress, nodeId, nodeTier, directRefs, teamSize, globalStats, isConnected } = useGameStore();
   const { fetchTeamCounts, fetchLevelWiseTeamStats } = useContract();
 
   const [levelStats, setLevelStats] = useState(null);
@@ -96,7 +97,7 @@ export default function PreLaunchScreen() {
   const [activePromo, setActivePromo] = useState('urgency');
   const [copied, setCopied] = useState(false);
   const [copiedPromo, setCopiedPromo] = useState(false);
-  const [expandedSection, setExpandedSection] = useState({ stats: true, share: true, promos: false, tracker: true });
+  const [expandedSection, setExpandedSection] = useState({ stats: true, share: true, promos: false, tracker: true, calculator: false });
   const [showEbookModal, setShowEbookModal] = useState(false);
 
   const refToken = nodeId || walletAddress;
@@ -634,6 +635,24 @@ export default function PreLaunchScreen() {
                 </div>
               </>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* ═══ INCOME SIMULATOR ═══ */}
+      <div style={cardStyle}>
+        <div onClick={() => toggleSection('calculator')} style={cardHeaderStyle(expandedSection.calculator)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '15px' }}>🧮</span>
+            <span style={{ fontSize: '12px', fontWeight: 900, color: '#fff', letterSpacing: '0.5px' }}>
+              🧮 MATRIX INCOME SIMULATOR
+            </span>
+          </div>
+          {expandedSection.calculator ? <ChevronUp size={14} color="rgba(255,255,255,0.4)" /> : <ChevronDown size={14} color="rgba(255,255,255,0.4)" />}
+        </div>
+        {expandedSection.calculator && (
+          <div style={{ padding: '0 18px 18px' }}>
+            <IncomeCalcMini nodeTier={nodeTier} />
           </div>
         )}
       </div>
