@@ -23,8 +23,8 @@ import ClaimScreen from './pages/ClaimScreen.jsx';
 
 
 const NAV_ITEMS = [
+  { id: 'prelaunch',   icon: '🚀', label: 'Pre-Launch Earn' },
   { id: 'core',        icon: '🎮', label: 'Platform Hub' },
-  { id: 'prelaunch',   icon: '⭐', label: 'Pre-Launch Earn' },
   { id: 'claim',       icon: '💰', label: 'Claim' },
   { id: 'leaderboard', icon: '🏆', label: 'Leaderboard' },
   { id: 'upgrade',     icon: '🛍️', label: 'Node Tiers' },

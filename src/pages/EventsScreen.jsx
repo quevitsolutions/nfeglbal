@@ -24,7 +24,7 @@ const MODULE_COMPONENTS = {
 };
 
 export default function EventsScreen() {
-  const [subView, setSubView] = useState(null);
+  const [subView, setSubView] = useState('community');
   const [hallEvent, setHallEvent] = useState(null); // event passed into VirtualHall
 
   const navigateTo = (moduleId, eventData = null) => {

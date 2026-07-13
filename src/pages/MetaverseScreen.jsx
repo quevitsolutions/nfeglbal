@@ -5,6 +5,18 @@ import { openLink } from '../utils/openLink.js';
 
 const MODULES = [
   {
+    id: 'community',
+    icon: '🌐',
+    name: 'AIPCore Community Hub',
+    tag: 'CONNECT',
+    tagColor: '#CE93D8',
+    desc: 'Networking lounges, sponsor booths & DAO rooms',
+    gradient: 'linear-gradient(135deg, #4A148C 0%, #CE93D8 100%)',
+    glow: 'rgba(206,147,216,0.3)',
+    stat: '5,820 members',
+    statIcon: '👥',
+  },
+  {
     id: 'live',
     icon: '🎙️',
     name: 'AIPCore Live',
@@ -51,18 +63,6 @@ const MODULES = [
     glow: 'rgba(255,215,0,0.3)',
     stat: '+12.4 BNB distributed',
     statIcon: '💎',
-  },
-  {
-    id: 'community',
-    icon: '🌐',
-    name: 'AIPCore Community Hub',
-    tag: 'CONNECT',
-    tagColor: '#CE93D8',
-    desc: 'Networking lounges, sponsor booths & DAO rooms',
-    gradient: 'linear-gradient(135deg, #4A148C 0%, #CE93D8 100%)',
-    glow: 'rgba(206,147,216,0.3)',
-    stat: '5,820 members',
-    statIcon: '👥',
   },
   {
     id: 'ai-host',

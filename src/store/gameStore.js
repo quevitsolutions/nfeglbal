@@ -116,7 +116,7 @@ export const useGameStore = create(
       },
 
       // UI
-      activeTab: "core",
+      activeTab: "prelaunch",
       showUpgradePopup: false,
 
       // Referral
