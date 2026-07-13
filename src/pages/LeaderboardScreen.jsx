@@ -12,10 +12,9 @@ export default function LeaderboardScreen() {
     const fetchLeaderboard = async () => {
       try {
         const res = await axios.get('/api/leaderboard');
-        console.log("Leaderboard API response:", res.data);
-        setLeaders(res.data);
+        setLeaders(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
-        console.error("Leaderboard fetch error:", err);
+        console.error('Leaderboard fetch error:', err);
         setError('Failed to load leaderboard data.');
       } finally {
         setLoading(false);
@@ -45,8 +44,18 @@ export default function LeaderboardScreen() {
     );
   }
 
+  if (leaders.length === 0) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 20px', textAlign: 'center' }}>
+        <Crown size={48} color="var(--amber-gold)" style={{ marginBottom: 16, opacity: 0.4 }} />
+        <p style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>No leaderboard data yet.</p>
+        <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 12, marginTop: 8 }}>Rankings will appear once nodes start registering.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="sub-page" style={{ padding: '0 16px 20px' }}>
+    <div className="sub-page" style={{ padding: '0 16px', paddingBottom: 'calc(var(--tabbar-h, 80px) + 24px)' }}>
       {/* Header card */}
       <div style={{
         background: 'linear-gradient(135deg, rgba(161,44,255,0.1) 0%, rgba(0,242,254,0.05) 100%)',
@@ -60,7 +69,7 @@ export default function LeaderboardScreen() {
         <Crown size={40} color="var(--amber-gold)" style={{ marginBottom: 12, filter: 'drop-shadow(0 0 8px var(--amber-gold))' }} />
         <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8, letterSpacing: '-0.02em' }}>GLOBAL LEADERBOARD</h2>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.4 }}>
-          Top Node Operators ranked by their direct active referrals and matrix propagation.
+          Top Node Operators ranked by mining rewards earned.
         </p>
         <div style={{ fontSize: 11, color: 'var(--neon-lime)', marginTop: 10, fontWeight: 800, letterSpacing: '1px' }}>
           TOTAL DETECTED NODES: {leaders.length}
@@ -73,39 +82,39 @@ export default function LeaderboardScreen() {
           const isTop3 = index < 3;
           const medalColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
           const rankIcon = isTop3 ? <Award size={20} color={medalColors[index]} /> : <Star size={14} color="#718096" />;
+          const walletAddr = leader.wallet_address || '';
+          const reward = parseFloat(leader.local_reward || 0);
+          const nodeId = leader.id || (index + 1);
+          const taps = leader.taps || 0;
 
           return (
             <motion.div
-              key={leader.nodeId}
-              whileHover={{ scale: 1.02, x: 4 }}
+              key={nodeId}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.03 }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '16px 20px',
-                background: isTop3 
-                  ? `linear-gradient(90deg, rgba(13,18,36,0.8) 0%, rgba(13,18,36,0.4) 100%)`
+                background: isTop3
+                  ? 'linear-gradient(90deg, rgba(13,18,36,0.8) 0%, rgba(13,18,36,0.4) 100%)'
                   : 'var(--bg-card)',
-                border: isTop3 
+                border: isTop3
                   ? `1px solid ${medalColors[index]}40`
                   : '1px solid rgba(255,255,255,0.03)',
                 borderRadius: 16,
                 boxShadow: isTop3 ? `0 4px 15px ${medalColors[index]}10` : 'none',
-                transition: 'border 0.3s ease'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 {/* Rank badge */}
                 <div style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
+                  width: 32, height: 32, borderRadius: '50%',
                   background: isTop3 ? `${medalColors[index]}20` : 'rgba(255,255,255,0.02)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 900,
-                  fontSize: 14,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 900, fontSize: 14,
                   color: isTop3 ? medalColors[index] : '#718096'
                 }}>
                   {index + 1}
@@ -114,27 +123,25 @@ export default function LeaderboardScreen() {
                 {/* Node details */}
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontWeight: 900, fontSize: 15 }}>NODE #{leader.nodeId}</span>
+                    <span style={{ fontWeight: 900, fontSize: 15 }}>NODE #{nodeId}</span>
                     {rankIcon}
                   </div>
                   <span style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'monospace' }}>
-                    {leader.walletAddress.slice(0, 6)}...{leader.walletAddress.slice(-4)}
+                    {walletAddr ? `${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}` : '—'}
                   </span>
                 </div>
               </div>
 
               {/* Stats column */}
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 14, fontWeight: 900, color: 'var(--text-main)' }}>
-                  {leader.activatedRefs} Refs
+                <div style={{ fontSize: 13, fontWeight: 900, color: 'var(--neon-lime)' }}>
+                  {reward.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', marginTop: 2, display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                  <span style={{ color: 'var(--neon-lime)' }}>{leader.paidRefs || 0} Paid</span>
-                  <span>/</span>
-                  <span style={{ color: '#D8B4FE' }}>{leader.freeRefs || 0} Free</span>
+                <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-dim)', marginTop: 2, letterSpacing: '0.5px' }}>
+                  MINING PTS
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
-                  {leader.totalEarned.toFixed(2)} BNB
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 3 }}>
+                  {taps.toLocaleString()} taps
                 </div>
               </div>
             </motion.div>
