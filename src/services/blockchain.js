@@ -166,8 +166,8 @@ class BlockchainService {
         totalPoolClaimed: ethers.formatEther(poolClaimed),
         remainingCap:     ethers.formatEther(capInfo?.[4] || poolData?.[5] || 0n),
         lifetimeCap:      ethers.formatEther(capInfo?.[2] || poolData?.[6] || 0n),
-        missingDirects:   Number(poolData?.[11]?.[0] || 0),
-        missingTier:      Number(poolData?.[11]?.[1] || 0),
+        missingTier:      Number(poolData?.[11]?.[0] || 0),
+        missingDirects:   Number(poolData?.[11]?.[1] || 0),
         missingTeam:      Number(poolData?.[11]?.[2] || 0),
       };
     } catch (err) {

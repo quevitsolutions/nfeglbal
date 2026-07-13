@@ -576,7 +576,7 @@ function ClaimScreenInner() {
             )}
             {poolQual?.missingTier > 0 && (
               <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}>
-                • Need Tier {poolQual.missingTier} (currently Tier {nodeTier})
+                • Need Tier {Number(nodeTier) + Number(poolQual.missingTier)} (currently Tier {nodeTier})
               </div>
             )}
             {poolQual?.missingTeam > 0 && (
