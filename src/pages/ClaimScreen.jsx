@@ -7,6 +7,7 @@ import { getEthersSigner } from '../utils/ethers-adapter.js';
 import { ethers } from 'ethers';
 import { config } from '../config/wagmi.js';
 import toast from 'react-hot-toast';
+import MilestoneScreen from './MilestoneScreen.jsx';
 import {
   Wallet, TrendingUp, ArrowDownCircle, RefreshCw, Shield,
   ChevronDown, ChevronUp, Zap, Gift, Lock, AlertTriangle, CheckCircle
@@ -833,9 +834,70 @@ function ClaimScreenInner() {
 }
 
 export default function ClaimScreen() {
+  const [activeSubTab, setActiveSubTab] = useState('core');
+
   return (
     <ClaimErrorBoundary>
-      <ClaimScreenInner />
+      <div className="hub-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+        {/* ═ SUB NAVIGATION BAR ═ */}
+        <div className="hub-subnav-container" style={{
+          padding: '12px 16px',
+          background: 'rgba(5, 8, 15, 0.6)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+          display: 'flex',
+          gap: 12,
+          justifyContent: 'center',
+          alignItems: 'center',
+          flexShrink: 0
+        }}>
+          {[
+            { id: 'core',       icon: '💰', label: 'Core Rewards' },
+            { id: 'milestones', icon: '🏆', label: 'Founder & Milestones' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id)}
+              style={{
+                background: activeSubTab === tab.id ? 'rgba(163, 255, 18, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                border: activeSubTab === tab.id ? '1px solid var(--neon-lime)' : '1px solid rgba(255, 255, 255, 0.05)',
+                borderRadius: '12px',
+                padding: '8px 16px',
+                color: activeSubTab === tab.id ? 'var(--neon-lime)' : '#fff',
+                fontSize: '13px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'all 0.2s ease-out',
+                outline: 'none',
+                fontFamily: 'Outfit, sans-serif'
+              }}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* ═ SUB TAB CONTENT ═ */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeSubTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.15 }}
+              style={{ width: '100%' }}
+            >
+              {activeSubTab === 'core' && <ClaimScreenInner />}
+              {activeSubTab === 'milestones' && <MilestoneScreen />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
     </ClaimErrorBoundary>
   );
 }
