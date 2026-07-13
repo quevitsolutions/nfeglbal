@@ -35,7 +35,7 @@ function CountdownTimer() {
   if (timeLeft.expired) {
     return (
       <div style={{ textAlign: 'center', padding: '20px' }}>
-        <div style={{ fontSize: '18px', fontWeight: 900, color: '#FF4444' }}>⏰ FREE REGISTRATION PERIOD HAS ENDED</div>
+        <div style={{ fontSize: '18px', fontWeight: 900, color: '#FF4444' }}>⏰ PRE-LAUNCH REGISTRATION WINDOW HAS CLOSED</div>
         <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '8px' }}>Registration now costs $0.70 in BNB</div>
       </div>
     );
@@ -83,18 +83,18 @@ function SocialProofTicker({ stats }) {
   const tickerItems = useMemo(() => {
     if (activity.length > 0) {
       return activity.map((a, i) => ({
-        text: `${a.wallet} just registered FREE`,
+        text: `${a.wallet} just registered`,
         time: a.timeAgo,
         key: i
       }));
     }
     // Synthetic items to show while loading
     return [
-      { text: '0x7c3...f2e1 just registered FREE', time: '2 min ago', key: 's1' },
+      { text: '0x7c3...f2e1 just registered', time: '2 min ago', key: 's1' },
       { text: '0xa4b...8d3c registered via referral', time: '5 min ago', key: 's2' },
       { text: '0x1f9...e7a2 secured position #847', time: '8 min ago', key: 's3' },
       { text: '0xd2c...4b9f joined the network', time: '12 min ago', key: 's4' },
-      { text: '0x8e5...a1c3 registered FREE', time: '15 min ago', key: 's5' },
+      { text: '0x8e5...a1c3 registered', time: '15 min ago', key: 's5' },
       { text: '0x3b7...d6f8 locked matrix position', time: '18 min ago', key: 's6' },
     ];
   }, [activity]);
@@ -150,8 +150,8 @@ function FaqAccordion() {
 
   const faqs = [
     {
-      q: "Why is registration FREE right now?",
-      a: "We're in a 30-day pre-launch team building phase. During this period, registration costs $0 so you can secure your position in the global matrix and start building your team — completely risk-free. After July 19th, registration will be $0.70 in BNB."
+      q: "Why is registration open right now?",
+      a: "We're in a 30-day pre-launch team building phase. During this period, registration costs $0 so you can secure your position in the global matrix and start building your team — completely with zero risk. After July 19th, registration will be $0.70 in BNB."
     },
     {
       q: "What do I need to register?",
@@ -162,7 +162,7 @@ function FaqAccordion() {
       a: "After the pre-launch period, when your referrals upgrade to paid tiers, you earn real BNB rewards through the 18-level deep matrix system. Direct sponsor rewards, layer rewards, and matrix matching rewards — all paid instantly on-chain."
     },
     {
-      q: "What happens after the free period ends?",
+      q: "What happens after the pre-launch period ends?",
       a: "New users will need to pay $0.70 in BNB to register. Your early position is locked permanently — the earlier you join, the more network depth you build before the paid launch activates full earnings."
     },
     {
@@ -342,7 +342,7 @@ function ViralShareSection() {
   // Get referral URL from current page (uses URL params if present)
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://aipcore.com';
   const shareUrl = `${baseUrl}?ref=1`; // Default ref=1 (master node) for non-connected visitors
-  const shareText = `🚀 AIPCore is giving FREE registration for the next 30 days! Secure your position in the global matrix network before it costs $0.70. Join now 👇\n${shareUrl}`;
+  const shareText = `🚀 AIPCore registration is open for the next 30 days! Secure your position in the global matrix network before it costs $0.70. Join now 👇\n${shareUrl}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(shareUrl);
@@ -584,7 +584,7 @@ export default function LoginScreen({ onConnect }) {
       <div style={{ padding: '12px 16px', zIndex: 5, position: 'relative' }}>
         <div className="urgency-banner">
           <div style={{ fontSize: '12px', fontWeight: 900, color: '#FF6B35' }}>
-            🔥 PRE-LAUNCH: FREE REGISTRATION CLOSING SOON
+            🔥 PRE-LAUNCH: REGISTRATION WINDOW CLOSING SOON
           </div>
           <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
             After July 19th, new registrations will cost $0.70 in BNB
@@ -616,7 +616,7 @@ export default function LoginScreen({ onConnect }) {
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent'
           }}>
-            FREE POSITION
+            MATRIX POSITION
           </span>
           <br />
           <span style={{ fontSize: 'clamp(18px, 3.5vw, 32px)', color: 'rgba(255,255,255,0.7)' }}>
@@ -631,14 +631,14 @@ export default function LoginScreen({ onConnect }) {
           margin: '0 auto 32px',
           lineHeight: 1.6
         }}>
-          For the next <strong style={{ color: '#FFC72C' }}>30 days only</strong>, registration is completely FREE.
+          For the next <strong style={{ color: '#FFC72C' }}>30 days only</strong>, registration is completely open.
           Lock your matrix position now — after July 19th, it costs $0.70.
         </p>
 
         {/* Countdown Timer */}
         <div style={{ marginBottom: '16px' }}>
           <div style={{ fontSize: '10px', fontWeight: 900, color: 'rgba(255,255,255,0.4)', letterSpacing: '3px', marginBottom: '12px' }}>
-            FREE REGISTRATION ENDS IN
+            PRE-LAUNCH WINDOW ENDS IN
           </div>
           <CountdownTimer />
         </div>
@@ -647,7 +647,7 @@ export default function LoginScreen({ onConnect }) {
         <div style={{ marginTop: '32px', marginBottom: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
           <button onClick={handleConnectAction} className="cta-register-free">
             <Zap size={20} />
-            REGISTER FREE NOW
+            REGISTER NOW
             <ArrowRight size={18} />
           </button>
           
@@ -719,7 +719,7 @@ export default function LoginScreen({ onConnect }) {
 
           <div className="step-card">
             <div className="step-number">2</div>
-            <h3 style={{ fontSize: '15px', fontWeight: 900, marginBottom: '8px' }}>Register FREE</h3>
+            <h3 style={{ fontSize: '15px', fontWeight: 900, marginBottom: '8px' }}>Register Node</h3>
             <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
               Create your node for <strong style={{ color: '#A3FF12' }}>$0 during pre-launch</strong>. Only a tiny gas fee (~$0.03 in BNB) is needed.
             </p>
@@ -737,7 +737,7 @@ export default function LoginScreen({ onConnect }) {
         {/* CTA after steps */}
         <div style={{ textAlign: 'center', marginTop: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
           <button onClick={handleConnectAction} className="cta-register-free" style={{ fontSize: '14px', padding: '16px 40px' }}>
-            GET STARTED — IT'S FREE
+            GET STARTED — SECURE POSITION
           </button>
           
           <button
@@ -790,9 +790,9 @@ export default function LoginScreen({ onConnect }) {
           margin: '0 auto'
         }}>
           {[
-            { icon: <Gift size={24} />, title: 'It\'s 100% FREE', desc: '$0 registration during pre-launch. After July 19th it\'s $0.70. Save money now.', color: '#A3FF12' },
+            { icon: <Gift size={24} />, title: 'Secure Spot Immediately', desc: 'Secure your registration during pre-launch. After July 19th it\'s $0.70.', color: '#A3FF12' },
             { icon: <Users size={24} />, title: 'Lock Your Position', desc: 'Your spot in the 18-level matrix is permanent. Earlier position = more depth below you.', color: '#4FC3F7' },
-            { icon: <TrendingUp size={24} />, title: 'Build Team Before Launch', desc: 'Use the free period to recruit. When paid tiers activate, your entire team generates earnings.', color: '#FFC72C' },
+            { icon: <TrendingUp size={24} />, title: 'Build Team Before Launch', desc: 'Use the pre-launch window to recruit. When paid tiers activate, your entire team generates earnings.', color: '#FFC72C' },
             { icon: <Lock size={24} />, title: '100% On-Chain', desc: 'Every transaction on verified BSC smart contracts. No middleman, no hidden fees.', color: '#FF6B6B' },
           ].map((item, i) => (
             <motion.div
@@ -832,7 +832,7 @@ export default function LoginScreen({ onConnect }) {
           SPREAD THE <span style={{ color: '#FFC72C' }}>WORD</span>
         </div>
         <div className="landing-section-sub">
-          Share the free registration link with your network before the deadline
+          Share the registration link with your network before the deadline
         </div>
         <ViralShareSection />
       </section>
@@ -860,7 +860,7 @@ export default function LoginScreen({ onConnect }) {
           FREQUENTLY <span style={{ color: '#FFC72C' }}>ASKED</span>
         </div>
         <div className="landing-section-sub">
-          Everything you need to know about the pre-launch free registration
+          Everything you need to know about the pre-launch registration
         </div>
         <div style={{ maxWidth: '700px', margin: '0 auto' }}>
           <FaqAccordion />
@@ -879,17 +879,17 @@ export default function LoginScreen({ onConnect }) {
         }}>
           <div style={{ fontSize: '32px', marginBottom: '12px' }}>🚀</div>
           <h2 style={{ fontSize: 'clamp(22px, 4vw, 32px)', fontWeight: 950, marginBottom: '12px' }}>
-            DON'T MISS THE <span style={{ color: '#FREE_WINDOW' }}>FREE WINDOW</span>
+            DON'T MISS THE <span style={{ color: '#FFC72C' }}>PRE-LAUNCH WINDOW</span>
           </h2>
           <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginBottom: '24px', lineHeight: 1.6 }}>
-            Registration is FREE right now. After the pre-launch period, it costs $0.70.
+            Registration is open right now. After the pre-launch period, it costs $0.70.
             Secure your position in the global matrix network today.
           </p>
           <CountdownTimer />
           <div style={{ marginTop: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
             <button onClick={handleConnectAction} className="cta-register-free">
               <Zap size={20} />
-              REGISTER FREE NOW
+              REGISTER NOW
             </button>
             <button
               onClick={() => setShowEbookModal(true)}
