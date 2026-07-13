@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // ── DATA ─────────────────────────────────────────────────────────────
 const INCOME_STREAMS = [
   { icon: '👥', title: 'Referral Income', pct: '10%', desc: 'Earn 10% of every direct referral node purchase instantly on-chain. Built for viral scaling and immediate rewards.', color: '#A3FF12' },
-  { icon: '🌐', title: 'Matrix Bonus', pct: '70%', desc: 'A vast 3×12 matrix positions nodes automatically. Capture immense spillover rewards as your team and upline grows.', color: '#00D4FF' },
+  { icon: '🌐', title: 'Matrix Bonus', pct: '70%', desc: 'A vast 2×18 matrix positions nodes automatically. Capture immense spillover rewards as your team and upline grows.', color: '#00D4FF' },
   { icon: '🏆', title: 'Level Rewards', pct: '15%', desc: 'Progressive tiered reward pool — unlock higher percentages and compounding payouts as your global team expands.', color: '#FF9500' },
   { icon: '💎', title: 'Global Pool', pct: '5%', desc: 'Elite qualifiers receive a proportional share of the global reward pool, funded by every transaction network-wide.', color: '#FF2D55' },
 ];
