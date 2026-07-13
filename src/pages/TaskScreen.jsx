@@ -46,7 +46,7 @@ export default function TaskScreen() {
   };
 
   return (
-    <div className="sub-page page-tasks" style={{ paddingBottom: '20px' }}>
+    <div className="sub-page page-tasks" style={{ paddingBottom: 'calc(var(--tabbar-h, 80px) + 24px)' }}>
       <div style={{ padding: '10px 0 20px', display: 'flex', alignItems: 'center' }}>
         <button 
           onClick={() => setActiveTab('earn')}

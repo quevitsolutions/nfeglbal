@@ -91,7 +91,7 @@ export default function DashboardScreen() {
   };
 
   return (
-    <div className="sub-page page-dashboard" style={{ padding: '16px', background: '#12131a', minHeight: '100%', overflowY: 'auto', paddingBottom: '30px' }}>
+    <div className="sub-page page-dashboard" style={{ padding: '16px', background: '#12131a', minHeight: '100%', overflowY: 'auto', paddingBottom: 'calc(var(--tabbar-h, 80px) + 24px)' }}>
       
       {/* Node status card */}
       <div style={{

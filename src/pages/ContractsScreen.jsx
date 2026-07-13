@@ -143,7 +143,7 @@ export default function ContractsScreen() {
   };
 
   return (
-    <div style={{ fontFamily: 'Outfit, sans-serif', paddingBottom: 60 }}>
+    <div style={{ fontFamily: 'Outfit, sans-serif', paddingBottom: 'calc(var(--tabbar-h, 80px) + 24px)' }}>
       
       {/* ═ HERO SECTION ═ */}
       <section style={{

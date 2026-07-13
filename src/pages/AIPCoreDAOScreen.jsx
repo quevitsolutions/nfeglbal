@@ -331,7 +331,7 @@ export default function AIPCoreDAOScreen() {
   });
 
   return (
-    <div style={{ paddingBottom: 60, maxWidth: 800, margin: '0 auto' }}>
+    <div style={{ paddingBottom: 'calc(var(--tabbar-h, 80px) + 24px)', maxWidth: 800, margin: '0 auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
         <button onClick={() => setActiveTab('dash')} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', fontSize: 18, width: 36, height: 36, borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>

@@ -213,7 +213,7 @@ export default function UpgradeScreen() {
   const lockedTiers    = TIERS.filter(t => t.tier > (nextTier ? nextTier.tier : currentTier));
 
   return (
-    <div className="sub-page page-upgrade" style={{ paddingBottom: 20 }}>
+    <div className="sub-page page-upgrade" style={{ paddingBottom: 'calc(var(--tabbar-h, 80px) + 24px)' }}>
 
       {/* ── Header ── */}
       <div style={{ padding: '10px 0 20px', display: 'flex', alignItems: 'center' }}>

@@ -82,7 +82,7 @@ export default function CoreHubScreen() {
 
   if (activeView === 'hub') {
     return (
-      <div style={{ fontFamily: 'Outfit, sans-serif', paddingBottom: '30px' }}>
+      <div style={{ fontFamily: 'Outfit, sans-serif', paddingBottom: 'calc(var(--tabbar-h, 80px) + 24px)' }}>
         
         {/* Daily Telemetry Sync Card */}
         <div style={{

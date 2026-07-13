@@ -221,7 +221,7 @@ export default function MilestoneScreen() {
   };
 
   return (
-    <div className="sub-page page-milestones" style={{ paddingBottom: '20px', fontFamily: 'Outfit, sans-serif' }}>
+    <div className="sub-page page-milestones" style={{ paddingBottom: 'calc(var(--tabbar-h, 80px) + 24px)', fontFamily: 'Outfit, sans-serif' }}>
       <div style={{ padding: '20px 16px' }}>
         {!hasNode && (
           <div style={{

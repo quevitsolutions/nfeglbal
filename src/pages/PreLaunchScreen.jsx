@@ -176,7 +176,7 @@ export default function PreLaunchScreen() {
   });
 
   return (
-    <div style={{ fontFamily: 'Outfit, sans-serif', paddingBottom: '30px' }}>
+    <div style={{ fontFamily: 'Outfit, sans-serif', paddingBottom: 'calc(var(--tabbar-h, 80px) + 24px)' }}>
 
       {/* ═══ HERO BANNER ═══ */}
       <div style={{

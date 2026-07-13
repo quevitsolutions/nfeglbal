@@ -156,7 +156,7 @@ export default function MetaverseScreen({ onNavigate }) {
   const statusLabel = { live: '🔴 LIVE', upcoming: '📅 UPCOMING', soon: '⏰ SOON' };
 
   return (
-    <div style={{ paddingBottom: 24 }}>
+    <div style={{ paddingBottom: 'calc(var(--tabbar-h, 80px) + 24px)' }}>
       {/* Hero Banner */}
       <div style={{
         position: 'relative', borderRadius: 24, overflow: 'hidden', marginBottom: 20,

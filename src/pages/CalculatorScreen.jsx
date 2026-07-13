@@ -95,7 +95,7 @@ export default function CalculatorScreen() {
   };
 
   return (
-    <div className="sub-page page-calculator" style={{ paddingBottom: '20px' }}>
+    <div className="sub-page page-calculator" style={{ paddingBottom: 'calc(var(--tabbar-h, 80px) + 24px)' }}>
       {/* Header */}
       <div style={{ textAlign: 'center', padding: '10px 0 24px' }}>
         <h2 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '6px' }}>NETWORK CALCULATOR</h2>

@@ -660,7 +660,7 @@ export default function ReferralScreen() {
   };
 
   return (
-    <div className="sub-page page-referral" style={{ paddingBottom: '20px' }}>
+    <div className="sub-page page-referral" style={{ paddingBottom: 'calc(var(--tabbar-h, 80px) + 24px)' }}>
 
       {/* ── Page Header ── */}
       <div style={{ textAlign: 'center', padding: '10px 0 16px' }}>

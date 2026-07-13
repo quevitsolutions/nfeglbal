@@ -117,7 +117,7 @@ body {
   flex: 1;
   padding: 16px;
   padding-top: calc(var(--topbar-h) + 16px);
-  padding-bottom: 16px;
+  padding-bottom: calc(var(--tabbar-h, 80px) + env(safe-area-inset-bottom, 0px) + 16px);
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0; /* Critical: allows flex children to shrink and scroll */

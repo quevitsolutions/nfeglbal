@@ -586,7 +586,7 @@ export default function TeamScreen() {
   const maxCapacity = (level) => Math.pow(2, level);
 
   return (
-    <div className="sub-page page-team" style={{ paddingBottom: '20px' }}>
+    <div className="sub-page page-team" style={{ paddingBottom: 'calc(var(--tabbar-h, 80px) + 24px)' }}>
       <div style={{ textAlign: 'center', padding: '10px 0 24px' }}>
         <h2 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '6px' }}>MY NETWORK</h2>
         <div style={{
