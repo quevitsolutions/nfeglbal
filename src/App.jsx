@@ -222,56 +222,7 @@ export default function App() {
 
       {/* Main content area */}
       <main className="page">
-        {/* GLOBAL PRE-LAUNCH VIRAL BANNER */}
-        {isConnected && (
-          <div style={{
-            background: 'linear-gradient(90deg, rgba(163,255,18,0.12), rgba(255,199,44,0.12))',
-            borderBottom: '1px solid rgba(163,255,18,0.15)',
-            padding: '8px 16px',
-            textAlign: 'center',
-            fontSize: '11px',
-            fontWeight: 800,
-            color: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            flexWrap: 'wrap',
-            zIndex: 10,
-            marginBottom: '16px'
-          }}>
-            <span>🚀 PRE-LAUNCH FREE REGISTRATION ACTIVE ($0 instead of $0.70)</span>
-            <button 
-              onClick={() => {
-                const refToken = nodeId || walletAddress;
-                const inviteLink = walletAddress ? `${window.location.origin}/?ref=${refToken}` : '';
-                if (inviteLink) {
-                  navigator.clipboard.writeText(inviteLink).then(() => {
-                    toast.success('Your Referral Link Copied! 🔗', {
-                      style: { background: '#1A1F26', color: '#A3FF12', border: '1px solid rgba(163,255,18,0.2)' }
-                    });
-                  });
-                }
-              }}
-              style={{
-                background: 'var(--neon-lime)',
-                color: '#000',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '4px 10px',
-                fontSize: '10px',
-                fontWeight: 900,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontFamily: 'Outfit'
-              }}
-            >
-              📋 COPY SHARE LINK
-            </button>
-          </div>
-        )}
+
 
         <AnimatePresence mode="wait">
           <motion.div
