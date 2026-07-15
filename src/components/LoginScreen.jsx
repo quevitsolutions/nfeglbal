@@ -685,9 +685,6 @@ export default function LoginScreen({ onConnect }) {
         <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginBottom: '12px' }}>
           Only BNB gas fee required (~$0.03) • No registration fee during pre-launch
         </div>
-
-        {/* Live Stats */}
-        <LiveStatsBar stats={stats} />
       </section>
 
       {/* ═══ SOCIAL PROOF TICKER ═══ */}
