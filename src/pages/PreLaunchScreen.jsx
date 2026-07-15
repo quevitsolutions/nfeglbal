@@ -13,31 +13,31 @@ const PROMO_TEMPLATES = [
     id: 'urgency',
     label: '🔥 Urgency',
     emoji: '🔥',
-    text: (link) => `🔥 AIPCore is giving FREE registration for a LIMITED time only!\n\n✅ $0 registration (normally $0.70)\n✅ Secure your position in the 18-level deep matrix\n✅ Build your team before the paid launch\n\n⏰ FREE period ends July 19th!\n\n👉 Register now: ${link}`,
+    text: (link) => `🔥 AIPCore is offering $0 registration for a LIMITED time only!\n\n✅ $0 registration (normally $0.70)\n✅ Secure your position in the 18-level deep matrix\n✅ Build your team before the paid launch\n\n⏰ Pre-launch period ends July 19th!\n\n👉 Register now: ${link}`,
   },
   {
     id: 'opportunity',
     label: '💰 Opportunity',
     emoji: '💰',
-    text: (link) => `💰 Imagine earning BNB passively from an 18-level matrix system...\n\nAIPCore is in PRE-LAUNCH and registration is completely FREE right now!\n\n🔐 100% on-chain smart contracts\n📊 Verified on BscScan\n💎 Position locks permanently\n\nDon't miss this window 👇\n${link}`,
+    text: (link) => `💰 Imagine earning BNB passively from an 18-level matrix system...\n\nAIPCore is in PRE-LAUNCH and registration costs $0 right now!\n\n🔐 100% on-chain smart contracts\n📊 Verified on BscScan\n💎 Position locks permanently\n\nDon't miss this window 👇\n${link}`,
   },
   {
     id: 'simple',
     label: '⚡ Quick',
     emoji: '⚡',
-    text: (link) => `⚡ FREE crypto opportunity!\n\nAIPCore — register FREE, build your team, earn BNB.\n\nNo investment needed. Just connect wallet + tiny gas fee.\n\nJoin now: ${link}`,
+    text: (link) => `⚡ BSC crypto opportunity!\n\nAIPCore — register for $0, build your team, earn BNB.\n\nNo investment needed. Just connect wallet + tiny gas fee.\n\nJoin now: ${link}`,
   },
   {
     id: 'team',
     label: '👥 Team',
     emoji: '👥',
-    text: (link) => `👥 I'm building my AIPCore team and need YOU!\n\n🆓 Registration is FREE during pre-launch\n🏆 18-level deep earning matrix\n💎 Lock your position now — it's permanent\n🔥 Only until July 19th!\n\nJoin my team 👇\n${link}`,
+    text: (link) => `👥 I'm building my AIPCore team and need YOU!\n\n🆓 Registration is open during pre-launch\n🏆 18-level deep earning matrix\n💎 Lock your position now — it's permanent\n🔥 Only until July 19th!\n\nJoin my team 👇\n${link}`,
   },
   {
     id: 'fomo',
     label: '⏰ FOMO',
     emoji: '⏰',
-    text: (link) => `⏰ LAST CHANCE — AIPCore free registration closing soon!\n\nAfter July 19th, registration costs $0.70 in BNB.\n\nRight now it's $0. Zero. Free.\n\nEvery day you wait = positions filled above you.\n\nSecure yours NOW 👇\n${link}`,
+    text: (link) => `⏰ LAST CHANCE — AIPCore pre-launch registration closing soon!\n\nAfter July 19th, registration costs $0.70 in BNB.\n\nRight now it's $0. Zero. Open.\n\nEvery day you wait = positions filled above you.\n\nSecure yours NOW 👇\n${link}`,
   }
 ];
 
@@ -218,10 +218,10 @@ export default function PreLaunchScreen() {
           </div>
 
           <h2 style={{ fontSize: '18px', fontWeight: 950, color: '#fff', marginBottom: '6px' }}>
-            🚀 Build Your Team — It's FREE
+            🚀 Build Your Team — Secure Spots
           </h2>
           <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5, maxWidth: '340px', margin: '0 auto 16px' }}>
-            Invite at least <strong style={{ color: '#FFC72C' }}>10 free members</strong> during pre-launch to qualify for enhanced launch rewards. Every referral strengthens your matrix position.
+            Invite at least <strong style={{ color: '#FFC72C' }}>10 members</strong> during pre-launch to qualify for enhanced launch rewards. Every referral strengthens your matrix position.
           </p>
 
           <MiniCountdown />
@@ -257,7 +257,7 @@ export default function PreLaunchScreen() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Target size={16} color="#FFC72C" />
             <span style={{ fontSize: '12px', fontWeight: 900, color: '#fff', letterSpacing: '0.5px' }}>
-              🎯 FREE REFERRAL GOAL
+              🎯 REFERRAL GOAL
             </span>
           </div>
           {expandedSection.tracker ? <ChevronUp size={14} color="rgba(255,255,255,0.4)" /> : <ChevronDown size={14} color="rgba(255,255,255,0.4)" />}
@@ -289,7 +289,7 @@ export default function PreLaunchScreen() {
                 <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
                   {goalReached
                     ? 'You\'ve qualified for enhanced launch rewards. Keep building for maximum matrix depth!'
-                    : `Invite ${GOAL - directFreeCount} more free members using your link below to reach the pre-launch goal.`
+                    : `Invite ${GOAL - directFreeCount} more members using your link below to reach the pre-launch goal.`
                   }
                 </div>
               </div>
@@ -312,9 +312,9 @@ export default function PreLaunchScreen() {
             {/* Stats row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
               {[
-                { val: directFreeCount, label: 'Direct Free', color: '#A12CFF' },
-                { val: freeStats.totalFree, label: 'Total Free', color: '#FFC72C' },
-                { val: freeStats.totalTeam, label: 'Total Team', color: '#A3FF12' }
+                { val: directFreeCount, label: 'Directs', color: '#A12CFF' },
+                { val: freeStats.totalFree, label: 'Team Members', color: '#FFC72C' },
+                { val: freeStats.totalTeam, label: 'Total Structure', color: '#A3FF12' }
               ].map((s, i) => (
                 <div key={i} style={{
                   background: 'rgba(32,34,37,0.5)', borderRadius: '12px', padding: '10px',
@@ -515,13 +515,13 @@ export default function PreLaunchScreen() {
         )}
       </div>
 
-      {/* ═══ FREE USER STATS LEVEL-WISE ═══ */}
+      {/* ═══ USER STATS LEVEL-WISE ═══ */}
       <div style={cardStyle}>
         <div onClick={() => toggleSection('stats')} style={cardHeaderStyle(expandedSection.stats)}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Users size={16} color="#4FC3F7" />
             <span style={{ fontSize: '12px', fontWeight: 900, color: '#fff', letterSpacing: '0.5px' }}>
-              📊 FREE USER STATS (10 LEVELS)
+              📊 TEAM STATS (10 LEVELS)
             </span>
           </div>
           {expandedSection.stats ? <ChevronUp size={14} color="rgba(255,255,255,0.4)" /> : <ChevronDown size={14} color="rgba(255,255,255,0.4)" />}
@@ -535,7 +535,7 @@ export default function PreLaunchScreen() {
                 {/* Summary bar */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', padding: '10px 14px', background: 'rgba(32,34,37,0.4)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
                   <div>
-                    <div style={{ fontSize: '8px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', letterSpacing: '1px' }}>TOTAL FREE</div>
+                    <div style={{ fontSize: '8px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', letterSpacing: '1px' }}>TOTAL MEMBERS</div>
                     <div style={{ fontSize: '16px', fontWeight: 950, color: '#A12CFF' }}>{freeStats.totalFree}</div>
                   </div>
                   <div>
@@ -596,9 +596,9 @@ export default function PreLaunchScreen() {
                             </span>
                           </div>
                           <span style={{ fontSize: '10px', color: '#b9bbbe', fontWeight: 700 }}>
-                            <span style={{ color: '#A12CFF' }}>{lv.free}F</span>
+                            <span style={{ color: '#A12CFF' }}>{lv.free}R</span>
                             {' · '}
-                            <span style={{ color: '#A3FF12' }}>{lv.paid}P</span>
+                            <span style={{ color: '#A3FF12' }}>{lv.paid}U</span>
                             {' · '}
                             {total} total
                           </span>
@@ -627,10 +627,10 @@ export default function PreLaunchScreen() {
                 {/* Legend */}
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.4)' }}>
-                    <span style={{ width: '10px', height: '4px', borderRadius: '2px', background: '#A3FF12' }} /> PAID
+                    <span style={{ width: '10px', height: '4px', borderRadius: '2px', background: '#A3FF12' }} /> UPGRADED
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.4)' }}>
-                    <span style={{ width: '10px', height: '4px', borderRadius: '2px', background: '#A12CFF' }} /> FREE
+                    <span style={{ width: '10px', height: '4px', borderRadius: '2px', background: '#A12CFF' }} /> REGISTERED
                   </div>
                 </div>
               </>
