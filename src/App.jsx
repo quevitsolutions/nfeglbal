@@ -11,6 +11,7 @@ import TopBar from './components/TopBar.jsx';
 import TabBar from './components/TabBar.jsx';
 import CoreHubScreen from './pages/CoreHubScreen.jsx';
 import RegistrationModal from './components/RegistrationModal.jsx';
+import MiningNoticeModal from './components/MiningNoticeModal.jsx';
 // V3RewardsScreen and AcademyHubScreen hidden during pre-launch
 // import V3RewardsScreen from './pages/V3RewardsScreen.jsx';
 // import AcademyHubScreen from './pages/AcademyHubScreen.jsx';
@@ -63,6 +64,7 @@ const TOAST_STYLE = {
 
 export default function App() {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showMiningNotice, setShowMiningNotice] = useState(false);
 
   const {
     activeTab, setActiveTab,
@@ -114,6 +116,20 @@ export default function App() {
       setShowRegisterModal(false);
     }
   }, [isConnected, hasNode, isFreeActive]);
+
+  useEffect(() => {
+    if (isConnected) {
+      const acknowledged = sessionStorage.getItem('mining_notice_acknowledged');
+      if (!acknowledged) {
+        setShowMiningNotice(true);
+      }
+    }
+  }, [isConnected]);
+
+  const handleAcknowledgeMining = () => {
+    sessionStorage.setItem('mining_notice_acknowledged', 'true');
+    setShowMiningNotice(false);
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -207,6 +223,7 @@ export default function App() {
     <div className="app-container">
       <Toaster position="top-center" toastOptions={{ style: TOAST_STYLE }} />
       <RegistrationModal isOpen={showRegisterModal} onClose={() => setShowRegisterModal(false)} />
+      <MiningNoticeModal isOpen={showMiningNotice} onClose={handleAcknowledgeMining} />
 
       {/* Desktop sidebar (hidden on mobile/tablet via CSS) */}
       <DesktopSidebar
