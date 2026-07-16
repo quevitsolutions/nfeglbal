@@ -294,13 +294,11 @@ class BlockchainService {
       return Number(existingNodeId);
     }
 
-    // FIX: Index 0 = Tier 1 cost
     const cost = await core
-      .getTierCost(0)
-      .catch(() => ethers.parseEther("0.008"));
+      .getRegistrationFee()
+      .catch(() => 0n);
       
-    // Add 5% buffer to prevent insufficient msg.value reverts due to oracle price fluctuations
-    const bufferCost = (cost * 105n) / 100n;
+    const bufferCost = cost > 0n ? (cost * 105n) / 100n : 0n;
     
     let estimatedGas;
     try {
@@ -361,8 +359,8 @@ class BlockchainService {
       return Number(existingNodeId);
     }
 
-    const cost = await core.getTierCost(0).catch(() => ethers.parseEther("0.008"));
-    const bufferCost = (cost * 105n) / 100n;
+    const cost = await core.getRegistrationFee().catch(() => 0n);
+    const bufferCost = cost > 0n ? (cost * 105n) / 100n : 0n;
 
     let estimatedGas;
     try {
