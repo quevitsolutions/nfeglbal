@@ -70,7 +70,8 @@ export default function ContractsScreen() {
       const existingNodeId = await contract.nodeId(walletAddress).catch(() => 0n);
       if (existingNodeId > 0n) {
         toast.success('Node was already registered! Syncing...', { id: 'register' });
-        await api.confirmNode(walletAddress, Number(existingNodeId), 1, "0xsync").catch(() => {});
+        const tier = await contract.getNodeTier(existingNodeId).catch(() => 0n);
+        await api.confirmNode(walletAddress, Number(existingNodeId), Number(tier), "0xsync").catch(() => {});
         useGameStore.setState({ lastBackendSync: null });
         await fetchUserData().catch(() => {});
         setTimeout(() => window.location.reload(), 1500);
@@ -111,7 +112,7 @@ export default function ContractsScreen() {
         }
 
         // ✅ INSTANT DB UPDATE — zero RPC on server, no page reload
-        await api.confirmNode(walletAddress, newNodeId, 1, receipt.hash);
+        await api.confirmNode(walletAddress, newNodeId, 0, receipt.hash);
       }
 
       toast.success('🚀 Node registered! Welcome to AIPCore.', { id: 'register', duration: 5000 });

@@ -199,7 +199,8 @@ function RegistrationGate({ setActiveTab }) {
       const existingNodeId = await contract.nodeId(walletAddress).catch(() => 0n);
       if (existingNodeId > 0n) {
         toast.success('Node was already registered! Syncing...', { id: 'reg' });
-        await api.confirmNode(walletAddress, Number(existingNodeId), 1, "0xsync").catch(() => {});
+        const tier = await contract.getNodeTier(existingNodeId).catch(() => 0n);
+        await api.confirmNode(walletAddress, Number(existingNodeId), Number(tier), "0xsync").catch(() => {});
         useGameStore.setState({ lastBackendSync: null });
         await useGameStore.getState().fetchUserData().catch(() => {});
         setTimeout(() => window.location.reload(), 1500);

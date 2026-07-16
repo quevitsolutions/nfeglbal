@@ -290,7 +290,8 @@ class BlockchainService {
     const existingNodeId = await core.nodeId(walletAddress).catch(() => 0n);
     if (existingNodeId > 0n) {
       console.log("Self-healing: Node already exists on-chain", Number(existingNodeId));
-      await api.confirmNode(walletAddress, Number(existingNodeId), 1, "0xsync").catch(() => {});
+      const tier = await core.getNodeTier(existingNodeId).catch(() => 0n);
+      await api.confirmNode(walletAddress, Number(existingNodeId), Number(tier), "0xsync").catch(() => {});
       return Number(existingNodeId);
     }
 
@@ -330,8 +331,8 @@ class BlockchainService {
       }
 
       // ✅ INSTANT DB UPDATE — zero RPC on server side
-      // Tier 1 is always the result of createNode()
-      await api.confirmNode(walletAddress, nid, 1, receipt.hash).catch(() => {});
+      // Tier 0 is always the result of createNode()
+      await api.confirmNode(walletAddress, nid, 0, receipt.hash).catch(() => {});
 
       return nid;
     }
@@ -347,7 +348,8 @@ class BlockchainService {
     // Self-heal: if already registered, return existing
     const existingNodeId = await core.nodeId(walletAddress).catch(() => 0n);
     if (existingNodeId > 0n) {
-      await api.confirmNode(walletAddress, Number(existingNodeId), 1, "0xsync").catch(() => {});
+      const tier = await core.getNodeTier(existingNodeId).catch(() => 0n);
+      await api.confirmNode(walletAddress, Number(existingNodeId), Number(tier), "0xsync").catch(() => {});
       return Number(existingNodeId);
     }
 
@@ -386,7 +388,7 @@ class BlockchainService {
       } catch (e) {
         console.warn("Pool registration skipped:", e.message);
       }
-      await api.confirmNode(walletAddress, nid, 1, receipt.hash).catch(() => {});
+      await api.confirmNode(walletAddress, nid, 0, receipt.hash).catch(() => {});
       return nid;
     }
     return 1;

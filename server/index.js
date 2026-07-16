@@ -397,7 +397,7 @@ app.get('/api/users/profile/:walletAddress', async (req, res) => {
 
     res.json({
       walletAddress: wallet,
-      nodeTier: Number(stats[0]) || 1,
+      nodeTier: Number(stats[0]),
       lifetime_rewards: parseFloat(ethers.formatEther(stats[3])) || 0.0,
       withdrawable_balance: parseFloat(ethers.formatEther(vaultSummary[2])) || 0.0,
       upgrade_vault_balance: parseFloat(ethers.formatEther(vaultSummary[2] + vaultSummary[3])) || 0.0,
