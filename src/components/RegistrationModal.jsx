@@ -19,6 +19,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
   const [isLoading, setIsLoading] = useState(false);
   const [tier1Cost, setTier1Cost] = useState('0.050');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [debugLog, setDebugLog] = useState('');
 
   // Pre-fill sponsor input from URL referrerId
   useEffect(() => {
@@ -47,44 +48,61 @@ export default function RegistrationModal({ isOpen, onClose }) {
 
   const handleRegister = async () => {
     setIsLoading(true);
+    setDebugLog(prev => prev + "\nhandleRegister started!");
     try {
       const refVal = sponsorInput.trim();
       let effectiveSponsor = 55555;
       let useSponsorAddress = false;
       let sponsorAddress = "";
+      setDebugLog(prev => prev + "\nSponsor input: " + refVal);
 
       if (refVal) {
         try {
           if (refVal.startsWith('0x') && refVal.length === 42) {
-            const refId = await blockchain.core.nodeId(refVal).catch(() => 0n);
+            setDebugLog(prev => prev + "\nChecking sponsor address...");
+            const refId = await blockchain.core.nodeId(refVal).catch((err) => {
+              setDebugLog(prev => prev + "\nnodeId call error: " + err.message);
+              return 0n;
+            });
             if (refId && Number(refId) > 0) {
               effectiveSponsor = Number(refId);
+              setDebugLog(prev => prev + "\nResolved sponsor address to ID: " + effectiveSponsor);
             } else {
               useSponsorAddress = true;
               sponsorAddress = refVal;
+              setDebugLog(prev => prev + "\nSponsor address not found, using raw address");
             }
           } else if (Number(refVal) > 0) {
             effectiveSponsor = Number(refVal);
+            setDebugLog(prev => prev + "\nUsing sponsor ID: " + effectiveSponsor);
           }
         } catch (e) {
+          setDebugLog(prev => prev + "\nReferrer lookup exception: " + e.message);
           console.warn("Referrer ID lookup failed, using fallback:", e);
         }
       }
 
+      setDebugLog(prev => prev + "\nCalling createNode...");
       let nid = null;
-      if (useSponsorAddress && sponsorAddress) {
-        nid = await createNodeWithSponsorAddress(sponsorAddress, 1);
-      } else {
-        nid = await createNode(effectiveSponsor);
+      try {
+        if (useSponsorAddress && sponsorAddress) {
+          nid = await createNodeWithSponsorAddress(sponsorAddress, 1);
+        } else {
+          nid = await createNode(effectiveSponsor);
+        }
+        setDebugLog(prev => prev + "\ncreateNode completed, nid: " + nid);
+      } catch (err) {
+        setDebugLog(prev => prev + "\ncreateNode call threw exception: " + err.message + "\nStack: " + err.stack);
       }
 
       if (nid) {
-        // Re-load node data to confirm activation
+        setDebugLog(prev => prev + "\nLoading node data...");
         await loadNodeData(walletAddress);
         setShowSuccess(true);
         toast.success('Registration successful! 🚀');
       }
     } catch (err) {
+      setDebugLog(prev => prev + "\nCaught main error: " + err.message + "\nStack: " + err.stack);
       toast.error(err?.message || 'Registration failed');
     }
     setIsLoading(false);
@@ -249,6 +267,25 @@ export default function RegistrationModal({ isOpen, onClose }) {
               >
                 Browse as Guest
               </button>
+
+              {debugLog && (
+                <pre style={{
+                  background: 'rgba(0,0,0,0.8)',
+                  color: '#FF0055',
+                  padding: '8px',
+                  borderRadius: '10px',
+                  fontSize: '9px',
+                  textAlign: 'left',
+                  maxHeight: '100px',
+                  overflowY: 'auto',
+                  marginTop: '12px',
+                  fontFamily: 'monospace',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all'
+                }}>
+                  {debugLog}
+                </pre>
+              )}
             </>
           ) : (
             <>
