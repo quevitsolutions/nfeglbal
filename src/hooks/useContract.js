@@ -108,7 +108,7 @@ export const useContract = () => {
           toast.error(errMsg, { id: tid });
         }
         setProcessing(false);
-        return false;
+        throw e;
       }
     },
     createNodeWithSponsorAddress: async (sponsorAddress, sponsorOfSponsor = 1) => {
@@ -137,7 +137,7 @@ export const useContract = () => {
           toast.error(errMsg, { id: tid });
         }
         setProcessing(false);
-        return false;
+        throw e;
       }
     },
     claimRewards: async () => {
