@@ -781,6 +781,12 @@ body {
   border: 1px solid rgba(205, 127, 50, 0.3);
 }
 
+.league-guest {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
 .league-silver {
   background: linear-gradient(135deg, #c0c0c0 0%, #808080 100%);
   color: #fff;

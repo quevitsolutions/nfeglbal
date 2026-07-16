@@ -20,11 +20,11 @@ export default function TopBar() {
   // Calculate League Rank
   const getLeagueInfo = () => {
     const displayId = nodeId && Number(nodeId) > 0 ? ` · #${nodeId}` : '';
-    if (!hasNode) {
-      if (isFreeActive || (nodeId && Number(nodeId) > 0)) {
-        return { name: `Node Op${displayId}`, class: 'league-bronze', icon: '🥉' };
-      }
-      return { name: 'Bronze Op', class: 'league-bronze', icon: '🥉' };
+    if (!hasNode && !isFreeActive) {
+      return { name: 'Guest Op', class: 'league-guest', icon: '👤' };
+    }
+    if (isFreeActive || (nodeId && Number(nodeId) > 0)) {
+      return { name: `Node Op${displayId}`, class: 'league-bronze', icon: '🥉' };
     }
     const tier = Number(nodeTier || 1);
     if (tier <= 5) {
