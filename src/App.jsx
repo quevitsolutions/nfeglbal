@@ -101,9 +101,7 @@ export default function App() {
   // Popup logic for un-activated wallets (guest operators)
   useEffect(() => {
     if (isConnected) {
-      if (hasNode || isFreeActive) {
-        setShowRegisterModal(false);
-      } else {
+      if (!hasNode && !isFreeActive) {
         const t = setTimeout(() => {
           const s = useGameStore.getState();
           if (!s.hasNode && !s.isFreeActive) {
