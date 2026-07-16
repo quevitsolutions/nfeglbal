@@ -4,7 +4,8 @@ import { useGameStore } from '../store/gameStore.js';
 import { useContract } from '../hooks/useContract.js';
 import { useNativePrice } from '../hooks/useNativePrice.js';
 import { ethers } from 'ethers';
-import { CONTRACTS, RPC_NODES } from '../config/constants.js';
+import { CONTRACTS } from '../config/constants.js';
+import { blockchain } from '../services/blockchain.js';
 import { AIPCORE_ABI } from '../config/abi.js';
 import { Shield, Sparkles, CheckCircle, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -31,9 +32,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
   useEffect(() => {
     const fetchTierCost = async () => {
       try {
-        const provider = new ethers.JsonRpcProvider(RPC_NODES[0]);
-        const core = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, provider);
-        const costsRaw = await core.getTierCosts().catch(() => null);
+        const costsRaw = await blockchain.core.getTierCosts().catch(() => null);
         if (costsRaw && costsRaw.length > 0) {
           setTier1Cost(ethers.formatEther(costsRaw[0]));
         }
@@ -56,21 +55,13 @@ export default function RegistrationModal({ isOpen, onClose }) {
 
       if (refVal) {
         try {
-          const provider = new ethers.JsonRpcProvider(RPC_NODES[0]);
-          const contract = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, provider);
-          
           if (refVal.startsWith('0x') && refVal.length === 42) {
-            const refId = await contract.nodeId(refVal).catch(() => 0n);
+            const refId = await blockchain.core.nodeId(refVal).catch(() => 0n);
             if (refId && Number(refId) > 0) {
               effectiveSponsor = Number(refId);
             } else {
-              const isTargeted = await contract.isTargetedUser(refVal).catch(() => false);
-              if (isTargeted) {
-                useSponsorAddress = true;
-                sponsorAddress = refVal;
-              } else {
-                effectiveSponsor = 1;
-              }
+              useSponsorAddress = true;
+              sponsorAddress = refVal;
             }
           } else if (Number(refVal) > 0) {
             effectiveSponsor = Number(refVal);
