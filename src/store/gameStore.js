@@ -15,7 +15,8 @@ const RESET_STATE = {
   taps: 0, demoTaps: 0, teamSize: 0, directRefs: 0, totalEarned: 0, streak: 0,
   lastClaimDate: null, teamHistory: [], leaderboard: [], isAdmin: false,
   adminStats: null, claimedMilestones: [], activatedRefs: 0,
-  isFetchingUser: false, isSyncing: false, lastBackendSync: null
+  isFetchingUser: false, isSyncing: false, lastBackendSync: null,
+  isRegistering: false
 };
 
 export const useGameStore = create(

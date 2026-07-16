@@ -109,9 +109,17 @@ export default function App() {
           }
         }, 1500);
         return () => clearTimeout(t);
+      } else {
+        // Auto-close if user already has an active node (prevents popup for existing users)
+        // unless they are currently in the middle of a new registration flow
+        const s = useGameStore.getState();
+        if (!s.isRegistering) {
+          setShowRegisterModal(false);
+        }
       }
     } else {
       setShowRegisterModal(false);
+      useGameStore.setState({ isRegistering: false });
     }
   }, [isConnected, hasNode, isFreeActive]);
 
@@ -220,7 +228,13 @@ export default function App() {
   return (
     <div className="app-container">
       <Toaster position="top-center" toastOptions={{ style: TOAST_STYLE }} />
-      <RegistrationModal isOpen={showRegisterModal} onClose={() => setShowRegisterModal(false)} />
+      <RegistrationModal 
+        isOpen={showRegisterModal} 
+        onClose={() => {
+          setShowRegisterModal(false);
+          useGameStore.setState({ isRegistering: false });
+        }} 
+      />
       <MiningNoticeModal isOpen={showMiningNotice} onClose={handleAcknowledgeMining} />
 
       {/* Desktop sidebar (hidden on mobile/tablet via CSS) */}
