@@ -189,7 +189,7 @@ function RegistrationGate({ setActiveTab }) {
       const signer = await getEthersSigner(config);
       if (!signer) { toast.error('Connect wallet first'); setRegistering(false); return; }
       const contract = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, signer);
-      let sponsorNodeId = 1n;
+      let sponsorNodeId = 55555n;
       if (referrerId) {
         try { const ref = await contract.nodeId(referrerId); if (Number(ref) > 0) sponsorNodeId = ref; } catch { }
       }
@@ -205,10 +205,10 @@ function RegistrationGate({ setActiveTab }) {
         setTimeout(() => window.location.reload(), 1500);
         return;
       }
-      const tierCost = await contract.getTierCost(0);
+      const cost = await contract.getRegistrationFee().catch(() => 0n);
       
       // Add 5% buffer to prevent insufficient msg.value reverts due to oracle price fluctuations
-      const bufferCost = (tierCost * 105n) / 100n;
+      const bufferCost = cost > 0n ? (cost * 105n) / 100n : 0n;
       
       toast.loading('Confirm transaction...', { id: 'reg' });
       const tx = await contract.createNode(sponsorNodeId, { value: bufferCost, gasLimit: 3000000 });

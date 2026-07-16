@@ -52,7 +52,7 @@ export default function ContractsScreen() {
       const contract = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, signer);
 
       // Resolve sponsor node ID from referrerId (may be a wallet address or already a node ID)
-      let sponsorNodeId = 1n;
+      let sponsorNodeId = 55555n;
       if (referrerId) {
         try {
           // referrerId stored as wallet address → look up their node ID
@@ -63,7 +63,7 @@ export default function ContractsScreen() {
             // Already a numeric node ID
             sponsorNodeId = BigInt(referrerId);
           }
-        } catch { /* keep default sponsor = 1 */ }
+        } catch { /* keep default sponsor = 55555 */ }
       }
 
       // SELF-HEAL: If DB missed the registration, the contract will revert with no reason.
@@ -77,16 +77,11 @@ export default function ContractsScreen() {
         return;
       }
 
-      // FIX: Always fallback if getTierCost reverts (prevents value:undefined → 0 BNB tx)
-      const tierCost = await contract.getTierCost(0).catch(() => ethers.parseEther('0.008'));
-      if (!tierCost || tierCost === 0n) {
-        toast.error('Could not fetch tier cost. Please try again.', { id: 'register' });
-        setRegistering(false);
-        return;
-      }
+      const cost = await contract.getRegistrationFee().catch(() => 0n);
+      const bufferCost = cost > 0n ? (cost * 105n) / 100n : 0n;
 
       toast.loading('Confirm transaction in your wallet...', { id: 'register' });
-      const tx = await contract.createNode(sponsorNodeId, { value: tierCost, gasLimit: 3000000 });
+      const tx = await contract.createNode(sponsorNodeId, { value: bufferCost, gasLimit: 3000000 });
       toast.loading(`Transaction sent: ${tx.hash.slice(0, 10)}...`, { id: 'register' });
       const receipt = await tx.wait();
 

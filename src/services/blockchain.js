@@ -279,7 +279,7 @@ class BlockchainService {
 
   // ── WRITE ACTIONS ─────────────────────────────────────────────────────────
 
-  async createNode(sponsorId = 1) {
+  async createNode(sponsorId = 55555) {
     const signer = await getEthersSigner(config);
     if (!signer) throw new Error("Wallet not connected");
     const walletAddress = await signer.getAddress();

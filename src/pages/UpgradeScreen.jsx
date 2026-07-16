@@ -135,27 +135,19 @@ export default function UpgradeScreen() {
     setIsLoading(true);
     try {
       const refVal = sponsorInput.trim();
-      let effectiveSponsor = 1;
+      let effectiveSponsor = 55555;
       let useSponsorAddress = false;
       let sponsorAddress = "";
 
       if (refVal) {
         try {
-          const provider = new ethers.JsonRpcProvider(RPC_NODES[0]);
-          const contract = new ethers.Contract(CONTRACTS.AIPCORE, AIPCORE_ABI, provider);
-          
           if (refVal.startsWith('0x') && refVal.length === 42) {
-            const refId = await contract.nodeId(refVal).catch(() => 0n);
+            const refId = await blockchain.core.nodeId(refVal).catch(() => 0n);
             if (refId && Number(refId) > 0) {
               effectiveSponsor = Number(refId);
             } else {
-              const isTargeted = await contract.isTargetedUser(refVal).catch(() => false);
-              if (isTargeted) {
-                useSponsorAddress = true;
-                sponsorAddress = refVal;
-              } else {
-                effectiveSponsor = 1;
-              }
+              useSponsorAddress = true;
+              sponsorAddress = refVal;
             }
           } else if (Number(refVal) > 0) {
             effectiveSponsor = Number(refVal);
@@ -264,7 +256,7 @@ export default function UpgradeScreen() {
               </label>
               <input
                 type="text"
-                placeholder="Enter Sponsor ID or Wallet Address (default: 1)"
+                placeholder="Enter Sponsor ID or Wallet Address (default: 55555)"
                 value={sponsorInput}
                 onChange={(e) => setSponsorInput(e.target.value)}
                 style={{
@@ -287,10 +279,10 @@ export default function UpgradeScreen() {
                   ) : Number(sponsorInput.trim()) > 0 ? (
                     "✨ Sponsor ID #" + sponsorInput.trim() + " detected."
                   ) : (
-                    "⚠️ Invalid format. Will fallback to Sponsor #1 (Platform)."
+                    "⚠️ Invalid format. Will fallback to Sponsor #55555 (Platform)."
                   )
                 ) : (
-                  "ℹ️ Empty. Will default to Sponsor #1 (Platform)."
+                  "ℹ️ Empty. Will default to Sponsor #55555 (Platform)."
                 )}
               </div>
             </div>

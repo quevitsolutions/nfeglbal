@@ -49,7 +49,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
     setIsLoading(true);
     try {
       const refVal = sponsorInput.trim();
-      let effectiveSponsor = 1;
+      let effectiveSponsor = 55555;
       let useSponsorAddress = false;
       let sponsorAddress = "";
 
@@ -156,7 +156,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
                 </label>
                 <input
                   type="text"
-                  placeholder="Enter Sponsor ID or Wallet Address (default: 1)"
+                  placeholder="Enter Sponsor ID or Wallet Address (default: 55555)"
                   value={sponsorInput}
                   onChange={(e) => setSponsorInput(e.target.value)}
                   style={{
@@ -179,10 +179,10 @@ export default function RegistrationModal({ isOpen, onClose }) {
                     ) : Number(sponsorInput.trim()) > 0 ? (
                       "✨ Sponsor ID #" + sponsorInput.trim() + " detected."
                     ) : (
-                      "⚠️ Invalid format. Will fallback to Sponsor #1 (Platform)."
+                      "⚠️ Invalid format. Will fallback to Sponsor #55555 (Platform)."
                     )
                   ) : (
-                    "ℹ️ Empty. Will default to Sponsor #1 (Platform)."
+                    "ℹ️ Empty. Will default to Sponsor #55555 (Platform)."
                   )}
                 </div>
               </div>

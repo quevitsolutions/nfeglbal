@@ -72,7 +72,7 @@ export const useContract = () => {
       openConnectModal?.();
     },
     disconnectWallet: () => disconnect(),
-    createNode: async (sponsorId = 1) => {
+    createNode: async (sponsorId = 55555) => {
       const tid = toast.loading("Activating Node...");
       setProcessing(true, "Activating Node...");
       try {
