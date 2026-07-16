@@ -366,7 +366,6 @@ class BlockchainService {
     try {
       estimatedGas = await core.createNodeWithSponsorAddress.estimateGas(
         sponsorAddress,
-        sponsorOfSponsor,
         { value: bufferCost }
       );
       estimatedGas = (estimatedGas * 130n) / 100n; // 30% safety buffer
@@ -376,7 +375,6 @@ class BlockchainService {
 
     const tx = await core.createNodeWithSponsorAddress(
       sponsorAddress,
-      sponsorOfSponsor,
       { value: bufferCost, gasLimit: estimatedGas }
     );
     const receipt = await tx.wait();

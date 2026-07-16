@@ -80,16 +80,19 @@ export default function RegistrationModal({ isOpen, onClose }) {
         }
       }
 
+      let nid = null;
       if (useSponsorAddress && sponsorAddress) {
-        await createNodeWithSponsorAddress(sponsorAddress, 1);
+        nid = await createNodeWithSponsorAddress(sponsorAddress, 1);
       } else {
-        await createNode(effectiveSponsor);
+        nid = await createNode(effectiveSponsor);
       }
 
-      // Re-load node data to confirm activation
-      await loadNodeData(walletAddress);
-      setShowSuccess(true);
-      toast.success('Registration successful! 🚀');
+      if (nid) {
+        // Re-load node data to confirm activation
+        await loadNodeData(walletAddress);
+        setShowSuccess(true);
+        toast.success('Registration successful! 🚀');
+      }
     } catch (err) {
       toast.error(err?.message || 'Registration failed');
     }

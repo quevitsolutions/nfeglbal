@@ -1,6 +1,6 @@
 export const AIPCORE_ABI = [
   "function createNode(uint256 _sponsor) external payable",
-  "function createNodeWithSponsorAddress(address _sponsorAddress, uint256 _sponsorOfSponsor) external payable",
+  "function createNodeWithSponsorAddress(address _sponsorAddress) external payable",
   "function unlockTier(uint256 _nodeId, uint256 _toTier) external payable",
   "function withdraw() external",
   "function pendingReward(address user) view returns (uint256)",
