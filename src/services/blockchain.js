@@ -300,15 +300,7 @@ class BlockchainService {
       
     const bufferCost = cost > 0n ? (cost * 105n) / 100n : 0n;
     
-    let estimatedGas;
-    try {
-      estimatedGas = await core.createNode.estimateGas(sponsorId, { value: bufferCost });
-      estimatedGas = (estimatedGas * 130n) / 100n; // 30% safety buffer
-    } catch {
-      estimatedGas = 1200000n; // safe fallback
-    }
-    
-    const tx = await core.createNode(sponsorId, { value: bufferCost, gasLimit: estimatedGas });
+    const tx = await core.createNode(sponsorId, { value: bufferCost });
     const receipt = await tx.wait();
 
     // Parse NodeCreated event to get the assigned nodeId
@@ -362,20 +354,9 @@ class BlockchainService {
     const cost = await core.getRegistrationFee().catch(() => 0n);
     const bufferCost = cost > 0n ? (cost * 105n) / 100n : 0n;
 
-    let estimatedGas;
-    try {
-      estimatedGas = await core.createNodeWithSponsorAddress.estimateGas(
-        sponsorAddress,
-        { value: bufferCost }
-      );
-      estimatedGas = (estimatedGas * 130n) / 100n; // 30% safety buffer
-    } catch {
-      estimatedGas = 1500000n; // safe fallback
-    }
-
     const tx = await core.createNodeWithSponsorAddress(
       sponsorAddress,
-      { value: bufferCost, gasLimit: estimatedGas }
+      { value: bufferCost }
     );
     const receipt = await tx.wait();
 
