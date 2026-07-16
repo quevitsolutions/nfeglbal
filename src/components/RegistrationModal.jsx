@@ -48,6 +48,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
   const handleRegister = async () => {
     setIsLoading(true);
     try {
+      alert("handleRegister clicked! Input sponsor: " + sponsorInput);
       const refVal = sponsorInput.trim();
       let effectiveSponsor = 55555;
       let useSponsorAddress = false;
@@ -56,6 +57,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
       if (refVal) {
         try {
           if (refVal.startsWith('0x') && refVal.length === 42) {
+            alert("Sponsor address detected: " + refVal);
             const refId = await blockchain.core.nodeId(refVal).catch(() => 0n);
             if (refId && Number(refId) > 0) {
               effectiveSponsor = Number(refId);
@@ -67,16 +69,19 @@ export default function RegistrationModal({ isOpen, onClose }) {
             effectiveSponsor = Number(refVal);
           }
         } catch (e) {
+          alert("Referrer lookup warning: " + e.message);
           console.warn("Referrer ID lookup failed, using fallback:", e);
         }
       }
 
+      alert("Calling createNode with sponsor: " + (useSponsorAddress ? sponsorAddress : effectiveSponsor));
       let nid = null;
       if (useSponsorAddress && sponsorAddress) {
         nid = await createNodeWithSponsorAddress(sponsorAddress, 1);
       } else {
         nid = await createNode(effectiveSponsor);
       }
+      alert("createNode result: " + nid);
 
       if (nid) {
         // Re-load node data to confirm activation
@@ -85,6 +90,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
         toast.success('Registration successful! 🚀');
       }
     } catch (err) {
+      alert("Caught error inside handleRegister: " + err.message + "\nStack: " + err.stack);
       toast.error(err?.message || 'Registration failed');
     }
     setIsLoading(false);
