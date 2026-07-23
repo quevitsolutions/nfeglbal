@@ -4,7 +4,7 @@ import {
   AIPCORE_ABI,
   AIPCORE_VIEWS_ABI,
   REWARDPOOL_ABI,
-} from "../../contracts/abi.js";
+} from "../config/abi.js";
 import { api } from "./api.js"; // zero-RPC post-tx DB confirm
 
 const MULTICALL_ABI = [

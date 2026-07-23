@@ -4,7 +4,7 @@ import { useGameStore } from '../store/gameStore.js';
 import { getEthersSigner } from '../utils/ethers-adapter.js';
 import { ethers } from 'ethers';
 import { config } from '../config/wagmi.js';
-import { AIPCORE_ABI } from '../../contracts/abi.js';
+import { AIPCORE_ABI } from '../config/abi.js';
 import { api } from '../services/api.js';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -104,7 +104,7 @@ export default function ContractsScreen() {
       // Auto-register in the Reward Pool
       if (newNodeId > 0) {
         try {
-          const { REWARDPOOL_ABI: rpAbi } = await import('../../contracts/abi.js');
+          const { REWARDPOOL_ABI: rpAbi } = await import('../config/abi.js');
           const pool = new ethers.Contract(CONTRACTS.REWARDPOOL, rpAbi, signer);
           await (await pool.registerNode(newNodeId)).wait();
         } catch (e) {

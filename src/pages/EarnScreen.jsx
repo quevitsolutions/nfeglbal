@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { getEthersSigner } from '../utils/ethers-adapter.js';
 import { ethers } from 'ethers';
 import { config } from '../config/wagmi.js';
-import { AIPCORE_ABI } from '../../contracts/abi.js';
+import { AIPCORE_ABI } from '../config/abi.js';
 import { CONTRACTS } from '../config/constants.js';
 import { openLink } from '../utils/openLink.js';
 import { useNativePrice, useNativeTokenSymbol } from '../hooks/useNativePrice.js';
