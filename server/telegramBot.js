@@ -69,6 +69,25 @@ export async function notifyUserByWallet(walletAddress, title, message, actionUr
 }
 
 /**
+ * Get user's referral token (Node ID, Wallet Address, or Telegram User ID)
+ */
+export function getUserReferralToken(telegramId) {
+  if (!telegramId) return '1';
+  const tidStr = String(telegramId);
+  const boundWallet = telegramToWalletMap.get(tidStr);
+
+  if (boundWallet) {
+    const binding = userTelegramBindings.get(boundWallet);
+    if (binding && binding.nodeId && Number(binding.nodeId) > 0) {
+      return String(binding.nodeId);
+    }
+    return boundWallet;
+  }
+
+  return tidStr;
+}
+
+/**
  * Handle incoming Telegram Webhook / Polling update
  */
 export async function handleTelegramUpdate(update) {
@@ -98,17 +117,18 @@ export async function handleTelegramUpdate(update) {
       await sendTelegramMessage(chatId, statsMsg, { reply_markup: keyboard });
     } else if (data === 'cmd_ref') {
       const userId = cb.from.id;
-      const refLink = `${APP_URL}/?ref=${userId}`;
-      const botRefLink = `https://t.me/${botUsername}?start=${userId}`;
+      const refToken = getUserReferralToken(userId);
+      const refLink = `${APP_URL}/?ref=${refToken}`;
+      const botRefLink = `https://t.me/${botUsername}?start=${refToken}`;
 
       const refMsg = `<b>🔗 Your AIPCore Referral Links</b>\n\n` +
-        `• Web Link: <code>${refLink}</code>\n` +
-        `• Bot Direct Link: <code>${botRefLink}</code>\n\n` +
+        `• Web Link:\n<code>${refLink}</code>\n\n` +
+        `• Telegram Bot Link:\n<code>${botRefLink}</code>\n\n` +
         `Share this link with your friends to build your 2x18 Matrix team!`;
 
       const keyboard = {
         inline_keyboard: [[
-          { text: '📤 Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=${encodeURIComponent('Join AIPCore FREE on BSC!')}` }
+          { text: '📤 Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=${encodeURIComponent('🚀 Join AIPCore FREE on BSC!')}` }
         ]]
       };
       await sendTelegramMessage(chatId, refMsg, { reply_markup: keyboard });
@@ -178,17 +198,18 @@ export async function handleTelegramUpdate(update) {
   }
 
   if (text.startsWith('/referral') || text.startsWith('/ref')) {
-    const refLink = `${APP_URL}/?ref=${user.id}`;
-    const botRefLink = `https://t.me/${botUsername}?start=${user.id}`;
+    const refToken = getUserReferralToken(user.id);
+    const refLink = `${APP_URL}/?ref=${refToken}`;
+    const botRefLink = `https://t.me/${botUsername}?start=${refToken}`;
 
     const refMsg = `<b>🔗 Your AIPCore Referral Links</b>\n\n` +
-      `• Web Link: <code>${refLink}</code>\n` +
-      `• Bot Direct Link: <code>${botRefLink}</code>\n\n` +
+      `• Web Link:\n<code>${refLink}</code>\n\n` +
+      `• Telegram Bot Link:\n<code>${botRefLink}</code>\n\n` +
       `Share this link with your friends. When they register, they lock into your 2x18 Matrix team!`;
 
     const keyboard = {
       inline_keyboard: [[
-        { text: '📤 Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=${encodeURIComponent('Join AIPCore FREE on BSC!')}` }
+        { text: '📤 Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=${encodeURIComponent('🚀 Join AIPCore FREE on BSC!')}` }
       ]]
     };
 

@@ -9,6 +9,7 @@ dotenv.config();
 import {
   initTelegramBotEngine,
   userTelegramBindings,
+  telegramToWalletMap,
   notifyUserByWallet,
   handleTelegramUpdate
 } from './telegramBot.js';
@@ -422,6 +423,10 @@ app.post('/api/telegram/bind', (req, res) => {
       nodeTier: nodeTier || 0,
       linkedAt: Date.now()
     });
+
+    if (telegramId) {
+      telegramToWalletMap.set(String(telegramId), key);
+    }
 
     log.info(`Telegram binding updated for ${key} -> TG ID: ${telegramId || 'WebApp'}`);
 

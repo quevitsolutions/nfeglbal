@@ -133,7 +133,7 @@ export default function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const urlRef = params.get('ref');
+    const urlRef = params.get('ref') || params.get('start') || params.get('startapp') || params.get('tgWebAppStartParam');
     const tgStartParam = getTelegramStartParam();
     const ref = urlRef || tgStartParam;
 
