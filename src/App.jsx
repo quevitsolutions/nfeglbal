@@ -7,6 +7,7 @@ import { shortAddr } from './utils/format.js';
 import { useContract, useWalletLifecycle } from './hooks/useContract.js';
 import { useChainEvents } from './hooks/useChainEvents.js';
 import LoginScreen from './components/LoginScreen.jsx';
+import { initTelegramApp, getTelegramStartParam } from './utils/telegram.js';
 import TopBar from './components/TopBar.jsx';
 import TabBar from './components/TabBar.jsx';
 import CoreHubScreen from './pages/CoreHubScreen.jsx';
@@ -88,14 +89,7 @@ export default function App() {
 
   // Initialize and expand Telegram WebApp if available
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      try {
-        window.Telegram.WebApp.ready();
-        window.Telegram.WebApp.expand();
-      } catch (e) {
-        console.error('Telegram WebApp init failed:', e);
-      }
-    }
+    initTelegramApp();
   }, []);
 
   // Popup logic for un-activated wallets (guest operators)
@@ -139,7 +133,10 @@ export default function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const ref = params.get('ref');
+    const urlRef = params.get('ref');
+    const tgStartParam = getTelegramStartParam();
+    const ref = urlRef || tgStartParam;
+
     // Accept both wallet addresses AND numeric Node IDs as referral tokens
     if (ref && /^(0x[a-fA-F0-9]{40}|\d+)$/i.test(ref)) {
       setReferrerId(ref);

@@ -4,8 +4,10 @@ import { useGameStore } from '../store/gameStore.js';
 import { useContract } from '../hooks/useContract.js';
 import { shortAddr } from '../utils/format.js';
 import { useNativePrice } from '../hooks/useNativePrice.js';
-import { Shield, Coins, Users, Award, ExternalLink, RefreshCw, Copy, Check } from 'lucide-react';
+import { Shield, Coins, Users, Award, ExternalLink, RefreshCw, Copy, Check, Bell, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
+import TelegramShareCard from '../components/TelegramShareCard.jsx';
+import TelegramBindModal from '../components/TelegramBindModal.jsx';
 
 export default function ProfileScreen() {
   const {
@@ -18,6 +20,7 @@ export default function ProfileScreen() {
   const nativePrice = useNativePrice();
   const [refreshing, setRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showTelegramModal, setShowTelegramModal] = useState(false);
 
   const usdValue = (bnb) => {
     const val = parseFloat(bnb || 0);
@@ -240,6 +243,51 @@ export default function ProfileScreen() {
           </div>
         ))}
       </div>
+
+      {/* Telegram Payout Alert Trigger Banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(0,136,204,0.12) 0%, rgba(0,168,255,0.06) 100%)',
+        border: '1px solid rgba(0, 136, 204, 0.3)',
+        borderRadius: '20px', padding: '16px 20px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        margin: '20px 0 16px', gap: '12px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: '42px', height: '42px', borderRadius: '12px',
+            background: 'linear-gradient(135deg, #0088cc, #00a8ff)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', boxShadow: '0 4px 12px rgba(0,136,204,0.3)'
+          }}>
+            <Bell size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 900, color: '#fff' }}>Telegram Payout Alerts</div>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginTop: '2px' }}>
+              Receive instant alerts on referral & matrix earnings
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowTelegramModal(true)}
+          style={{
+            background: '#0088cc', color: '#fff', border: 'none',
+            borderRadius: '12px', padding: '10px 16px',
+            fontSize: '12px', fontWeight: 900, cursor: 'pointer',
+            whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,136,204,0.3)'
+          }}
+        >
+          Manage Alerts
+        </button>
+      </div>
+
+      {/* Telegram Referral Sharing Card */}
+      <div style={{ marginTop: '16px' }}>
+        <TelegramShareCard userNodeId={nodeId} walletAddress={walletAddress} />
+      </div>
+
+      {/* Telegram Binding Modal */}
+      <TelegramBindModal isOpen={showTelegramModal} onClose={() => setShowTelegramModal(false)} />
 
       <style>{`
         @keyframes spin {

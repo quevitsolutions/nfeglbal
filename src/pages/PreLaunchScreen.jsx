@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Copy, Check, Users, Target, TrendingUp, Share2, Gift, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { useGameStore } from '../store/gameStore.js';
+import { shareOnTelegram, triggerHaptic } from '../utils/telegram.js';
 import { useContract } from '../hooks/useContract.js';
 import toast from 'react-hot-toast';
 import EbookModal from '../components/EbookModal.jsx';
@@ -422,10 +423,14 @@ export default function PreLaunchScreen() {
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', borderRadius: '14px', fontSize: '12px', fontWeight: 800, background: '#25D366', color: '#fff', textDecoration: 'none', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s', border: 'none' }}>
                 <span style={{ fontSize: '16px' }}>💬</span> WhatsApp
               </a>
-              <a href={`https://t.me/share/url?url=${shareUrl}&text=${shareText}`} target="_blank" rel="noreferrer"
+              <button
+                onClick={() => {
+                  triggerHaptic('medium');
+                  shareOnTelegram(inviteLink, promoText);
+                }}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', borderRadius: '14px', fontSize: '12px', fontWeight: 800, background: '#0088cc', color: '#fff', textDecoration: 'none', cursor: 'pointer', transition: 'transform 0.2s', border: 'none' }}>
                 <span style={{ fontSize: '16px' }}>✈️</span> Telegram
-              </a>
+              </button>
               <a href={`https://twitter.com/intent/tweet?text=${shareText}`} target="_blank" rel="noreferrer"
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', borderRadius: '14px', fontSize: '12px', fontWeight: 800, background: '#1DA1F2', color: '#fff', textDecoration: 'none', cursor: 'pointer', transition: 'transform 0.2s', border: 'none' }}>
                 <span style={{ fontSize: '16px' }}>🐦</span> Twitter / X

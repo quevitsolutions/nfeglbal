@@ -6,6 +6,13 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+import {
+  initTelegramBotEngine,
+  userTelegramBindings,
+  notifyUserByWallet,
+  handleTelegramUpdate
+} from './telegramBot.js';
+
 // ── COLORFUL CONSOLE THEME CONSTANTS ──────────────────────────────────────
 const F_CYAN = "\x1b[36m";
 const F_PURPLE = "\x1b[35m";
@@ -145,6 +152,31 @@ function broadcastEvent(type, payload) {
   sseClients.forEach(res => {
     try { res.write(msg); } catch { sseClients.delete(res); }
   });
+
+  // Dispatch real-time Telegram push alerts if user linked their account
+  try {
+    if (type === 'NodeCreated' && payload.node) {
+      notifyUserByWallet(
+        payload.node,
+        '🎉 AIPCore Node Registered!',
+        `Your AIPCore Node #${payload.userId || ''} has been registered on Binance Smart Chain!`
+      ).catch(() => {});
+    } else if (type === 'TierUnlocked' && payload.node) {
+      notifyUserByWallet(
+        payload.node,
+        '🚀 Tier Upgrade Confirmed!',
+        `Your node has upgraded to Tier ${payload.packageId || payload.tier || ''}.`
+      ).catch(() => {});
+    } else if (type === 'RewardDistributed' && payload.wallet) {
+      notifyUserByWallet(
+        payload.wallet,
+        '💰 Reward Income Received!',
+        `You received a commission payout of ${payload.amount ? parseFloat(ethers.formatEther(payload.amount)).toFixed(4) : '0'} BNB!`
+      ).catch(() => {});
+    }
+  } catch (e) {
+    // Ignore notification dispatch errors
+  }
 }
 
 // Memory cache for recent activities
@@ -369,6 +401,92 @@ app.get('/api/stats/live', async (req, res) => {
 // GET /api/activity/recent
 app.get('/api/activity/recent', (req, res) => {
   res.json({ activity: recentActivities });
+});
+
+// ── TELEGRAM API ROUTES ──
+
+// POST /api/telegram/bind — Link wallet address & Node ID to Telegram User
+app.post('/api/telegram/bind', (req, res) => {
+  try {
+    const { walletAddress, nodeId, telegramId, username, nodeTier } = req.body;
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'walletAddress is required' });
+    }
+
+    const key = walletAddress.toLowerCase();
+    userTelegramBindings.set(key, {
+      walletAddress: key,
+      nodeId: nodeId || 0,
+      telegramId: telegramId || null,
+      username: username || null,
+      nodeTier: nodeTier || 0,
+      linkedAt: Date.now()
+    });
+
+    log.info(`Telegram binding updated for ${key} -> TG ID: ${telegramId || 'WebApp'}`);
+
+    res.json({
+      success: true,
+      message: 'Telegram notifications activated!',
+      binding: userTelegramBindings.get(key)
+    });
+  } catch (err) {
+    log.error('/api/telegram/bind error: ' + err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/telegram/status/:walletAddress — Check Telegram notification status
+app.get('/api/telegram/status/:walletAddress', (req, res) => {
+  try {
+    const wallet = (req.params.walletAddress || '').toLowerCase();
+    const binding = userTelegramBindings.get(wallet);
+
+    res.json({
+      success: true,
+      linked: !!binding,
+      telegramId: binding?.telegramId || null,
+      username: binding?.username || null,
+      linkedAt: binding?.linkedAt || null
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/telegram/notify-test — Send test notification to linked user
+app.post('/api/telegram/notify-test', async (req, res) => {
+  try {
+    const { walletAddress } = req.body;
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'walletAddress is required' });
+    }
+
+    const result = await notifyUserByWallet(
+      walletAddress,
+      '🔔 Test Notification',
+      'Your Telegram alert integration with AIPCore is active and working properly!'
+    );
+
+    res.json({
+      success: true,
+      result
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/telegram/webhook — Incoming webhook updates from Telegram Bot API
+app.post('/api/telegram/webhook', async (req, res) => {
+  try {
+    const update = req.body;
+    await handleTelegramUpdate(update);
+    res.json({ ok: true });
+  } catch (err) {
+    log.error('Telegram webhook error: ' + err.message);
+    res.status(200).json({ ok: true }); // Always return 200 OK to Telegram
+  }
 });
 
 // GET /api/users/profile/:walletAddress
@@ -752,4 +870,5 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
   printStartupDashboard();
+  initTelegramBotEngine().catch(e => log.error('Telegram bot init error: ' + e.message));
 });

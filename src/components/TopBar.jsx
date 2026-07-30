@@ -5,6 +5,7 @@ import { useNativePrice } from '../hooks/useNativePrice.js';
 import { useChainId, useSwitchChain } from 'wagmi';
 import { bscTestnet } from 'wagmi/chains';
 import { BSC_CHAIN_ID } from '../config/constants.js';
+import { isTelegramMiniApp } from '../utils/telegram.js';
 
 export default function TopBar() {
   const { walletAddress, isConnected, nodeId, nodeTier, nodeActive, bnbBalance, setActiveTab, hasNode, isFreeActive } = useGameStore();
@@ -105,6 +106,19 @@ export default function TopBar() {
 
         {/* ─ Center/Right: BNB balance or network chip ─ */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* Telegram Mini App Chip */}
+          {isTelegramMiniApp() && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              background: 'rgba(0,136,204,0.12)',
+              border: '1px solid rgba(0,136,204,0.3)',
+              borderRadius: 8, padding: '3px 8px',
+            }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#0088cc', display: 'inline-block', boxShadow: '0 0 5px #0088cc' }} />
+              <span style={{ fontSize: 8, fontWeight: 900, color: '#0088cc', letterSpacing: 0.5 }}>TG APP</span>
+            </div>
+          )}
+
           {/* Network chip */}
           {isConnected && !isWrongNetwork && (
             <div style={{
