@@ -2,12 +2,16 @@ import axios from 'axios';
 
 /**
  * AIPCore Telegram Bot Service Engine
- * Native Bot API integration for Telegram Mini App & Notification Engine
+ * Native Bot API integration for Telegram Mini App, Webhook / Polling & Notification Engine
  */
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const APP_URL = process.env.APP_URL || 'https://aipcore.online';
+
+let botUsername = 'aipcore_bot';
+let pollingOffset = 0;
+let isPollingActive = false;
 
 // In-memory store for linked Telegram users
 // Map<walletAddressLower, { telegramId, username, chatId, linkedAt }>
@@ -65,10 +69,55 @@ export async function notifyUserByWallet(walletAddress, title, message, actionUr
 }
 
 /**
- * Handle incoming Telegram Webhook / Message update
+ * Handle incoming Telegram Webhook / Polling update
  */
 export async function handleTelegramUpdate(update) {
-  if (!update || !update.message) return;
+  if (!update) return;
+
+  // Handle Callback Queries (inline button clicks)
+  if (update.callback_query) {
+    const cb = update.callback_query;
+    const chatId = cb.message.chat.id;
+    const data = cb.data;
+
+    // Answer callback query so button stops loading spinner
+    axios.post(`${API_BASE}/answerCallbackQuery`, { callback_query_id: cb.id }).catch(() => {});
+
+    if (data === 'cmd_stats') {
+      const statsMsg = `<b>📊 AIPCore Global Network Stats</b>\n\n` +
+        `• Network Chain: <b>BNB Smart Chain (BSC)</b>\n` +
+        `• Core Contract: <code>0xE82239361FBE54731CFF90D8c2036a33743fFd4d</code>\n` +
+        `• Distribution: <b>100% Community-Driven</b>\n\n` +
+        `Launch the Mini App for real-time node metrics!`;
+
+      const keyboard = {
+        inline_keyboard: [[
+          { text: '🎮 Open Dashboard', web_app: { url: APP_URL } }
+        ]]
+      };
+      await sendTelegramMessage(chatId, statsMsg, { reply_markup: keyboard });
+    } else if (data === 'cmd_ref') {
+      const userId = cb.from.id;
+      const refLink = `${APP_URL}/?ref=${userId}`;
+      const botRefLink = `https://t.me/${botUsername}?start=${userId}`;
+
+      const refMsg = `<b>🔗 Your AIPCore Referral Links</b>\n\n` +
+        `• Web Link: <code>${refLink}</code>\n` +
+        `• Bot Direct Link: <code>${botRefLink}</code>\n\n` +
+        `Share this link with your friends to build your 2x18 Matrix team!`;
+
+      const keyboard = {
+        inline_keyboard: [[
+          { text: '📤 Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(botRefLink)}&text=${encodeURIComponent('Join AIPCore FREE on BSC!')}` }
+        ]]
+      };
+      await sendTelegramMessage(chatId, refMsg, { reply_markup: keyboard });
+    }
+    return;
+  }
+
+  // Handle text messages & commands
+  if (!update.message) return;
 
   const msg = update.message;
   const chatId = msg.chat.id;
@@ -130,7 +179,7 @@ export async function handleTelegramUpdate(update) {
 
   if (text.startsWith('/referral') || text.startsWith('/ref')) {
     const refLink = `${APP_URL}/?ref=${user.id}`;
-    const botRefLink = `https://t.me/AIPCoreBot?start=${user.id}`;
+    const botRefLink = `https://t.me/${botUsername}?start=${user.id}`;
 
     const refMsg = `<b>🔗 Your AIPCore Referral Links</b>\n\n` +
       `• Web Link: <code>${refLink}</code>\n` +
@@ -157,10 +206,52 @@ export async function handleTelegramUpdate(update) {
     await sendTelegramMessage(chatId, helpMsg);
     return;
   }
+
+  // Default fallback for any other message
+  const defaultMsg = `🤖 Welcome to <b>AIPCore Network Bot</b>!\n\n` +
+    `Use the options below or tap <b>Launch AIPCore App</b> to access your dashboard.`;
+
+  const defaultKeyboard = {
+    inline_keyboard: [[
+      { text: '🚀 Launch AIPCore App', web_app: { url: APP_URL } }
+    ]]
+  };
+
+  await sendTelegramMessage(chatId, defaultMsg, { reply_markup: defaultKeyboard });
 }
 
 /**
- * Initialize Webhook or Polling if Bot Token exists
+ * Long-polling loop fallback if Webhook is not used
+ */
+async function startPollingLoop() {
+  if (isPollingActive || !BOT_TOKEN) return;
+  isPollingActive = true;
+  console.log(' [TELEGRAM BOT] Starting Long-Polling fallback engine...');
+
+  while (isPollingActive) {
+    try {
+      const res = await axios.get(`${API_BASE}/getUpdates`, {
+        params: { offset: pollingOffset, timeout: 20 },
+        timeout: 25000
+      });
+
+      if (res.data?.ok && Array.isArray(res.data.result)) {
+        for (const update of res.data.result) {
+          pollingOffset = update.update_id + 1;
+          handleTelegramUpdate(update).catch(err => {
+            console.error('[Telegram Update Error]:', err.message);
+          });
+        }
+      }
+    } catch (err) {
+      // If polling encounters temporary network timeout, wait 3 seconds and retry
+      await new Promise(r => setTimeout(r, 3000));
+    }
+  }
+}
+
+/**
+ * Initialize Webhook or Polling Engine
  */
 export async function initTelegramBotEngine() {
   if (!BOT_TOKEN) {
@@ -171,7 +262,26 @@ export async function initTelegramBotEngine() {
   try {
     const me = await axios.get(`${API_BASE}/getMe`);
     if (me.data?.ok) {
-      console.log(` [TELEGRAM BOT] Bot Online: @${me.data.result.username} (${me.data.result.first_name})`);
+      botUsername = me.data.result.username || 'aipcore_bot';
+      console.log(` [TELEGRAM BOT] Bot Online: @${botUsername} (${me.data.result.first_name})`);
+
+      // 1. Try to register Telegram Webhook to HTTPS domain
+      const webhookUrl = `${APP_URL}/api/telegram/webhook`;
+      try {
+        const setWhRes = await axios.post(`${API_BASE}/setWebhook`, {
+          url: webhookUrl,
+          allowed_updates: ['message', 'callback_query']
+        });
+        if (setWhRes.data?.ok) {
+          console.log(` [TELEGRAM BOT] Webhook registered successfully: ${webhookUrl}`);
+          return; // Webhook registered! No need for polling.
+        }
+      } catch (whErr) {
+        console.warn(' [TELEGRAM BOT] Webhook setup failed, falling back to Long-Polling:', whErr.message);
+      }
+
+      // 2. If Webhook setup failed, use Long Polling as robust fallback
+      startPollingLoop();
     }
   } catch (e) {
     console.warn(' [TELEGRAM BOT] Initialization check failed:', e.message);
