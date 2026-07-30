@@ -225,40 +225,61 @@ export default function TelegramBindModal({ isOpen, onClose }) {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <button
-                onClick={handleBind}
-                disabled={isBinding}
-                style={{
-                  width: '100%',
-                  background: 'linear-gradient(135deg, #0088cc 0%, #00a8ff 100%)',
-                  color: '#fff', border: 'none', borderRadius: '14px',
-                  padding: '14px', fontSize: '14px', fontWeight: 900,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                  cursor: 'pointer', boxShadow: '0 4px 20px rgba(0, 136, 204, 0.4)',
-                  opacity: isBinding ? 0.7 : 1
-                }}
-              >
-                {isBinding ? (
-                  <> <RefreshCw size={16} className="spin" /> Linking Account... </>
-                ) : (
-                  <> <Bell size={16} /> Activate Telegram Alerts </>
-                )}
-              </button>
-
-              <button
-                onClick={() => openTelegramBot('AIPCoreBot', nodeId ? String(nodeId) : walletAddress)}
-                style={{
-                  width: '100%',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  color: '#fff',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  borderRadius: '14px', padding: '12px', fontSize: '12px', fontWeight: 800,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                  cursor: 'pointer'
-                }}
-              >
-                Launch @AIPCoreBot Directly <ExternalLink size={14} />
-              </button>
+              {/* If inside Telegram Mini App, bind via API directly */}
+              {isTelegramMiniApp() ? (
+                <button
+                  onClick={handleBind}
+                  disabled={isBinding}
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(135deg, #0088cc 0%, #00a8ff 100%)',
+                    color: '#fff', border: 'none', borderRadius: '14px',
+                    padding: '14px', fontSize: '14px', fontWeight: 900,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    cursor: 'pointer', boxShadow: '0 4px 20px rgba(0, 136, 204, 0.4)',
+                    opacity: isBinding ? 0.7 : 1
+                  }}
+                >
+                  {isBinding ? (
+                    <> <RefreshCw size={16} className="spin" /> Linking Account... </>
+                  ) : (
+                    <> <Bell size={16} /> Activate Telegram Alerts </>
+                  )}
+                </button>
+              ) : (
+                <>
+                  {/* Outside Telegram: open bot with bind deep-link */}
+                  <div style={{
+                    background: 'rgba(0,136,204,0.08)',
+                    border: '1px solid rgba(0,136,204,0.2)',
+                    borderRadius: '14px', padding: '14px',
+                    fontSize: '12px', color: 'rgba(255,255,255,0.7)',
+                    lineHeight: 1.6, marginBottom: '4px'
+                  }}>
+                    <strong style={{ color: '#0088cc' }}>How to Link:</strong><br/>
+                    1. Tap the button below to open <b>@aipcore_bot</b> on Telegram<br/>
+                    2. The bot will automatically link your wallet<br/>
+                    3. You'll receive a confirmation message instantly
+                  </div>
+                  <button
+                    onClick={() => {
+                      triggerHaptic('medium');
+                      const bindParam = `bind_${walletAddress}`;
+                      openTelegramBot('aipcore_bot', bindParam);
+                    }}
+                    style={{
+                      width: '100%',
+                      background: 'linear-gradient(135deg, #0088cc 0%, #00a8ff 100%)',
+                      color: '#fff', border: 'none', borderRadius: '14px',
+                      padding: '14px', fontSize: '14px', fontWeight: 900,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      cursor: 'pointer', boxShadow: '0 4px 20px rgba(0, 136, 204, 0.4)'
+                    }}
+                  >
+                    <Send size={16} /> Open @aipcore_bot to Link
+                  </button>
+                </>
+              )}
             </div>
           )}
         </motion.div>

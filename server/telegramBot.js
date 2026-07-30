@@ -144,10 +144,48 @@ export async function handleTelegramUpdate(update) {
   const text = (msg.text || '').trim();
   const user = msg.from;
 
-  if (text.startsWith('/start')) {
+  if (text.startsWith('/start') || text.startsWith('/bind')) {
     const parts = text.split(' ');
-    const startParam = parts.length > 1 ? parts[1] : '';
+    const param = parts.length > 1 ? parts[1] : '';
 
+    // Handle account binding deep-link: /start bind_0x... or /bind 0x...
+    let targetWallet = '';
+    if (param.toLowerCase().startsWith('bind_')) {
+      targetWallet = param.slice(5).trim();
+    } else if (text.startsWith('/bind') && param) {
+      targetWallet = param.trim();
+    }
+
+    if (targetWallet && /^(0x[a-fA-F0-9]{40})$/i.test(targetWallet)) {
+      const key = targetWallet.toLowerCase();
+      userTelegramBindings.set(key, {
+        walletAddress: key,
+        nodeId: 0,
+        telegramId: user.id,
+        username: user.username || user.first_name || '',
+        nodeTier: 0,
+        linkedAt: Date.now()
+      });
+      telegramToWalletMap.set(String(user.id), key);
+
+      console.log(`[Telegram Bot] Wallet ${key} successfully bound to Telegram User ID ${user.id} (@${user.username})`);
+
+      const boundMsg = `<b>🎉 Telegram Income Alerts Activated!</b>\n\n` +
+        `Your Telegram account <b>@${user.username || user.first_name || user.id}</b> is now linked to wallet:\n` +
+        `<code>${targetWallet}</code>\n\n` +
+        `🔔 You will now receive instant push alerts whenever you earn referral commissions, matrix payouts, or tier upgrades!`;
+
+      const keyboard = {
+        inline_keyboard: [[
+          { text: '🎮 Open AIPCore App', web_app: { url: APP_URL } }
+        ]]
+      };
+
+      await sendTelegramMessage(chatId, boundMsg, { reply_markup: keyboard });
+      return;
+    }
+
+    const startParam = param;
     const webAppUrl = startParam ? `${APP_URL}/?ref=${startParam}` : APP_URL;
 
     const welcomeMsg = `<b>🚀 Welcome to AIPCore Node Network!</b>\n\n` +
