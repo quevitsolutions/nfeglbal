@@ -191,7 +191,7 @@ export async function handleTelegramUpdate(update) {
     const welcomeMsg = `<b>🚀 Welcome to AIPCore Node Network!</b>\n\n` +
       `AIPCore is a 100% decentralized, node-driven passive income protocol on Binance Smart Chain (BSC).\n\n` +
       `✨ <b>Key Features:</b>\n` +
-      `• Join FREE ($0 entry cost)\n` +
+      `• Low Entry Cost (~$1 USD)\n` +
       `• 18 Upgrade Tiers ($5 to $327,680)\n` +
       `• 2x18 Binary Forced Matrix (70% payout)\n` +
       `• Direct Referral (10%) & 10-Layer Income (15%)\n` +

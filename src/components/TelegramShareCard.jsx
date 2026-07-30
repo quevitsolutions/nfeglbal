@@ -8,13 +8,13 @@ const PROMO_TEMPLATES = [
     id: 'english',
     label: '🇬🇧 English',
     title: '🚀 Earn Passive BNB on BSC',
-    text: `🚀 AIPCore Pre-Launch is LIVE on Binance Smart Chain!\n\n✨ Join FREE today ($0 entry)\n✨ Passive BNB mining & 2x18 Matrix\n✨ 100% On-Chain Community Distribution\n\nSecure your position now before paid tiers start: `
+    text: `🚀 AIPCore Pre-Launch is LIVE on Binance Smart Chain!\n\n✨ Join today (~$1 entry fee)\n✨ Passive BNB mining & 2x18 Matrix\n✨ 100% On-Chain Community Distribution\n\nSecure your position now: `
   },
   {
     id: 'spanish',
     label: '🇪🇸 Español',
     title: '🚀 Gana BNB Pasivo en BSC',
-    text: `🚀 ¡El Pre-Lanzamiento de AIPCore está EN VIVO en Binance Smart Chain!\n\n✨ Únete GRATIS hoy (Entrada $0)\n✨ Minería pasiva de BNB y Matriz 2x18\n✨ Distribución 100% en la cadena\n\nAsegura tu posición ahora antes de que comiencen los niveles de pago: `
+    text: `🚀 ¡El Pre-Lanzamiento de AIPCore está EN VIVO en Binance Smart Chain!\n\n✨ Únete hoy (Tarifa de entrada ~$1)\n✨ Minería pasiva de BNB y Matriz 2x18\n✨ Distribución 100% en la cadena\n\nAsegura tu posición ahora: `
   },
   {
     id: 'russian',

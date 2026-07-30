@@ -18,6 +18,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
   const [sponsorInput, setSponsorInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [tier1Cost, setTier1Cost] = useState('0.050');
+  const [regFee, setRegFee] = useState('0');
   const [showSuccess, setShowSuccess] = useState(false);
 
   // Pre-fill sponsor input from URL referrerId
@@ -28,20 +29,25 @@ export default function RegistrationModal({ isOpen, onClose }) {
     }
   }, []);
 
-  // Fetch Tier 1 cost dynamically
+  // Fetch Registration Fee & Tier 1 cost dynamically
   useEffect(() => {
-    const fetchTierCost = async () => {
+    const fetchCosts = async () => {
       try {
-        const costsRaw = await blockchain.core.getTierCosts().catch(() => null);
+        const core = blockchain.core;
+        const fee = await core.getRegistrationFee().catch(() => 0n);
+        if (fee > 0n) {
+          setRegFee(ethers.formatEther(fee));
+        }
+        const costsRaw = await core.getTierCosts().catch(() => null);
         if (costsRaw && costsRaw.length > 0) {
           setTier1Cost(ethers.formatEther(costsRaw[0]));
         }
       } catch (e) {
-        console.warn("Failed to fetch Tier 1 cost, using fallback:", e);
+        console.warn("Failed to fetch costs, using fallback:", e);
       }
     };
     if (isConnected) {
-      fetchTierCost();
+      fetchCosts();
     }
   }, [isConnected]);
 
@@ -146,7 +152,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
                 Activate Your Node
               </h2>
               <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', lineHeight: 1.5, marginBottom: '20px' }}>
-                Register your account on-chain to unlock matrix earnings, matrix spillover, and global pools.
+                Register your account on-chain for just ~$1 to unlock matrix earnings, matrix spillover, and global pools.
               </p>
 
               {/* Sponsor Input Form */}
@@ -200,9 +206,9 @@ export default function RegistrationModal({ isOpen, onClose }) {
               }}>
                 <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', fontWeight: 700 }}>REGISTRATION COST</span>
                 <span style={{ fontSize: '13px', fontWeight: 900, color: '#A3FF12' }}>
-                  0.000 BNB
+                  {parseFloat(regFee) > 0 ? `${parseFloat(regFee).toFixed(4)} BNB` : '0.000 BNB'}
                   <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', marginLeft: '4px', fontWeight: 700 }}>
-                    (FREE)
+                    {parseFloat(regFee) > 0 && nativePrice > 0 ? `(≈ $${(parseFloat(regFee) * nativePrice).toFixed(2)})` : '(~$1)'}
                   </span>
                 </span>
               </div>
@@ -229,7 +235,7 @@ export default function RegistrationModal({ isOpen, onClose }) {
                   boxShadow: '0 4px 12px rgba(163,255,18,0.1)'
                 }}
               >
-                {isLoading ? 'Activating Node...' : 'Activate Tier 0 Node'}
+                {isLoading ? 'Activating Node...' : 'Activate Node (~$1)'}
                 {!isLoading && <ArrowRight size={15} />}
               </button>
 

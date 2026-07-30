@@ -289,9 +289,9 @@ export default function UpgradeScreen() {
 
             <button className="giant-btn" onClick={handleRegister} disabled={isLoading}
               style={{ background: 'var(--neon-lime)', color: '#000', width: '100%', height: 'auto', padding: '14px 20px', borderRadius: 16, letterSpacing: 0.5, display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontSize: 15, fontWeight: 900 }}>ACTIVATE TIER 0 NODE</span>
+              <span style={{ fontSize: 15, fontWeight: 900 }}>ACTIVATE NODE (~$1)</span>
               <span style={{ fontSize: 12, fontWeight: 800, opacity: 0.85 }}>
-                0.000 {nativeSymbol} <span style={{ marginLeft: 6 }}>(FREE)</span>
+                ~$1 Registration Fee (On-Chain)
               </span>
             </button>
           </motion.div>
