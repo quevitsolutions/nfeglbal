@@ -4,8 +4,8 @@ FROM nginx:alpine
 # Copy pre-built static build artifacts to nginx public folder
 COPY dist /usr/share/nginx/html
 
-# Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy custom nginx configuration tailored for AWS / nfengine.online
+COPY nginx.aws.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
