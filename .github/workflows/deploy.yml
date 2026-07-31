@@ -96,3 +96,34 @@ jobs:
 
       - name: Validate Marketing Dockerfile
         run: docker build --dry-run -f marketing-portal/Dockerfile ./marketing-portal
+
+  deploy-simultaneous-vps-and-aws:
+    needs: [deploy-docker-check]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Primary VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST || '86.107.77.240' }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /root/aipcore
+            git pull origin main
+            docker compose up -d --build
+
+      - name: Deploy to AWS EC2 Instance
+        uses: appleboy/ssh-action@v1.0.3
+        continue-on-error: true
+        with:
+          host: ${{ secrets.AWS_EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.AWS_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/aipcore
+            git pull origin main
+            docker compose -f docker-compose.aws.yml --env-file .env.aws up -d --build
