@@ -56,7 +56,9 @@ services:
       aws-redis:
         condition: service_healthy
     networks:
-      - aws_network
+      aws_network:
+        aliases:
+          - api
     restart: always
     logging:
       driver: "json-file"
