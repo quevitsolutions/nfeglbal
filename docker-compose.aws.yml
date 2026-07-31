@@ -10,11 +10,7 @@ services:
   aws-app:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        - VITE_API_URL=${APP_URL}
-        - VITE_BSC_MAINNET_RPC=${VITE_BSC_MAINNET_RPC}
-        - VITE_ADMIN_WALLET=${VITE_ADMIN_WALLET}
+      dockerfile: Dockerfile.aws
     container_name: aipcore-aws-frontend
     ports:
       - "80:80"
