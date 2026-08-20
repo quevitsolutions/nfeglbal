@@ -87,10 +87,14 @@ export default function App() {
 
 
 
-  // Initialize and expand Telegram WebApp if available
+  const theme = useGameStore(s => s.theme);
+
+  // Initialize and expand Telegram WebApp if available + Sync theme
   useEffect(() => {
     initTelegramApp();
-  }, []);
+    const currentTheme = localStorage.getItem('aipcore_theme') || theme || 'dark';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+  }, [theme]);
 
   // Popup logic for un-activated wallets (guest operators)
   useEffect(() => {

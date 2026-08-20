@@ -22,6 +22,65 @@
   --topbar-h:    60px;
   --tabbar-h:    80px;
   --content-max: 800px;
+  --border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ═══════════════════════════════════════════
+   DAY MODE (LIGHT THEME) OVERRIDES
+═══════════════════════════════════════════ */
+[data-theme="light"] {
+  --bg-dark:     #f4f6fc;
+  --bg-card:     rgba(255, 255, 255, 0.92);
+  --text-white:  #0f172a;
+  --text-dim:    #475569;
+  --bg-glass:    rgba(255, 255, 255, 0.94);
+  --border-color: rgba(15, 23, 42, 0.1);
+  --neon-glow:   0 0 25px rgba(0, 180, 216, 0.2);
+}
+
+[data-theme="light"] body {
+  background: #f4f6fc !important;
+  color: #0f172a !important;
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(0, 180, 216, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 85% 85%, rgba(161, 44, 255, 0.05) 0%, transparent 50%),
+    linear-gradient(rgba(15, 23, 42, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.02) 1px, transparent 1px) !important;
+}
+
+[data-theme="light"] .top-bar-fixed {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-bottom-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .desktop-sidebar {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-right-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+[data-theme="light"] .sidebar-item {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .sidebar-item:hover,
+[data-theme="light"] .sidebar-item.active {
+  color: #0f172a !important;
+  background: rgba(0, 180, 216, 0.1) !important;
+}
+
+[data-theme="light"] .tab-bar-nav {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-top-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+[data-theme="light"] .glass-panel,
+[data-theme="light"] .tma-card,
+[data-theme="light"] .step-card,
+[data-theme="light"] .stat-card-viral {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04) !important;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

@@ -13,7 +13,8 @@ export default function ProfileScreen() {
   const {
     walletAddress, nodeId, nodeTier, hasNode,
     teamSize, directRefs, bnbBalance,
-    withdrawableBalance, upgradeVaultBalance, totalEarned
+    withdrawableBalance, upgradeVaultBalance, totalEarned,
+    theme, toggleTheme
   } = useGameStore();
 
   const { loadNodeData } = useContract();
@@ -274,10 +275,49 @@ export default function ProfileScreen() {
             background: '#0088cc', color: '#fff', border: 'none',
             borderRadius: '12px', padding: '10px 16px',
             fontSize: '12px', fontWeight: 900, cursor: 'pointer',
-            whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,136,204,0.3)'
           }}
         >
           Manage Alerts
+        </button>
+      </div>
+
+      {/* Day / Night Theme Switcher Card */}
+      <div style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '20px', padding: '16px 20px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        margin: '16px 0', gap: '12px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: '42px', height: '42px', borderRadius: '12px',
+            background: theme === 'light' ? 'rgba(255, 184, 0, 0.15)' : 'rgba(0, 242, 254, 0.12)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '22px'
+          }}>
+            {theme === 'light' ? '☀️' : '🌙'}
+          </div>
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 900, color: 'var(--text-white)' }}>
+              {theme === 'light' ? 'Day Mode (Light Theme)' : 'Night Mode (Dark Theme)'}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
+              Toggle color theme for daylight or night viewing
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={toggleTheme}
+          style={{
+            background: theme === 'light' ? 'linear-gradient(135deg, #FFB800, #FFC72C)' : 'linear-gradient(135deg, #00F2FE, #4FC3F7)',
+            color: '#000', border: 'none',
+            borderRadius: '12px', padding: '10px 16px',
+            fontSize: '12px', fontWeight: 900, cursor: 'pointer',
+            whiteSpace: 'nowrap', boxShadow: theme === 'light' ? '0 4px 12px rgba(255,184,0,0.3)' : '0 4px 12px rgba(0,242,254,0.3)'
+          }}
+        >
+          {theme === 'light' ? 'Night 🌙' : 'Day ☀️'}
         </button>
       </div>
 

@@ -116,9 +116,27 @@ export const useGameStore = create(
         totalEarned: 0,
       },
 
-      // UI
+      // UI & Theme
       activeTab: "prelaunch",
       showUpgradePopup: false,
+      theme: typeof window !== 'undefined' && localStorage.getItem('aipcore_theme') ? localStorage.getItem('aipcore_theme') : 'dark',
+
+      toggleTheme: () => {
+        const currentTheme = get().theme || 'dark';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('aipcore_theme', newTheme);
+          document.documentElement.setAttribute('data-theme', newTheme);
+        }
+        set({ theme: newTheme });
+      },
+      setTheme: (newTheme) => {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('aipcore_theme', newTheme);
+          document.documentElement.setAttribute('data-theme', newTheme);
+        }
+        set({ theme: newTheme });
+      },
 
       // Referral
       referrerId: null,

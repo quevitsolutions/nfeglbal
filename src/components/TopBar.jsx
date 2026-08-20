@@ -8,7 +8,7 @@ import { BSC_CHAIN_ID } from '../config/constants.js';
 import { isTelegramMiniApp } from '../utils/telegram.js';
 
 export default function TopBar() {
-  const { walletAddress, isConnected, nodeId, nodeTier, nodeActive, bnbBalance, setActiveTab, hasNode, isFreeActive } = useGameStore();
+  const { walletAddress, isConnected, nodeId, nodeTier, nodeActive, bnbBalance, setActiveTab, hasNode, isFreeActive, theme, toggleTheme } = useGameStore();
   const { loadNodeData } = useContract();
   const nativePrice = useNativePrice();
   const bnbUsd = nativePrice > 0 ? `≈ $${(parseFloat(bnbBalance || 0) * nativePrice).toFixed(2)}` : null;
@@ -152,8 +152,25 @@ export default function TopBar() {
           )}
         </div>
 
-        {/* ─ Right: Connect/Disconnect Wallet ─ */}
+        {/* ─ Right: Theme Switcher & Connect/Disconnect Wallet ─ */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {/* Day / Night Mode Toggle */}
+          <button
+            onClick={toggleTheme}
+            title={theme === 'light' ? 'Switch to Night Mode (Dark)' : 'Switch to Day Mode (Light)'}
+            style={{
+              background: theme === 'light' ? 'rgba(255, 184, 0, 0.15)' : 'rgba(255,255,255,0.06)',
+              border: theme === 'light' ? '1px solid rgba(255, 184, 0, 0.35)' : '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 10, width: 32, height: 32,
+              color: theme === 'light' ? '#FFB800' : '#A3FF12',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 15, transition: 'all 0.2s ease',
+              boxShadow: theme === 'light' ? '0 0 10px rgba(255,184,0,0.2)' : 'none'
+            }}
+          >
+            <span>{theme === 'light' ? '☀️' : '🌙'}</span>
+          </button>
+
           {isConnected && (
             <button
               onClick={async (e) => {
