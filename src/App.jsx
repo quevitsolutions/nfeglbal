@@ -35,9 +35,10 @@ const NAV_ITEMS = [
 
 function DesktopSidebar({ activeTab, setActiveTab, nodeId, nodeTier }) {
   const tabs = [...NAV_ITEMS, { id: 'admin', icon: '⚡', label: 'Master Admin' }];
+  const { theme, toggleTheme } = useGameStore();
 
   return (
-    <aside className="desktop-sidebar">
+    <aside className="desktop-sidebar" style={{ display: 'flex', flexDirection: 'column' }}>
       <div className="sidebar-logo">
         <div style={{ width: 32, height: 32, background: 'var(--neon-lime)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: '#000' }}>A</div>
         <div>
@@ -46,13 +47,33 @@ function DesktopSidebar({ activeTab, setActiveTab, nodeId, nodeTier }) {
         </div>
       </div>
 
-      {tabs.map(item => (
-        <button key={item.id} className={`sidebar-item ${activeTab === item.id ? 'active' : ''}`}
-          onClick={() => setActiveTab(item.id)}>
-          <span className="sidebar-icon">{item.icon}</span>
-          <span>{item.label}</span>
-        </button>
-      ))}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {tabs.map(item => (
+          <button key={item.id} className={`sidebar-item ${activeTab === item.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(item.id)}>
+            <span className="sidebar-icon">{item.icon}</span>
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Theme Switcher Toggle in Sidebar */}
+      <button
+        onClick={toggleTheme}
+        className="sidebar-item"
+        style={{
+          marginTop: 'auto',
+          background: theme === 'light' ? 'rgba(255, 184, 0, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+          border: theme === 'light' ? '1px solid rgba(255, 184, 0, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: 12,
+          padding: '10px 14px',
+          color: theme === 'light' ? '#FFB800' : 'var(--text-white)',
+          cursor: 'pointer'
+        }}
+      >
+        <span className="sidebar-icon">{theme === 'light' ? '☀️' : '🌙'}</span>
+        <span>{theme === 'light' ? 'Day Mode' : 'Night Mode'}</span>
+      </button>
     </aside>
   );
 }
